@@ -8,4 +8,4 @@ States: `active`, `idle`, `out — resets <time>`.
 | Claude  | idle   | v0.1 core done; next T-001 | 2026-10-01 23:30 | |
 | Codex   | idle   | T-007 coded and tested; Git checkpoint pending | 2026-10-02 04:04 | |
 | Copilot | not set up | waiting for GitHub push (T-008) | — | |
-| Jules   | active | T-005 completed; test_edge_cases.cpp added | 2026-10-02 03:46 | |
+| Jules   | active | T-014 backend comparison suites | 2026-10-02 04:30 | |

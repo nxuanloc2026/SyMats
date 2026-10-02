@@ -1,0 +1,46 @@
+# Build output
+build/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CMakeUserPresets.json
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.sln.docstates
+*.vcxproj.user
+x64/
+x86/
+Debug/
+Release/
+ipch/
+*.ipch
+*.pdb
+*.ilk
+*.idb
+*.aps
+
+# Compiled files
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exe
+*.out
+
+# vcpkg
+vcpkg_installed/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,29 @@
+# Builds and tests every pull request. This is the quality gate for all agents.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-test:
+    if: ${{ hashFiles('CMakeLists.txt') != '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # v0.1 has no external dependencies. Add GMP/MPFR/FLINT installs here when
+      # the optional backends are introduced.
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure

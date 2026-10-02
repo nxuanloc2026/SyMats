@@ -2,6 +2,7 @@
 # Copyright (c) 2026 Loc Ngo and Symats contributors
 add_library(symats_convert
   src/text.cpp
+  src/mathjson.cpp
 )
 add_library(symats::convert ALIAS symats_convert)
 target_include_directories(symats_convert PUBLIC

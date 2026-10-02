@@ -6,6 +6,9 @@ add_library(symats_core
   src/expr.cpp
   src/canonical.cpp
   src/print.cpp
+  src/pattern.cpp
+  src/backend.cpp
+  src/eval.cpp
 )
 add_library(symats::core ALIAS symats_core)
 

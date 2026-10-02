@@ -148,6 +148,28 @@ Text: `expand(e)`, `factor(e)`, `simplify(e)`, `solve(eqn, x)`, `subs(e, x -> 2)
 | `Set` | `f = expr` (decided in T-003: `=` always means assignment in text input) | assign now |
 | `SetDelayed` | `f(x_) := x^2` | define rule, evaluate on use |
 | `Pattern` | `x_` | matches anything, binds `x` |
+| `Clear` | `clear(f)` | remove own value and definitions |
+
+Pattern nodes (implemented in `core/pattern.h`, T-001):
+
+| Text | Internal form | Matches |
+|------|---------------|---------|
+| `_` | `Blank()` | any one expression |
+| `_h` | `Blank(h)` | one expression with head `h` (`Integer`, `Rational`, `Symbol`, or a function head) |
+| `x_`, `x_h` | `Pattern(x, Blank())`, `Pattern(x, Blank(h))` | same, binding `x` |
+| `x__` | `Pattern(x, BlankSequence())` | one or more arguments, bound as `Sequence(...)` |
+| `x___` | `Pattern(x, BlankNullSequence())` | zero or more arguments |
+
+`Sequence(a, b)` is spliced into the enclosing argument list: `f(Sequence(1, 2), 3)` → `f(1, 2, 3)`.
+`Hold(e)` keeps `e` unevaluated. `Set` returns its value; `SetDelayed` and `Clear` return `Null`.
+
+### 3.11 Evaluation (core/eval.h)
+
+Arguments are evaluated unless the head holds them (`HoldFirst`, `HoldRest`, `HoldAll`);
+`Listable` heads (Plus, Times, Power, Sin, …) thread over lists of equal length;
+then built-ins, user definitions (exact before pattern), and finally registered
+`MathBackend`s are tried. Every result carries a status: `exact`, `verified`,
+`numeric`, or `unverified` (see AGENTS.md, rules for backends).
 
 ## 4. Editor ⇄ engine exchange format
 

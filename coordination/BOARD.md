@@ -14,7 +14,7 @@ Statuses: `todo` → `in-progress` → `review` (PR open) → `done`; also `bloc
 | T-004 | Verify MSVC build + GitHub Actions CI green on Windows and Linux; fix warnings | build/CI | Copilot | Codex | todo | | backup-ok | 2026-10-01 |
 | T-005 | Tests: parser edge cases (unicode, whitespace, huge numbers, malformed input), Integer/Rational property tests | tests | Jules | Copilot | review | | backup-ok | 2026-10-02 03:46 |
 | T-006 | `symats-cli` REPL: read a line → `parse_text` → print `to_text` | cli | Copilot | Codex | todo | | backup-ok | 2026-10-01 |
-| T-007 | MathJSON ⇄ Expr converter | convert | Codex | Claude | in-progress | app editor | | 2026-10-02 04:04 |
+| T-007 | MathJSON ⇄ Expr converter — PR #3 merged | convert | Codex | Claude | done | app editor | | 2026-10-02 04:59 |
 | T-009 | Optional GMP backend for `Integer` behind CMake option `SYMATS_USE_GMP` | core | Claude | Copilot | todo | | backup-ok | 2026-10-01 |
 | T-010 | **Native** `D` (partial derivatives, chain/product rule, all elementary functions) and `Expand` in core/ — no Giac; these power result verification | core | Claude | Codex | todo | T-013 | | 2026-10-02 |
 | T-011 | Giac build: fork Giac under nxuanloc2026, pin a release, add as git submodule in `third_party/giac` (+ GMP via vcpkg), CMake target `third_party::giac`, building on Windows (MSVC) and Linux CI | third_party/build | Copilot | Codex | todo | T-012 | | 2026-10-02 |
@@ -23,3 +23,6 @@ Statuses: `todo` → `in-progress` → `review` (PR open) → `done`; also `bloc
 | T-014 | Backend comparison suites: Rubi integral test set (MIT) and SymPy cases (BSD) run through Symats in CI; report mismatches | tests | Jules | Copilot | review | | backup-ok | 2026-10-02 04:35 |
 | T-015 | SUNDIALS: add to `third_party/` (Copilot builds) and `backend/sundials/` NDSolve adapter (Claude) | backend | Claude | Copilot | todo | numeric plots of ODEs | | 2026-10-02 |
 | T-016 | App shell: Tauri desktop app with MathLive editor cell, text toggle, Plotly plot cell; talks to engine through `bridge/` | app | Codex | Claude | todo | | | 2026-10-02 |
+| T-016a | Editor shell: MathLive math cell, text cell, and a toggle through an injected Expr converter bridge | app | Codex | Claude | in-progress | T-016b, T-016c | | 2026-10-02 05:18 |
+| T-016b | Plotly plot cell with static and time-varying display | app | Codex | Claude | todo | | | 2026-10-02 04:59 |
+| T-016c | Tauri packaging and app-to-engine bridge connection | app | Codex | Claude | todo | | | 2026-10-02 04:59 |

@@ -37,6 +37,7 @@ ipch/
 
 # vcpkg
 vcpkg_installed/
+.pnpm-store/
 
 # Editors / OS
 .vscode/

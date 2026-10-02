@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Symats</title>
+  </head>
+  <body>
+    <main class="notebook">
+      <header class="notebook-header">
+        <div>
+          <p class="eyebrow">SYMBOLIC MATHEMATICS</p>
+          <h1>Symats</h1>
+        </div>
+        <p class="subtitle">Write an expression in math notation or plain text.</p>
+      </header>
+      <section class="cell" aria-label="Expression cell">
+        <div class="cell-toolbar">
+          <span class="cell-label">Expression 1</span>
+          <button id="mode-toggle" type="button" aria-label="Switch to plain text" disabled>
+            Plain text
+          </button>
+        </div>
+        <div id="math-editor" class="editor-pane"></div>
+        <div id="text-editor" class="editor-pane" hidden>
+          <label class="sr-only" for="text-input">Plain-text expression</label>
+          <textarea id="text-input" spellcheck="false" rows="3"></textarea>
+        </div>
+        <p id="cell-status" class="cell-status" role="status"></p>
+      </section>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "symats-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@cortex-js/compute-engine": "0.145.0",
+    "mathlive": "0.111.0"
+  },
+  "devDependencies": {
+    "vite": "8.3.2"
+  }
+}

@@ -1,6 +1,41 @@
 # Handoff — Codex
 
 ## Current task
+T-016a editor shell claimed 2026-10-02 04:59 UTC. This is the first small
+slice of T-016: a MathLive editor cell, plain-text editor, and mode toggle
+through an injected converter interface. The C++ `bridge/` is not present yet,
+so the app must report when conversion is unavailable rather than bypass Expr.
+
+MathJSON Unicode note: the MathJSON specification requires non-ASCII symbols
+in an explicit `{ "sym": "α" }` object or backtick shorthand. The converter
+already supports both. A bare `"α"` is a string, not a symbol, so no converter
+fix is needed.
+
+Git note: this managed checkout started at T-007 commit `699a6fe`; PR #3 is
+merged. Git metadata under the main checkout is protected from this sandbox,
+so normal branch creation/fetch is denied. A separate Git directory at
+`%TEMP%/symats-t016a-codex.git` has a `codex/T-016a-editor-shell` branch based
+on current `main`; its worktree is this Codex checkout. The branch is committed
+locally, but a push failed and it is not yet on GitHub.
+
+Checkpoint 2026-10-02 05:11 UTC:
+- Added `app/` Vite shell with MathLive input, Compute Engine MathJSON adapter,
+  text editor pane, and toggle controller using an injected Symats converter.
+- The Compute Engine loads when conversion is first needed. No local fallback
+  bypasses the shared Expr tree; without `bridge/`, the toggle is disabled.
+- `pnpm test`: 4 tests pass. `pnpm build`: succeeds. Browser smoke check showed
+  the math field and bridge status message. `mathlive/fonts.css` fixed the font
+  loading error seen in the first browser run. Vite warns about the Compute
+  Engine bundle size; it is split from the initial editor bundle.
+- Next: push the local branch and open a PR when GitHub authentication works.
+  Then connect `globalThis.symatsConverter` when Copilot's `bridge/` is ready.
+  An unauthenticated HTTPS push failed with `could not read Username for
+  https://github.com`; the remote branch does not exist yet. The local commit
+  is on `codex/T-016a-editor-shell` in the separate Git directory above.
+  A verified recovery bundle is at `work/T-016a-editor-shell.bundle` in this
+  worktree, so the commit survives even if the temporary Git directory is lost.
+
+## Previous task — T-007
 T-007 MathJSON ⇄ Expr converter claimed 2026-10-02 03:58 UTC in the
 `mathjson-converter` worktree. Implementing JSON interchange in `convert/`;
 the managed checkout is detached because Git metadata lock creation was denied.

@@ -67,6 +67,9 @@ public:
 
     void set_builtin(const std::string& head, Builtin fn);
 
+    // Unprotected symbols that have an own value or definitions, sorted by name.
+    std::vector<std::string> user_symbols() const;
+
     BackendRegistry& backends() { return backends_; }
     const BackendRegistry& backends() const { return backends_; }
 

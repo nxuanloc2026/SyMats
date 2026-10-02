@@ -149,6 +149,8 @@ Text: `expand(e)`, `factor(e)`, `simplify(e)`, `solve(eqn, x)`, `subs(e, x -> 2)
 | `SetDelayed` | `f(x_) := x^2` | define rule, evaluate on use |
 | `Pattern` | `x_` | matches anything, binds `x` |
 | `Clear` | `clear(f)` | remove own value and definitions |
+| `CompoundExpression` | `a; b; c` | evaluate in order, return the last (`a; b;` → `Null`) |
+| `Out` | `%`, `%%`, `%5`, `Out(5)` | previous outputs in the session (`Out()` = last, `Out(-2)` = second to last) |
 
 Pattern nodes (implemented in `core/pattern.h`, T-001):
 

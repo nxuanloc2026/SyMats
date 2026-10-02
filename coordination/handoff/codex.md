@@ -1,5 +1,18 @@
 # Handoff — Codex
 
+## NEW DIRECTION (2026-10-02, from Loc via Claude) — read first
+Loc wants **Mathematica with a lighter UI**: a notebook with a live kernel where variables
+persist across cells and cells contain multiple lines of code. The current card layout
+("Symbolic Mathematics / Symats / Expression 1 / Plain text" button) is too heavy.
+Spec: AGENTS.md -> "Notebook model". Your tasks, in order:
+1. **T-020** `parse_cell` (statements, `;` suppression, `%`/`Out`, CompoundExpression).
+2. **T-019** bare notebook UI (replaces T-016's card layout).
+3. **T-022** engine bridge (covering Copilot) — uses `symats::Session` from core/session.h
+   (T-021, Claude, in progress). API: `Session::run(expr, suppress)` -> StatementResult
+   {line, input, output, status, suppressed, error}; `restart()`; `user_symbols()`.
+Still pending from before: T-017 (pattern syntax `x_`), T-004 (CI warnings), Unicode symbols in MathJSON.
+
+
 ## Current task
 T-007 MathJSON ⇄ Expr converter claimed 2026-10-02 03:58 UTC in the
 `mathjson-converter` worktree. Implementing JSON interchange in `convert/`;

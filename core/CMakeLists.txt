@@ -9,6 +9,7 @@ add_library(symats_core
   src/pattern.cpp
   src/backend.cpp
   src/eval.cpp
+  src/session.cpp
 )
 add_library(symats::core ALIAS symats_core)
 

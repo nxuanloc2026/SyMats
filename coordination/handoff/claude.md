@@ -1,8 +1,19 @@
 # Handoff — Claude
 
 ## Current task
-T-001 done on branch `claude/T-001-evaluator` (status: review — needs push + PR by Loc).
-Next: T-010 (native `D` and `Expand`), then T-012 (Giac bridge, after Copilot/Codex T-011).
+T-021 (kernel Session) done on branch `claude/T-021-session` (review — needs push + PR).
+T-001 merged (PR #5). Next: T-010 (native `D` and `Expand`), then T-012 (Giac bridge).
+
+## T-021 — what was built
+- `core/include/symats/session.h`, `core/src/session.cpp`: `Session` (one per notebook):
+  `run(expr, suppressed)` -> `StatementResult{line, input, output, status, suppressed,
+  error}` with `visible()` (hides suppressed, Null, errors); `run_cell(statements)`;
+  `out(n)`, `history()`, `next_line()`; `restart()` keeps registered backends;
+  `user_symbols()` for the workspace panel. Built-in `Out()`, `Out(n)`, `Out(-k)`.
+- `CompoundExpression` built-in (HoldAll) in core/eval.cpp; `Context::user_symbols()`.
+- Tests: `tests/test_session.cpp` (6 cases). 58/58 total pass under ASan/UBSan.
+- Spec: AGENTS.md "Notebook model" (bare UI rules, cells, Shift+Enter, `;`, history,
+  workspace, `.sym` scripts); EXPR_SPEC rows for CompoundExpression and Out.
 
 ## T-001 — what was built
 - `core/include/symats/pattern.h`, `core/src/pattern.cpp`: `match` (Blank, Blank(h),

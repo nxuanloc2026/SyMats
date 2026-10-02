@@ -8,6 +8,7 @@
 // Algebraic Computation", Academic Press, 1988, ch. 1-2.
 #include "symats/eval.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "symats/pattern.h"
@@ -68,6 +69,16 @@ unsigned Context::attributes(const std::string& symbol) const {
 }
 
 void Context::set_builtin(const std::string& head, Builtin fn) { builtins_[head] = std::move(fn); }
+
+std::vector<std::string> Context::user_symbols() const {
+    std::vector<std::string> names;
+    for (const auto& [name, d] : symbols_) {
+        if (d.attributes & attr::Protected) continue;
+        if (d.own_value || !d.exact.empty() || !d.patterns.empty()) names.push_back(name);
+    }
+    std::sort(names.begin(), names.end());
+    return names;
+}
 
 // ---------------------------------------------------------------- helpers
 
@@ -183,6 +194,13 @@ void install_builtins(Context& ctx) {
         }
         return sym_null();
     });
+    // a; b; c — evaluate in order, return the last.
+    ctx.set_builtin("CompoundExpression", [](const ExprPtr& e, Context& c) -> ExprPtr {
+        ExprPtr last = sym_null();
+        for (const auto& a : e->args()) last = evaluate(a, c);
+        return last;
+    });
+    ctx.set_attributes("CompoundExpression", HoldAll | Protected);
     ctx.set_attributes("Set", HoldFirst | Protected);
     ctx.set_attributes("SetDelayed", HoldAll | Protected);
     ctx.set_attributes("Clear", HoldAll | Protected);

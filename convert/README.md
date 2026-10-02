@@ -15,7 +15,16 @@ the opening parenthesis immediately after its name: `f(x)` is a call, while
 delayed assignment (`SetDelayed`), and `==` is equality (`Equal`).
 Recursive parsing and printing have a 256-call safety limit.
 
-The remaining converter work is MathJSON input/output and a LaTeX printer.
+MathJSON input/output is exposed as `parse_mathjson` and `to_mathjson` in
+`symats/mathjson.h`. It accepts serialized MathJSON numbers, symbols,
+function arrays and object forms (`num`, `sym`, `fn`). The converter maps
+`Add`/`Multiply` to canonical `Plus`/`Times`, MathLive `Tuple`/`Limits`
+binders to `List`, and `Matrix` to a list of row lists. It handles MathLive's
+structural and canonical integral forms. Integers and decimal/scientific
+literals remain exact; unsupported MathJSON values such as strings, NaN and
+repeating-decimal literals are rejected.
+
+The remaining converter work is a LaTeX printer.
 The plain-text grammar also still needs derivative prime notation, factorials,
 dot products and logical operators. The app's editor toggle
 depends on MathJSON conversion.

@@ -6,7 +6,9 @@ add_executable(symats_tests
   test_rational.cpp
   test_expr.cpp
   test_text.cpp
+  test_mathjson.cpp
   test_edge_cases.cpp
+  test_backend_comparison.cpp
   test_pattern.cpp
   test_eval.cpp
 )

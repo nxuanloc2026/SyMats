@@ -1,8 +1,27 @@
 # Handoff — Codex
 
 ## Current task
-T-002 claimed 2026-10-02 03:14 UTC. Implementation is in the working tree;
-task remains in progress until it builds and tests pass.
+T-007 MathJSON ⇄ Expr converter claimed 2026-10-02 03:58 UTC in the
+`mathjson-converter` worktree. Implementing JSON interchange in `convert/`;
+the managed checkout is detached because Git metadata lock creation was denied.
+The `codex/T-007-mathjson-converter` branch ref exists at the starting commit.
+Implementation completed 2026-10-02 04:04 UTC:
+- `convert/include/symats/mathjson.h`, `convert/src/mathjson.cpp`: parse and
+  serialize MathJSON, exact numbers, canonical arithmetic, matrix/list,
+  MathLive's structural and canonical integrals, logarithm name/argument
+  mapping, limit, generic heads and non-symbol `Apply`.
+- `tests/test_mathjson.cpp`: numeric, arithmetic, calculus, matrix, symbol,
+  malformed input and round-trip coverage; test CMake list updated.
+- `convert/README.md` documents supported forms and limits.
+
+Validation: Visual Studio 2026 CMake configure/build and CTest passed;
+28 test cases, zero failures. `git diff --check` found no whitespace errors.
+The Git checkout is detached because its metadata locks were denied. A scoped
+write permission grant for those exact paths still left
+`.git/worktrees/Symats/index.lock` inaccessible to `git switch`. Branch ref
+`codex/T-007-mathjson-converter` still points at the initial commit.
+Next: attach checkout to that branch, commit these files, push branch and open
+PR. Keep T-007 `in-progress` until the PR exists.
 
 Changes made 2026-10-02 03:19 UTC:
 - `convert/src/text.cpp`: parser and printer nesting limits; exact fixed-point
@@ -13,25 +32,20 @@ Changes made 2026-10-02 03:19 UTC:
 - `tests/test_text.cpp`: focused examples and round-trip/deep-nesting checks.
 - `coordination/BOARD.md` and `coordination/STATUS.md`: task state.
 
-Validation: `git diff --check` found no whitespace errors. No CMake or C++
-compiler is available, so tests could not run. There is no Git remote. Git
-created the `codex/T-002-converter-fixes` branch ref, but filesystem denial
-on `.git/HEAD.lock` and `.git/index.lock` prevented checkout and a commit.
-The checkout is still `main`, which already had other agents' staged files;
-do not include those in a Codex commit.
-
-Next: after T-008 provides a build toolchain and Git access, switch to the
-Codex branch without discarding staged work, run CMake/CTest, fix any failures,
-commit only T-002 files and update this handoff, then open a PR when a remote
-exists.
+Validation completed 2026-10-02 03:37 UTC in Visual Studio 2026 Developer
+PowerShell: `cmake --preset windows-debug`, `cmake --build --preset
+windows-debug`, and `ctest --preset windows-debug` all passed (1/1 CTest
+suite). The T-002 implementation is present in commit `ad2bb2b` on
+`origin/main`, committed by the maintainer while Codex was troubleshooting
+the local toolchain. The old `codex/T-002-converter-fixes` branch ref still
+points to the initial commit and is not the implementation branch.
 
 ## Done
 - `convert/`: `parse_text` / `to_text` (arithmetic, calls, lists, matrices, comparisons, rules),
   round-trip tests in `tests/test_text.cpp`. Verified by Claude: 200,000 random round trips pass.
 
 ## Known issues from Claude's review
-All five listed T-002 issues were addressed in the working tree. Build and
-round-trip verification of these changes remain open.
+All five listed T-002 issues were addressed and the current test suite passes.
 
 ## Open questions
 _(Codex: keep this file updated at every checkpoint.)_

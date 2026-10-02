@@ -12,7 +12,7 @@ Statuses: `todo` → `in-progress` → `review` (PR open) → `done`; also `bloc
 | T-001 | Evaluator: definitions (`Set`, `SetDelayed`), pattern matching (`x_`, `x__`, `x_Integer`), rule replacement, attributes; **plus `MathBackend` interface in core/ and dispatch of math heads (`Integrate`, `Solve`, `DSolve`, …) to the registered backend** | core | Claude | Codex | todo | T-010, T-012 | | 2026-10-02 |
 | T-002 | Converter fixes: (1) nesting-depth limit instead of crash, (2) readable output (`x - y`, `-x^2`, `sin(x)`, `==`, `->`), (3) decimals, (4) document/decide space-before-paren, (5) `=` per T-003 | convert | Codex | Claude | done | | backup-ok | 2026-10-02 03:38 |
 | T-004 | Verify MSVC build + GitHub Actions CI green on Windows and Linux; fix warnings | build/CI | Copilot | Codex | todo | | backup-ok | 2026-10-01 |
-| T-005 | Tests: parser edge cases (unicode, whitespace, huge numbers, malformed input), Integer/Rational property tests | tests | Jules | Copilot | todo | | backup-ok | 2026-10-01 |
+| T-005 | Tests: parser edge cases (unicode, whitespace, huge numbers, malformed input), Integer/Rational property tests | tests | Jules | Copilot | review | | backup-ok | 2026-10-02 03:46 |
 | T-006 | `symats-cli` REPL: read a line → `parse_text` → print `to_text` | cli | Copilot | Codex | todo | | backup-ok | 2026-10-01 |
 | T-007 | MathJSON ⇄ Expr converter | convert | Codex | Claude | in-progress | app editor | | 2026-10-02 04:04 |
 | T-009 | Optional GMP backend for `Integer` behind CMake option `SYMATS_USE_GMP` | core | Claude | Copilot | todo | | backup-ok | 2026-10-01 |

@@ -59,6 +59,16 @@ void collect_terms(const ExprPtr& t, Rational& number,
         number = number + t->number();
         return;
     }
+    // Inside a sum, a numeric multiple of a sum is distributed:
+    // a + 2*(b + c) -> a + 2*b + 2*c. This makes (x + 1) - (x + 1) cancel to 0.
+    // It is done here, not in times(), so that times() stays independent of grouping:
+    // (2*(b + c))*d == 2*(b + c)*d.
+    if (t->has_head("Times") && t->size() == 2 && t->arg(0)->is_number() &&
+        t->arg(1)->has_head("Plus")) {
+        const ExprPtr& c = t->arg(0);
+        for (const auto& term : t->arg(1)->args()) collect_terms(times(c, term), number, coeffs);
+        return;
+    }
     auto [c, rest] = split_coefficient(t);
     auto it = coeffs.find(rest);
     if (it == coeffs.end()) coeffs.emplace(rest, c);
@@ -129,16 +139,6 @@ ExprPtr times(ExprList factors) {
         // collect again so equal bases merge.
         out.push_back(make_number(coeff));
         return times(std::move(out));
-    }
-
-    // A number times a single sum is distributed: 2*(x + 1) -> 2 + 2*x.
-    // This makes a - a cancel when a is a sum, e.g. (x + 1) - (x + 1) -> 0.
-    if (out.size() == 1 && !coeff.is_one() && out[0]->has_head("Plus")) {
-        ExprList terms;
-        terms.reserve(out[0]->size());
-        const ExprPtr c = make_number(coeff);
-        for (const auto& t : out[0]->args()) terms.push_back(times(c, t));
-        return plus(std::move(terms));
     }
 
     std::sort(out.begin(), out.end(), ExprLess{});

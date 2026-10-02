@@ -10,8 +10,7 @@
 namespace symats {
 namespace {
 
-std::string head_for(std::string_view name) {
-    constexpr std::pair<std::string_view, std::string_view> aliases[] = {
+constexpr std::pair<std::string_view, std::string_view> aliases[] = {
         {"sin", "Sin"}, {"cos", "Cos"}, {"tan", "Tan"}, {"cot", "Cot"},
         {"sec", "Sec"}, {"csc", "Csc"}, {"arcsin", "ArcSin"},
         {"arccos", "ArcCos"}, {"arctan", "ArcTan"}, {"sinh", "Sinh"},
@@ -30,11 +29,20 @@ std::string head_for(std::string_view name) {
         {"polarplot", "PolarPlot"}, {"implicitplot", "ImplicitPlot"},
         {"plot3d", "Plot3D"}, {"contourplot", "ContourPlot"},
         {"animate", "Animate"}, {"slider", "Slider"},
-    };
+};
+
+std::string head_for(std::string_view name) {
     for (const auto& [alias, head] : aliases) {
         if (name == alias) return std::string(head);
     }
     return std::string(name);
+}
+
+std::string text_for_head(std::string_view head) {
+    for (const auto& [alias, internal] : aliases) {
+        if (head == internal) return std::string(alias);
+    }
+    return std::string(head);
 }
 
 ExprPtr call(std::string_view name, ExprList args) {
@@ -79,6 +87,21 @@ public:
 private:
     std::string_view input_;
     std::size_t pos_ = 0;
+    std::size_t depth_ = 0;
+    static constexpr std::size_t kMaxDepth = 256;
+
+    struct DepthGuard {
+        explicit DepthGuard(std::size_t& depth) : depth_(depth) {
+            if (++depth_ > kMaxDepth) {
+                --depth_;
+                throw std::invalid_argument("text expression: nesting limit exceeded");
+            }
+        }
+        ~DepthGuard() { --depth_; }
+        DepthGuard(const DepthGuard&) = delete;
+        DepthGuard& operator=(const DepthGuard&) = delete;
+        std::size_t& depth_;
+    };
 
     void space() {
         while (pos_ < input_.size() && std::isspace(static_cast<unsigned char>(input_[pos_])))
@@ -107,15 +130,18 @@ private:
         return true;
     }
     ExprPtr relation() {
+        DepthGuard guard(depth_);
         ExprPtr left = sum();
         if (take_token("->")) return make_normal("Rule", {left, relation()});
+        if (take_token(":=")) return make_normal("SetDelayed", {left, relation()});
         constexpr std::pair<std::string_view, std::string_view> operators[] = {
             {"==", "Equal"}, {"!=", "Unequal"}, {"<=", "LessEqual"},
-            {">=", "GreaterEqual"}, {"<", "Less"}, {">", "Greater"}, {"=", "Equal"},
+            {">=", "GreaterEqual"}, {"<", "Less"}, {">", "Greater"},
         };
         for (const auto& [token, head] : operators) {
             if (take_token(token)) return make_normal(head, {left, sum()});
         }
+        if (take_token("=")) return make_normal("Set", {left, relation()});
         return left;
     }
     ExprPtr sum() {
@@ -142,6 +168,7 @@ private:
         }
     }
     ExprPtr unary() {
+        DepthGuard guard(depth_);
         if (take('+')) return unary();
         if (take('-')) return negate(unary());
         return exponent();
@@ -153,10 +180,26 @@ private:
     }
     ExprPtr atom() {
         char c = peek();
-        if (std::isdigit(static_cast<unsigned char>(c))) {
+        if (std::isdigit(static_cast<unsigned char>(c)) ||
+            (c == '.' && pos_ + 1 < input_.size() &&
+             std::isdigit(static_cast<unsigned char>(input_[pos_ + 1])))) {
             std::size_t start = pos_;
             while (pos_ < input_.size() &&
                    std::isdigit(static_cast<unsigned char>(input_[pos_]))) ++pos_;
+            std::size_t whole_end = pos_;
+            if (pos_ < input_.size() && input_[pos_] == '.' &&
+                pos_ + 1 < input_.size() &&
+                std::isdigit(static_cast<unsigned char>(input_[pos_ + 1]))) {
+                ++pos_;
+                std::size_t fractional_start = pos_;
+                while (pos_ < input_.size() &&
+                       std::isdigit(static_cast<unsigned char>(input_[pos_]))) ++pos_;
+                std::string digits(input_.substr(start, whole_end - start));
+                digits += input_.substr(fractional_start, pos_ - fractional_start);
+                std::string denominator = "1" + std::string(pos_ - fractional_start, '0');
+                return make_rational(Integer::from_string(digits),
+                                     Integer::from_string(denominator));
+            }
             return make_integer(Integer::from_string(input_.substr(start, pos_ - start)));
         }
         if (take('`')) {
@@ -181,13 +224,15 @@ private:
                    (std::isalnum(static_cast<unsigned char>(input_[pos_])) ||
                     input_[pos_] == '_')) ++pos_;
             std::string name(input_.substr(start, pos_ - start));
-            if (!take('(')) {
+            // Calls require no whitespace before '('. A space means multiplication.
+            if (pos_ >= input_.size() || input_[pos_] != '(') {
                 if (name == "pi") name = "Pi";
                 else if (name == "e") name = "E";
                 else if (name == "i") name = "I";
                 else if (name == "inf" || name == "infinity") name = "Infinity";
                 return make_symbol(std::move(name));
             }
+            ++pos_;
             ExprList args;
             if (!take(')')) {
                 do { args.push_back(relation()); } while (take(','));
@@ -214,14 +259,35 @@ private:
     }
 };
 
+std::string_view infix_token(const ExprPtr& e) {
+    if (e->size() != 2) return {};
+    constexpr std::pair<std::string_view, std::string_view> tokens[] = {
+        {"Rule", "->"}, {"Set", "="}, {"SetDelayed", ":="},
+        {"Equal", "=="}, {"Unequal", "!="}, {"Less", "<"},
+        {"LessEqual", "<="}, {"Greater", ">"}, {"GreaterEqual", ">="},
+    };
+    for (const auto& [head, token] : tokens) {
+        if (e->has_head(head)) return token;
+    }
+    return {};
+}
+
+bool negative_term(const ExprPtr& e) {
+    if (e->is_number()) return e->number().sign() < 0;
+    return e->has_head("Times") && e->size() > 0 &&
+           e->arg(0)->is_number() && e->arg(0)->number().sign() < 0;
+}
+
 int precedence(const ExprPtr& e) {
+    if (!infix_token(e).empty()) return 5;
     if (e->has_head("Plus")) return 10;
     if (e->has_head("Times")) return 20;
     if (e->has_head("Power")) return 40;
     return 50;
 }
 
-std::string write(const ExprPtr& e, int parent) {
+std::string write(const ExprPtr& e, int parent, std::size_t depth) {
+    if (depth > 256) throw std::invalid_argument("text expression: nesting limit exceeded");
     std::string out;
     int own = precedence(e);
     if (e->is_integer()) out = e->integer().to_string();
@@ -254,41 +320,61 @@ std::string write(const ExprPtr& e, int parent) {
         }
     } else if (e->has_head("Plus") && e->size() > 0) {
         for (std::size_t i = 0; i < e->size(); ++i) {
-            if (i) out += " + ";
-            out += write(e->arg(i), own);
+            const bool negative = negative_term(e->arg(i));
+            if (i) out += negative ? " - " : " + ";
+            else if (negative) out += "-";
+            out += write(negative ? negate(e->arg(i)) : e->arg(i), own + 1, depth + 1);
         }
+    } else if (e->has_head("Times") && negative_term(e)) {
+        ExprPtr positive = negate(e);
+        own = positive->has_head("Times") ? 20 : 30;
+        out = "-" + write(positive, own, depth + 1);
     } else if (e->has_head("Times") && e->size() > 0) {
         for (std::size_t i = 0; i < e->size(); ++i) {
             if (i) out += "*";
-            out += write(e->arg(i), own + 1);
+            out += write(e->arg(i), own + 1, depth + 1);
         }
     } else if (e->has_head("Power") && e->size() == 2) {
-        std::string base = write(e->arg(0), own + 1);
+        std::string base = write(e->arg(0), own + 1, depth + 1);
         if (e->arg(0)->is_integer() && e->arg(0)->integer().is_negative())
             base = "(" + base + ")";
-        out = base + "^" + write(e->arg(1), own);
+        out = base + "^" + write(e->arg(1), own, depth + 1);
+    } else if (const auto token = infix_token(e); !token.empty()) {
+        out = write(e->arg(0), own + 1, depth + 1);
+        out += " ";
+        out += token;
+        out += " ";
+        const bool right_associative = token == "->" || token == "=" || token == ":=";
+        out += write(e->arg(1), own + (right_associative ? 0 : 1), depth + 1);
     } else if (e->has_head("List")) {
         out = "{";
         for (std::size_t i = 0; i < e->size(); ++i) {
             if (i) out += ", ";
-            out += write(e->arg(i), 0);
+            out += write(e->arg(i), 0, depth + 1);
         }
         out += "}";
     } else {
         bool ordinary_head = e->head()->is_symbol() &&
-            write(e->head(), 0) == e->head()->name() &&
+            write(e->head(), 0, depth + 1) == e->head()->name() &&
             head_for(e->head()->name()) == e->head()->name() &&
             e->head()->name() != "sqrt" && e->head()->name() != "root" &&
-            e->head()->name() != "ExprApply";
-        out = ordinary_head ? e->head()->name() : "ExprApply";
+            e->head()->name() != "ExprApply" &&
+            !(e->head()->name() == "D" && e->size() == 3 && e->arg(2)->is_integer());
+        out = ordinary_head ? text_for_head(e->head()->name()) : "ExprApply";
+        if (ordinary_head && e->head()->name() == "Integrate" &&
+            e->size() >= 4 && (e->size() - 1) % 3 == 0) out = "Integrate";
+        if (ordinary_head && (e->head()->name() == "Sum" ||
+                              e->head()->name() == "Product" ||
+                              e->head()->name() == "Series") && e->size() == 4)
+            out = e->head()->name();
         out += "(";
         if (!ordinary_head) {
-            out += write(e->head(), 0);
+            out += write(e->head(), 0, depth + 1);
             if (e->size()) out += ", ";
         }
         for (std::size_t i = 0; i < e->size(); ++i) {
             if (i) out += ", ";
-            out += write(e->arg(i), 0);
+            out += write(e->arg(i), 0, depth + 1);
         }
         out += ")";
     }
@@ -299,7 +385,7 @@ std::string write(const ExprPtr& e, int parent) {
 ExprPtr parse_text(std::string_view input) { return Parser(input).parse(); }
 std::string to_text(const ExprPtr& expr) {
     if (!expr) throw std::invalid_argument("to_text: null expression");
-    return write(expr, 0);
+    return write(expr, 0, 0);
 }
 
 }  // namespace symats

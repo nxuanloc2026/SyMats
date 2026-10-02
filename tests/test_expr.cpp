@@ -50,7 +50,16 @@ TEST_CASE("Plus: flattening and ordering") {
 TEST_CASE("Plus: sums cancel") {
     CHECK_EQ(F((x + 1) - (x + 1)), std::string("0"));
     CHECK_EQ(F((x - y) + (y - x)), std::string("0"));
-    CHECK_EQ(F(2 * (x + 1)), std::string("Plus(2, Times(2, x))"));
+    // A numeric multiple of a sum stays factored on its own, and is distributed inside sums.
+    CHECK_EQ(F(2 * (x + 1)), std::string("Times(2, Plus(1, x))"));
+    CHECK_EQ(F(y + 2 * (x + 1)), std::string("Plus(2, Times(2, x), y)"));
+}
+
+TEST_CASE("Canonical form does not depend on grouping") {
+    const Ex s = x + 1;
+    CHECK((15 * s) * y == 15 * (s * y));
+    CHECK(F((15 * s) * y) == F(times(ExprList{Ex(15), s, y})));
+    CHECK((x + 2 * s) + y == x + (2 * s + y));
 }
 
 TEST_CASE("Times: powers collect, identities vanish") {
@@ -66,16 +75,16 @@ TEST_CASE("Times: powers collect, identities vanish") {
 }
 
 TEST_CASE("Power: exact numbers") {
-    CHECK_EQ(F(pow(2, 100)), std::string("1267650600228229401496703205376"));
-    CHECK_EQ(F(pow(2, -3)), std::string("1/8"));
+    CHECK_EQ(F(pow(Ex(2), 100)), std::string("1267650600228229401496703205376"));
+    CHECK_EQ(F(pow(Ex(2), -3)), std::string("1/8"));
     CHECK_EQ(F(pow(4, frac(1, 2))), std::string("2"));
     CHECK_EQ(F(pow(8, frac(1, 3))), std::string("2"));
     CHECK_EQ(F(pow(frac(8, 27), frac(2, 3))), std::string("4/9"));
     CHECK_EQ(F(pow(2, frac(1, 2))), std::string("Power(2, 1/2)"));
     CHECK_EQ(F(pow(2, frac(1, 2)) * pow(2, frac(1, 2))), std::string("2"));
     CHECK_EQ(F(pow(-8, frac(1, 3))), std::string("Power(-8, 1/3)"));  // principal value is complex
-    CHECK_EQ(F(pow(0, 0)), std::string("Indeterminate"));
-    CHECK_EQ(F(pow(0, -1)), std::string("ComplexInfinity"));
+    CHECK_EQ(F(pow(Ex(0), 0)), std::string("Indeterminate"));
+    CHECK_EQ(F(pow(Ex(0), -1)), std::string("ComplexInfinity"));
     CHECK_EQ(F(pow(1, x)), std::string("1"));
 }
 

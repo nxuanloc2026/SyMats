@@ -30,6 +30,8 @@ The engine always returns expressions in canonical form, so equal math has equal
 | `Plus`/`Times` are flattened | `Plus(a, Plus(b, c))` → `Plus(a, b, c)` |
 | Numbers are combined | `Plus(2, x, 3)` → `Plus(5, x)` |
 | Like terms are collected | `x + x` → `Times(2, x)`; `x*x` → `Power(x, 2)` |
+| Numeric multiple of a sum is distributed only inside a sum | `2*(x+1)` stays `Times(2, Plus(1, x))`; `y + 2*(x+1)` → `Plus(2, Times(2, x), y)` |
+| Result never depends on grouping | `(2*s)*y` = `2*(s*y)` = `Times(2, s, y)` |
 | Identities removed | `Plus(x, 0)` → `x`; `Times(1, x)` → `x`; `Times(0, x)` → `0` |
 | Single argument unwrapped | `Plus(x)` → `x` |
 | Arguments sorted (canonical order) | `Plus(y, x, 1)` → `Plus(1, x, y)` |
@@ -70,7 +72,7 @@ Text: lowercase (`sin(x)`, `arctan(x)`, `log(x)` = natural log, `log(b, x)` = ba
 
 | Head | Text | 2-D |
 |------|------|-----|
-| `Equal` | `a == b` (also `a = b` inside solve/dsolve) | a = b |
+| `Equal` | `a == b` (a single `=` is assignment, see §3.10) | a = b |
 | `Unequal` | `a != b` | a ≠ b |
 | `Less`, `LessEqual`, `Greater`, `GreaterEqual` | `<  <=  >  >=` | <  ≤  >  ≥ |
 | `And`, `Or`, `Not` | `and or not` | ∧ ∨ ¬ |
@@ -143,7 +145,7 @@ Text: `expand(e)`, `factor(e)`, `simplify(e)`, `solve(eqn, x)`, `subs(e, x -> 2)
 
 | Head | Text | Meaning |
 |------|------|---------|
-| `Set` | `f = expr` | assign now |
+| `Set` | `f = expr` (decided in T-003: `=` always means assignment in text input) | assign now |
 | `SetDelayed` | `f(x_) := x^2` | define rule, evaluate on use |
 | `Pattern` | `x_` | matches anything, binds `x` |
 

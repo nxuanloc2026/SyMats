@@ -3,7 +3,7 @@
   "configurePresets": [
     {
       "name": "windows-debug",
-      "displayName": "Windows Debug (Visual Studio 2022)",
+      "displayName": "Windows Debug (Visual Studio 2022/2026)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "CMAKE_CXX_COMPILER": "cl" },
@@ -11,7 +11,7 @@
     },
     {
       "name": "windows-release",
-      "displayName": "Windows Release (Visual Studio 2022)",
+      "displayName": "Windows Release (Visual Studio 2022/2026)",
       "inherits": "windows-debug",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },

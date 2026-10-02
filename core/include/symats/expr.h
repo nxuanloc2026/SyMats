@@ -111,6 +111,9 @@ public:
     Ex(ExprPtr p) : p_(std::move(p)) {}  // NOLINT: implicit by design
     Ex(long long v) : p_(make_integer(v)) {}  // NOLINT
     Ex(int v) : p_(make_integer(v)) {}        // NOLINT
+    // Floating-point values are not exact; refuse them. This also catches the common
+    // mistake pow(2, 100), which calls C's pow(double, double): write pow(Ex(2), 100).
+    Ex(double) = delete;
 
     const ExprPtr& ptr() const { return p_; }
     operator const ExprPtr&() const { return p_; }  // NOLINT
@@ -129,6 +132,8 @@ private:
 };
 
 inline Ex sym(std::string name) { return make_symbol(std::move(name)); }
+// At least one argument must be an Ex: pow(x, 2) and pow(Ex(2), 100) are exact;
+// pow(2, 100) with two plain numbers is C's floating-point pow and will not compile here.
 inline Ex pow(const Ex& b, const Ex& e) { return power(b.ptr(), e.ptr()); }
 inline Ex frac(long long n, long long d) { return make_rational(Integer(n), Integer(d)); }
 

@@ -266,7 +266,12 @@ ctest --test-dir build --output-on-failure
 - Only add dependencies whose licenses are compatible with GPL-3.0-or-later.
   Approved: Giac (GPL-3+), FLINT/GMP/MPFR (LGPL-3), SUNDIALS (BSD-3), Boost (BSL-1.0),
   Eigen (MPL-2.0), MathLive/Compute Engine/Plotly.js/KaTeX/Tauri (MIT/Apache-2.0),
-  Rubi rules and test suite (MIT). Anything else needs Loc's approval.
+  Rubi rules and test suite (MIT), **xeus** (BSD-3, Jupyter kernel), **CodeMirror 6** (MIT,
+  cell editor), **Boost.Odeint / Boost.Math** (BSL-1.0), **SymEngine** (MIT, reserve backend),
+  **Emscripten** (MIT), **STIX Two / Latin Modern Math** fonts (OFL), Numerica (MIT, see below).
+  Reference/oracle only (GPL, may be read and translated, not linked): **Mathics3** (evaluator
+  semantics, built-in behavior, doc-tests), **Maxima** (second test oracle next to SymPy).
+  Anything else needs Loc's approval.
 - **Symbolica policy.**
   - The `symbolica` library itself is source-available, not open source: do **not** read,
     copy, port, paraphrase, or link to its source code, and do not depend on it.

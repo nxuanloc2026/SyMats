@@ -11,6 +11,7 @@ Spec: AGENTS.md -> "Notebook model". Your tasks, in order:
 3. **T-022** engine bridge (covering Copilot) — uses `symats::Session` from core/session.h
    (T-021, Claude, in progress). API: `Session::run(expr, suppress)` -> StatementResult
    {line, input, output, status, suppressed, error}; `restart()`; `user_symbols()`.
+**Time-savers (approved in AGENTS.md):** T-019 must be built on CodeMirror 6 + MathLive + KaTeX/STIX Two + Plotly (assemble, don't write an editor). After T-010 add T-029 (Boost.Odeint NDSolve). Use Mathics3 (GPL) only as a behavior reference for T-018/T-025.
 Still pending from before: T-004 (CI warnings), Unicode symbols in MathJSON.
 
 

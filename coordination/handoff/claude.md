@@ -1,5 +1,33 @@
 # Handoff — Claude
 
+## TAKEOVER NOTICE (2026-10-03) — Claude is out of usage; tasks delegated
+Claude's lane (core/, backend/) is temporarily owned by **Codex** (engine) and **Jules**
+(tests, GMP, Jupyter kernel). Follow docs/COORDINATION.md takeover rules: work on
+`takeover/<task>` branches, do not change public APIs in core/*.h or docs/EXPR_SPEC.md
+without noting it here. Claude will review when back.
+
+### Plans for the delegated tasks
+- **T-010 native D and Expand (Codex)** — new `core/include/symats/calculus.h`, `core/src/calculus.cpp`.
+  `D(f, x)`: rules for Plus (linearity), Times (product rule over all factors), Power
+  (a^b: b*a^(b-1)*a' when b free of x; general case a^b*(b'*Log(a) + b*a'/a)),
+  Sin/Cos/Tan/Exp/Log/ArcSin/ArcCos/ArcTan/Sinh/Cosh/Tanh/Abs (chain rule), numbers/other
+  symbols -> 0, unknown f(u) -> Derivative(1, f)(u)*u'. `D(f, {x, n})`, `D(f, x, y)`.
+  Evaluate `Derivative(n, f)(t)` when f has a definition. `Expand`: distribute Times over
+  Plus and expand integer powers of sums (multinomial), recursively. Register as built-ins
+  in install_builtins (eval.cpp). Verify by numeric spot checks at random points.
+- **T-018 Flat/Orderless matching (Codex)** — in pattern.cpp, for heads with Orderless
+  attribute try argument permutations; for Flat heads let a pattern match a sub-sum
+  (group remaining args under the head). Needs Context attributes passed to match().
+- **T-012 Giac bridge (Codex, after T-011)** — `backend/giac/`: class GiacBackend :
+  MathBackend; convert Expr <-> giac::gen by head name table (EXPR_SPEC), status
+  Unverified; Integrate, Limit, Series, Solve, Factor, Simplify, DSolve, Det/Inverse/Eigen*.
+- **T-013 verification (Codex)** — after a backend result: Integrate -> D(result) - f == 0
+  via Expand/Together, else numeric check at 5 random points (status Verified/Unverified);
+  Solve -> substitute; DSolve -> substitute equation and conditions.
+- **T-009 GMP backend (Jules)** — keep symats::Integer API; CMake option SYMATS_USE_GMP;
+  internals switch to mpz_class; all existing tests must pass both ways.
+- **T-027 xeus kernel (Jules)** — see board.
+
 ## Current task
 T-021 (kernel Session) done on branch `claude/T-021-session` (review — needs push + PR).
 T-001 merged (PR #5). Next: T-010 (native `D` and `Expand`), then T-012 (Giac bridge).

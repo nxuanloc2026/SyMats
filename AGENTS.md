@@ -98,6 +98,20 @@ spec as the common format, and delegates to proven open-source libraries:
 6. **Native first for the basics.** `D` (derivatives) and `Expand` are implemented natively in
    `core/` — they are needed to verify backend results and must not depend on Giac.
 
+## Operator set (decided 2026-10-03)
+
+Precedence and node names: docs/EXPR_SPEC.md §3.12.
+
+- **Tier 1 — required now:** `+ - * / ^`, implicit multiplication, `=`, `:=`, `==`, `!=`,
+  `< <= > >=`, `->`, `/.`, patterns `x_` / `x_h`, `;`, `%` / `%%` / `%n`, lists `{ }` and
+  matrices `[[ ]]`, `.` (Dot), `'` (derivative: `y'(t)`), `&&`, `||`, `!`, postfix `!` (factorial).
+- **Tier 2 — later (board T-025):** `:>`, `//.`, `===`, `=.`, `/;`, `[[i]]` indexing, `;;`
+  spans, `++`, `+=`, `-=`.
+- **Tier 3 — deliberately excluded:** `@`, `@@`, `@@@`, `//` (postfix call), `/@`, `#`/`&`
+  pure functions (use `map(f, list)` and readable lambdas instead), `~f~`, `<>`, `<| |>`,
+  `?`/`??`, `>>`/`<<`, `\[Name]` characters, contexts and `$` variables. Do not add these;
+  leaving them out keeps Symats lighter and clearly distinct from Wolfram Language.
+
 ## Core requirements
 
 1. **Interchangeable input (symbolic ⇄ plain text).**
@@ -253,4 +267,16 @@ ctest --test-dir build --output-on-failure
   Approved: Giac (GPL-3+), FLINT/GMP/MPFR (LGPL-3), SUNDIALS (BSD-3), Boost (BSL-1.0),
   Eigen (MPL-2.0), MathLive/Compute Engine/Plotly.js/KaTeX/Tauri (MIT/Apache-2.0),
   Rubi rules and test suite (MIT). Anything else needs Loc's approval.
-- Do not use Symbolica (not open source).
+- **Symbolica policy.**
+  - The `symbolica` library itself is source-available, not open source: do **not** read,
+    copy, port, paraphrase, or link to its source code, and do not depend on it.
+  - Its spin-off crates **Numerica** (github.com/symbolica-dev/numerica) and **Graphica**
+    (github.com/symbolica-dev/graphica) are **MIT-licensed**: they may be read and their
+    algorithms ported to C++ with attribution (keep the MIT copyright notice in the ported
+    file and list it in THIRD_PARTY_NOTICES.md). Verify the LICENSE file of the exact
+    version you use first. Useful parts: error-tracking floats, dual numbers (automatic
+    differentiation), Vegas Monte Carlo integration, rational reconstruction, finite fields.
+  - Public documentation, blog posts, and lecture notes may be read for ideas and cited
+    like a textbook; never copy their text or examples verbatim.
+  - Never use Symbolica's output as expected values in tests (only mathematics, textbooks,
+    and open-source systems).

@@ -1,5 +1,15 @@
 # Handoff — Codex
 
+## T-022 checkpoint (2026-10-04)
+
+`takeover/T-022-engine-bridge` adds an isolated C++ Session bridge, UTF-8 C
+ABI, JSON results (MathJSON/text/status/errors), an Emscripten target, and a
+browser worker host with restart, workspace listing, and abort. Native Windows
+build and CTest pass; JS syntax checks pass. Emscripten is not installed here,
+so the WebAssembly build is unverified. The app and cell parser branches must
+land before multi-statement cells can be wired into the notebook. Aborting
+restarts the worker/session. No public core API or EXPR_SPEC changes.
+
 ## NEW DIRECTION (2026-10-02, from Loc via Claude) — read first
 Loc wants **Mathematica with a lighter UI**: a notebook with a live kernel where variables
 persist across cells and cells contain multiple lines of code. The current card layout

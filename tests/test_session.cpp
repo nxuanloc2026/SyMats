@@ -88,6 +88,32 @@ TEST_CASE("Session: workspace listing and restart") {
     CHECK_EQ(F(s.run(call("Out", {})).output), std::string("alpha"));  // Out works after restart
 }
 
+TEST_CASE("Session: multi-cell line numbering, history offset, and symbol clearing") {
+    Session s;
+    // Cell 1 (3 statements)
+    auto c1 = s.run_cell({{P("x = 10"), false}, {P("y = 20"), false}, {P("x + y"), false}});
+    CHECK_EQ(c1.size(), std::size_t(3));
+    CHECK_EQ(c1[0].line, std::size_t(1));
+    CHECK_EQ(c1[1].line, std::size_t(2));
+    CHECK_EQ(c1[2].line, std::size_t(3));
+    CHECK_EQ(s.next_line(), std::size_t(4));
+
+    // % should yield line 3 (30)
+    auto c2 = s.run(call("Out", {}));
+    CHECK_EQ(c2.line, std::size_t(4));
+    CHECK_EQ(F(c2.output), std::string("30"));
+
+    // Clear symbol 'x'
+    s.run(call("Clear", {make_symbol("x")})); // Line 5
+    auto c3 = s.run(P("x + y"));              // Line 6 -> Plus(x, 20)
+    CHECK_EQ(F(c3.output), std::string("Plus(20, x)"));
+
+    // Check workspace active symbols: x was cleared, y remains
+    auto symbols = s.user_symbols();
+    CHECK_EQ(symbols.size(), std::size_t(1));
+    CHECK_EQ(symbols[0], std::string("y"));
+}
+
 TEST_CASE("Session: multi-cell pipeline with error recovery") {
     Session s;
     // Cell 1: valid definitions

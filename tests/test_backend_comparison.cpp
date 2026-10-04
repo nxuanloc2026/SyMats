@@ -13,8 +13,8 @@ namespace {
 
 struct ComparisonTestCase {
     std::string id;
-    std::string suite;       // "Rubi" or "SymPy"
-    std::string license;     // "MIT" or "BSD-3-Clause"
+    std::string suite;       // "Rubi", "SymPy", or "Maxima"
+    std::string license;     // "MIT", "BSD-3-Clause", or "GPL-2.0-or-later"
     std::string category;    // "Integration", "Differentiation", "Expansion", "LinearAlgebra", etc.
     std::string input;       // Input expression in plain text
     std::string expected;    // Expected result in plain text
@@ -80,7 +80,12 @@ ComparisonReport run_comparison_suite(const std::vector<ComparisonTestCase>& cas
     return report;
 }
 
+// Rubi integral test cases (MIT license).
+// Note: Constant of integration +C is omitted in expected anti-derivatives per CAS convention.
 const std::vector<ComparisonTestCase> rubi_integral_cases = {
+    {"RUBI-001", "Rubi", "MIT", "Integration", "Integrate(x^2, x)", "Times(Rational(1, 3), Power(x, 3))"},
+    {"RUBI-002", "Rubi", "MIT", "Integration", "Integrate(Power(x, -1), x)", "Log(x)"},
+    {"RUBI-003", "Rubi", "MIT", "Integration", "Integrate(Sin(x), x)", "Times(-1, Cos(x))"},
     {"RUBI-001", "Rubi", "MIT", "Integration", "Integrate(x^2, x)", "1/3 * x^3"},
     {"RUBI-002", "Rubi", "MIT", "Integration", "Integrate(1/x, x)", "Log(x)"},
     {"RUBI-003", "Rubi", "MIT", "Integration", "Integrate(Sin(x), x)", "-Cos(x)"},
@@ -93,9 +98,28 @@ const std::vector<ComparisonTestCase> rubi_integral_cases = {
     {"RUBI-010", "Rubi", "MIT", "Integration", "Integrate((1 - x^2)^(-1/2), x)", "ArcSin(x)"}
 };
 
+// SymPy test cases (BSD 3-Clause license).
+// Note: Solve results are represented as List(Rule(variable, val), ...).
 const std::vector<ComparisonTestCase> sympy_cases = {
     {"SYMPY-001", "SymPy", "BSD-3-Clause", "Differentiation", "D(x^3, x)", "3 * x^2"},
     {"SYMPY-002", "SymPy", "BSD-3-Clause", "Differentiation", "D(Sin(x), x)", "Cos(x)"},
+    {"SYMPY-003", "SymPy", "BSD-3-Clause", "Differentiation", "D(Exp(Power(x, 2)), x)", "Times(2, x, Exp(Power(x, 2)))"},
+    {"SYMPY-004", "SymPy", "BSD-3-Clause", "Expansion", "Expand(Power(Plus(x, 1), 2))", "Plus(Power(x, 2), Times(2, x), 1)"},
+    {"SYMPY-005", "SymPy", "BSD-3-Clause", "Expansion", "Expand(Times(Plus(x, y), Plus(x, Times(-1, y))))", "Plus(Power(x, 2), Times(-1, Power(y, 2)))"},
+    {"SYMPY-006", "SymPy", "BSD-3-Clause", "Factorization", "Factor(Plus(Power(x, 2), -1))", "Times(Plus(x, -1), Plus(x, 1))"},
+    {"SYMPY-007", "SymPy", "BSD-3-Clause", "Simplification", "Simplify(Plus(Power(Sin(x), 2), Power(Cos(x), 2)))", "1"},
+    {"SYMPY-008", "SymPy", "BSD-3-Clause", "LinearAlgebra", "Det(List(List(a, b), List(c, d)))", "Plus(Times(a, d), Times(-1, b, c))"},
+    {"SYMPY-009", "SymPy", "BSD-3-Clause", "LinearAlgebra", "Trace(List(List(1, 2), List(3, 4)))", "5"},
+    {"SYMPY-010", "SymPy", "BSD-3-Clause", "Solving", "Solve(Equal(Plus(Power(x, 2), -4), 0), x)", "List(Rule(x, -2), Rule(x, 2))"}
+};
+
+// Maxima test oracle cases (Maxima 5.46.0, GPL-2.0-or-later reference/oracle).
+const std::vector<ComparisonTestCase> maxima_cases = {
+    {"MAXIMA-001", "Maxima", "GPL-2.0-or-later", "Differentiation", "D(Sin(Power(x, 2)), x)", "Times(2, x, Cos(Power(x, 2)))"},
+    {"MAXIMA-002", "Maxima", "GPL-2.0-or-later", "Integration", "Integrate(Times(x, Sin(x)), x)", "Plus(Times(-1, x, Cos(x)), Sin(x))"},
+    {"MAXIMA-003", "Maxima", "GPL-2.0-or-later", "Expansion", "Expand(Power(Plus(x, 2), 3))", "Plus(Power(x, 3), Times(6, Power(x, 2)), Times(12, x), 8)"},
+    {"MAXIMA-004", "Maxima", "GPL-2.0-or-later", "LinearAlgebra", "Det(List(List(1, 2), List(3, 4)))", "-2"},
+    {"MAXIMA-005", "Maxima", "GPL-2.0-or-later", "Solving", "Solve(Equal(Plus(Power(x, 2), -9), 0), x)", "List(Rule(x, -3), Rule(x, 3))"}
     {"SYMPY-003", "SymPy", "BSD-3-Clause", "Differentiation", "D(Exp(x^2), x)", "2 * x * Exp(x^2)"},
     {"SYMPY-004", "SymPy", "BSD-3-Clause", "Expansion", "Expand((x + 1)^2)", "x^2 + 2*x + 1"},
     {"SYMPY-005", "SymPy", "BSD-3-Clause", "Expansion", "Expand((x + y)*(x - y))", "x^2 - y^2"},
@@ -130,7 +154,6 @@ TEST_CASE("rubi_integral_comparison_suite") {
     }
 
     // Run suite and report mismatches.
-    // Currentlyunevaluated heads (like Integrate) will be reported as mismatches until backends (T-001/T-012) are implemented.
     ComparisonReport report = run_comparison_suite(rubi_integral_cases, /*strict_eval=*/false);
     CHECK_EQ(report.total, static_cast<int>(rubi_integral_cases.size()));
 }
@@ -150,6 +173,7 @@ TEST_CASE("sympy_comparison_suite") {
 }
 
 TEST_CASE("maxima_comparison_suite") {
+    // Parse verification for all Maxima test cases.
     // Parse verification for all Maxima oracle test cases.
     for (const auto& tc : maxima_cases) {
         symats::ExprPtr input_expr = symats::parse_text(tc.input);

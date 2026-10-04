@@ -1,5 +1,21 @@
 # Handoff — Codex
 
+## T-019 takeover session (2026-10-04)
+
+Loc assigned T-024 → T-020 → T-010 → T-019 → T-022 → T-029 → T-018 →
+T-011 → T-012 → T-013. Claude is out and Codex covers engine tasks. T-024,
+T-020, and T-010 are committed on separate local branches. GitHub push/PR
+still needs account authentication. The main checkout has read-only Git
+metadata, so work uses the isolated Symats-tasks clone under Documents/Codex.
+
+T-019 on `codex/T-019-bare-notebook` creates `app/` from scratch using the
+approved CodeMirror 6, MathLive, Compute Engine, KaTeX, STIX Two Math, and
+Plotly packages. It has a minimal notebook layout, Shift+Enter, cell actions,
+math/text toggle, workspace, and output/plot rendering via a host contract for
+T-022. `pnpm build` passes and the page/keyboard flow were visually checked.
+Kernel calls and lossless mode conversion need T-022. No public core API or
+EXPR_SPEC changes.
+
 ## NEW DIRECTION (2026-10-02, from Loc via Claude) — read first
 Loc wants **Mathematica with a lighter UI**: a notebook with a live kernel where variables
 persist across cells and cells contain multiple lines of code. The current card layout

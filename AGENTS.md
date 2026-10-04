@@ -12,15 +12,60 @@ Read this file in full before starting any task.
 
 ## Project
 
-Symats is a free, open-source symbolic mathematics program. The user writes math
-**either in real 2-D notation** (integral signs with limit slots, fractions, roots,
-sums, derivatives, matrices) **or in plain text** (`integrate(x^2, x, 0, 1)`), and
-can switch between the two at any time. The engine computes exact symbolic answers,
-solves multivariable differential equations and integrals, displays results as
-math, and plots equations — including time-varying (animated) ones.
+Symats is a free, open-source symbolic mathematics program — **Mathematica-like, with
+a lighter, bare UI**. It is a **notebook with a live kernel**: the user writes lines of
+code in cells, defines variables and functions, executes cells, and later cells see
+everything defined earlier (like Mathematica notebooks and the MATLAB command
+window/scripts). Input is **plain text or real 2-D notation** (integral signs with limit
+slots, fractions, roots, sums, derivatives, matrices), switchable per cell. The engine
+computes exact symbolic answers, solves multivariable differential equations and
+integrals, displays results as math, and plots — including time-varying (animated) plots.
 
 - Engine: C++20 library, independent of any UI.
 - Both input modes produce the **same expression tree**; the tree is the source of truth.
+
+## Notebook model (decided 2026-10-02) — read before touching app/, convert/, or the kernel
+
+**Kernel.** One `symats::Session` (core/session.h) per open notebook. All cells share it:
+`a = 5` in cell 1 is visible in cell 7. *Restart kernel* clears all definitions.
+
+**Cells.** A notebook is a vertical list of cells. Kinds: `input` (code), `text`
+(notes, Markdown), later `section`. An input cell holds **one or more statements**:
+- statements are separated by newlines or `;`; a newline inside open brackets, or after a
+  trailing binary operator, continues the statement;
+- a statement ending in `;` is evaluated but its output is **not shown** (MATLAB/Mathematica);
+- statements run top to bottom; every shown result gets an output line
+  `Out[n]` (numbering is per session, like Mathematica `In[n]:=` / `Out[n]=`);
+- `Null` results (e.g. from `f(x_) := x^2`) are not shown;
+- an error in one statement is shown inline under that statement; later statements in the
+  cell still run; the kernel survives.
+
+**Executing.** `Shift+Enter` runs the current cell and moves to the next (creating one if
+needed). `Enter` inserts a newline. Also: *Run all*, *Abort* (stops a long evaluation),
+*Restart kernel*. A running cell shows a subtle busy marker; evaluation runs off the UI thread.
+
+**History.** `%` = last output, `%%` = the one before, `%5` / `Out(5)` = output 5.
+
+**Workspace (MATLAB-style, optional).** A collapsible side panel listing user-defined
+symbols and their values/definitions (from `Session::user_symbols()`). Hidden by default.
+
+**Scripts.** A notebook can be exported to / imported from a plain `.sym` text file (one
+statement per line, cells separated by blank-line `(* --- *)` markers), and `symats-cli
+file.sym` runs a script like a MATLAB `.m` file. Notebook file format: `.symnb` (JSON).
+
+**Bare UI — rules for app/.**
+- White (or system dark) page, content column ~ 800 px, no hero header, no cards, no
+  explanatory sentences, no colored buttons. The notebook *is* the page.
+- Each cell: input in a monospace font with a thin left gutter showing `In[n]` faintly;
+  output directly below, rendered as math (KaTeX), with `Out[n]` faintly in the gutter.
+- A thin cell bracket on hover only; controls (math/text toggle, delete, move) appear on
+  hover or via keyboard, never permanently.
+- One minimal top bar: notebook name, ▶ run, ■ abort, ⟳ restart, workspace toggle,
+  menu (…). Nothing else.
+- 2-D math input: MathLive, entered per cell via toggle or shortcut (`Ctrl+M`); palette of
+  templates (∫, Σ, matrix, fraction) opens on `\` or a hover icon — not shown permanently.
+- Plots render inline under the statement that produced them.
+- Keyboard-first: everything reachable without the mouse.
 
 ## Architecture decision: reuse proven libraries (decided 2026-10-02)
 
@@ -52,6 +97,20 @@ spec as the common format, and delegates to proven open-source libraries:
 5. **Fallback chain:** backend → Symats-native method (if any) → numeric result, labeled.
 6. **Native first for the basics.** `D` (derivatives) and `Expand` are implemented natively in
    `core/` — they are needed to verify backend results and must not depend on Giac.
+
+## Operator set (decided 2026-10-03)
+
+Precedence and node names: docs/EXPR_SPEC.md §3.12.
+
+- **Tier 1 — required now:** `+ - * / ^`, implicit multiplication, `=`, `:=`, `==`, `!=`,
+  `< <= > >=`, `->`, `/.`, patterns `x_` / `x_h`, `;`, `%` / `%%` / `%n`, lists `{ }` and
+  matrices `[[ ]]`, `.` (Dot), `'` (derivative: `y'(t)`), `&&`, `||`, `!`, postfix `!` (factorial).
+- **Tier 2 — later (board T-025):** `:>`, `//.`, `===`, `=.`, `/;`, `[[i]]` indexing, `;;`
+  spans, `++`, `+=`, `-=`.
+- **Tier 3 — deliberately excluded:** `@`, `@@`, `@@@`, `//` (postfix call), `/@`, `#`/`&`
+  pure functions (use `map(f, list)` and readable lambdas instead), `~f~`, `<>`, `<| |>`,
+  `?`/`??`, `>>`/`<<`, `\[Name]` characters, contexts and `$` variables. Do not add these;
+  leaving them out keeps Symats lighter and clearly distinct from Wolfram Language.
 
 ## Core requirements
 
@@ -207,5 +266,22 @@ ctest --test-dir build --output-on-failure
 - Only add dependencies whose licenses are compatible with GPL-3.0-or-later.
   Approved: Giac (GPL-3+), FLINT/GMP/MPFR (LGPL-3), SUNDIALS (BSD-3), Boost (BSL-1.0),
   Eigen (MPL-2.0), MathLive/Compute Engine/Plotly.js/KaTeX/Tauri (MIT/Apache-2.0),
-  Rubi rules and test suite (MIT). Anything else needs Loc's approval.
-- Do not use Symbolica (not open source).
+  Rubi rules and test suite (MIT), **xeus** (BSD-3, Jupyter kernel), **CodeMirror 6** (MIT,
+  cell editor), **Boost.Odeint / Boost.Math** (BSL-1.0), **SymEngine** (MIT, reserve backend),
+  **Emscripten** (MIT), **STIX Two / Latin Modern Math** fonts (OFL), Numerica (MIT, see below).
+  Reference/oracle only (GPL, may be read and translated, not linked): **Mathics3** (evaluator
+  semantics, built-in behavior, doc-tests), **Maxima** (second test oracle next to SymPy).
+  Anything else needs Loc's approval.
+- **Symbolica policy.**
+  - The `symbolica` library itself is source-available, not open source: do **not** read,
+    copy, port, paraphrase, or link to its source code, and do not depend on it.
+  - Its spin-off crates **Numerica** (github.com/symbolica-dev/numerica) and **Graphica**
+    (github.com/symbolica-dev/graphica) are **MIT-licensed**: they may be read and their
+    algorithms ported to C++ with attribution (keep the MIT copyright notice in the ported
+    file and list it in THIRD_PARTY_NOTICES.md). Verify the LICENSE file of the exact
+    version you use first. Useful parts: error-tracking floats, dual numbers (automatic
+    differentiation), Vegas Monte Carlo integration, rational reconstruction, finite fields.
+  - Public documentation, blog posts, and lecture notes may be read for ideas and cited
+    like a textbook; never copy their text or examples verbatim.
+  - Never use Symbolica's output as expected values in tests (only mathematics, textbooks,
+    and open-source systems).

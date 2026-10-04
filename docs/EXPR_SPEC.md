@@ -75,7 +75,8 @@ Text: lowercase (`sin(x)`, `arctan(x)`, `log(x)` = natural log, `log(b, x)` = ba
 | `Equal` | `a == b` (a single `=` is assignment, see §3.10) | a = b |
 | `Unequal` | `a != b` | a ≠ b |
 | `Less`, `LessEqual`, `Greater`, `GreaterEqual` | `<  <=  >  >=` | <  ≤  >  ≥ |
-| `And`, `Or`, `Not` | `and or not` | ∧ ∨ ¬ |
+| `And`, `Or`, `Not` | `a && b`, `a \|\| b`, `!a` (also `and`, `or`, `not`) | ∧ ∨ ¬ |
+| `ReplaceAll` | `expr /. x -> 3`, `expr /. {x -> 1, y -> 2}` (also `subs(expr, rules)`) | |
 | `List` | `{a, b, c}` | {a, b, c} |
 | `Rule` | `x -> 2` | x → 2 |
 
@@ -86,7 +87,7 @@ Text: lowercase (`sin(x)`, `arctan(x)`, `log(x)` = natural log, `log(b, x)` = ba
 | `D` | f, x | `D(f, x)` / `diff(f, x)` | d/dx f |
 | `D` | f, {x, n} | `D(f, x, n)` | dⁿ/dxⁿ f |
 | `D` | f, x, y | `D(f, x, y)` | ∂²f/∂x∂y |
-| `Derivative` | n, f (function form) | `y'`, `y''` | y′, y″ |
+| `Derivative` | `Derivative(n, f)` used as a head: `y'(t)` = `Derivative(1, y)(t)`, `y''(t)` = `Derivative(2, y)(t)` | `y'(t)`, `f''(x)` | y′, y″ |
 | `Integrate` | f, x | `integrate(f, x)` | ∫ f dx |
 | `Integrate` | f, {x, a, b} | `integrate(f, x, a, b)` | ∫ₐᵇ f dx |
 | `Integrate` | f, {x, a, b}, {y, c, d} | `integrate(f, x, a, b, y, c, d)` | ∬ f dx dy (limits may depend on outer variables) |
@@ -115,7 +116,7 @@ A matrix is a `List` of row `List`s; a vector is a `List`.
 | Head | Text | 2-D |
 |------|------|-----|
 | (matrix) | `[[a, b], [c, d]]` or `{{a, b}, {c, d}}` | bracketed grid template |
-| `Dot` | `A . B` | A·B |
+| `Dot` | `A . B` (vector·vector → scalar, matrix·vector, vector·matrix, matrix·matrix) | A·B |
 | `Transpose` | `transpose(A)` | Aᵀ |
 | `Det` | `det(A)` | \|A\| or det A |
 | `Inverse` | `inverse(A)` | A⁻¹ |
@@ -149,6 +150,8 @@ Text: `expand(e)`, `factor(e)`, `simplify(e)`, `solve(eqn, x)`, `subs(e, x -> 2)
 | `SetDelayed` | `f(x_) := x^2` | define rule, evaluate on use |
 | `Pattern` | `x_` | matches anything, binds `x` |
 | `Clear` | `clear(f)` | remove own value and definitions |
+| `CompoundExpression` | `a; b; c` | evaluate in order, return the last (`a; b;` → `Null`) |
+| `Out` | `%`, `%%`, `%5`, `Out(5)` | previous outputs in the session (`Out()` = last, `Out(-2)` = second to last) |
 
 Pattern nodes (implemented in `core/pattern.h`, T-001):
 
@@ -170,6 +173,26 @@ Arguments are evaluated unless the head holds them (`HoldFirst`, `HoldRest`, `Ho
 then built-ins, user definitions (exact before pattern), and finally registered
 `MathBackend`s are tried. Every result carries a status: `exact`, `verified`,
 `numeric`, or `unverified` (see AGENTS.md, rules for backends).
+
+### 3.12 Operator precedence (plain text, high to low)
+
+| Level | Operators | Associativity |
+|-------|-----------|---------------|
+| 1 | function call `f(x)`, `'` (derivative), postfix `!` (factorial) | left |
+| 2 | `^` | right |
+| 3 | unary `-`, `+`, prefix `!` (Not) | — |
+| 4 | `.` (Dot) | left |
+| 5 | `*`, `/`, implicit multiplication (`2x`, `a b`) | left |
+| 6 | `+`, `-` | left |
+| 7 | `==`, `!=`, `<`, `<=`, `>`, `>=` | — |
+| 8 | `&&` | left |
+| 9 | `\|\|` | left |
+| 10 | `->` | right |
+| 11 | `/.` | left |
+| 12 | `=`, `:=` | right |
+| 13 | `;` | — |
+
+A `.` between digits is a decimal point (`1.5`); between other operands it is Dot (`A . B`).
 
 ## 4. Editor ⇄ engine exchange format
 

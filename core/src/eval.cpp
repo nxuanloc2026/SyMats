@@ -8,6 +8,7 @@
 // Algebraic Computation", Academic Press, 1988, ch. 1-2.
 #include "symats/eval.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "symats/pattern.h"
@@ -68,6 +69,16 @@ unsigned Context::attributes(const std::string& symbol) const {
 }
 
 void Context::set_builtin(const std::string& head, Builtin fn) { builtins_[head] = std::move(fn); }
+
+std::vector<std::string> Context::user_symbols() const {
+    std::vector<std::string> names;
+    for (const auto& [name, d] : symbols_) {
+        if (d.attributes & attr::Protected) continue;
+        if (d.own_value || !d.exact.empty() || !d.patterns.empty()) names.push_back(name);
+    }
+    std::sort(names.begin(), names.end());
+    return names;
+}
 
 // ---------------------------------------------------------------- helpers
 
@@ -146,6 +157,70 @@ int numeric_compare(const ExprPtr& a, const ExprPtr& b, bool& ok) {
 
 ExprPtr truth(bool v) { return v ? sym_true() : sym_false(); }
 
+// ---- linear algebra helpers for Dot
+// A vector is a non-empty List with no List elements; a matrix is a non-empty List of
+// vectors of equal length.
+bool is_vector(const ExprPtr& e) {
+    if (!e->has_head("List") || e->size() == 0) return false;
+    for (const auto& a : e->args())
+        if (a->has_head("List")) return false;
+    return true;
+}
+bool is_matrix(const ExprPtr& e) {
+    if (!e->has_head("List") || e->size() == 0) return false;
+    const std::size_t cols = e->arg(0)->size();
+    for (const auto& r : e->args())
+        if (!is_vector(r) || r->size() != cols) return false;
+    return true;
+}
+ExprPtr inner(const ExprList& a, const ExprList& b) {
+    ExprList terms;
+    terms.reserve(a.size());
+    for (std::size_t i = 0; i < a.size(); ++i) terms.push_back(times(a[i], b[i]));
+    return plus(std::move(terms));
+}
+ExprList column(const ExprPtr& m, std::size_t j) {
+    ExprList c;
+    c.reserve(m->size());
+    for (const auto& row : m->args()) c.push_back(row->arg(j));
+    return c;
+}
+[[noreturn]] void dot_mismatch(std::size_t a, std::size_t b) {
+    throw EvaluationError("Dot: incompatible dimensions (" + std::to_string(a) + " and " +
+                          std::to_string(b) + ")");
+}
+// Returns nullptr when the operands are not concrete vectors/matrices.
+ExprPtr dot2(const ExprPtr& a, const ExprPtr& b) {
+    const ExprPtr list = make_symbol("List");
+    if (is_vector(a) && is_vector(b)) {
+        if (a->size() != b->size()) dot_mismatch(a->size(), b->size());
+        return inner(a->args(), b->args());
+    }
+    if (is_matrix(a) && is_vector(b)) {  // (m x n) . n -> m
+        if (a->arg(0)->size() != b->size()) dot_mismatch(a->arg(0)->size(), b->size());
+        ExprList out;
+        for (const auto& row : a->args()) out.push_back(inner(row->args(), b->args()));
+        return make_normal(list, std::move(out));
+    }
+    if (is_vector(a) && is_matrix(b)) {  // m . (m x n) -> n
+        if (a->size() != b->size()) dot_mismatch(a->size(), b->size());
+        ExprList out;
+        for (std::size_t j = 0; j < b->arg(0)->size(); ++j) out.push_back(inner(a->args(), column(b, j)));
+        return make_normal(list, std::move(out));
+    }
+    if (is_matrix(a) && is_matrix(b)) {  // (m x k) . (k x n) -> m x n
+        if (a->arg(0)->size() != b->size()) dot_mismatch(a->arg(0)->size(), b->size());
+        ExprList rows;
+        for (const auto& row : a->args()) {
+            ExprList r;
+            for (std::size_t j = 0; j < b->arg(0)->size(); ++j) r.push_back(inner(row->args(), column(b, j)));
+            rows.push_back(make_normal(list, std::move(r)));
+        }
+        return make_normal(list, std::move(rows));
+    }
+    return nullptr;
+}
+
 void install_builtins(Context& ctx) {
     using attr::Flat;
     using attr::HoldAll;
@@ -183,6 +258,13 @@ void install_builtins(Context& ctx) {
         }
         return sym_null();
     });
+    // a; b; c — evaluate in order, return the last.
+    ctx.set_builtin("CompoundExpression", [](const ExprPtr& e, Context& c) -> ExprPtr {
+        ExprPtr last = sym_null();
+        for (const auto& a : e->args()) last = evaluate(a, c);
+        return last;
+    });
+    ctx.set_attributes("CompoundExpression", HoldAll | Protected);
     ctx.set_attributes("Set", HoldFirst | Protected);
     ctx.set_attributes("SetDelayed", HoldAll | Protected);
     ctx.set_attributes("Clear", HoldAll | Protected);
@@ -243,6 +325,54 @@ void install_builtins(Context& ctx) {
     }
     ctx.set_attributes("Equal", Protected);
     ctx.set_attributes("Unequal", Protected);
+
+    // Logic: And/Or evaluate left to right and stop early (HoldAll); undecided parts stay.
+    ctx.set_builtin("And", [](const ExprPtr& e, Context& c) -> ExprPtr {
+        ExprList rest;
+        for (const auto& a : e->args()) {
+            ExprPtr v = evaluate(a, c);
+            if (v->is_symbol("False")) return sym_false();
+            if (!v->is_symbol("True")) rest.push_back(v);
+        }
+        if (rest.empty()) return sym_true();
+        if (rest.size() == 1) return rest[0];
+        return make_normal("And", std::move(rest));
+    });
+    ctx.set_builtin("Or", [](const ExprPtr& e, Context& c) -> ExprPtr {
+        ExprList rest;
+        for (const auto& a : e->args()) {
+            ExprPtr v = evaluate(a, c);
+            if (v->is_symbol("True")) return sym_true();
+            if (!v->is_symbol("False")) rest.push_back(v);
+        }
+        if (rest.empty()) return sym_false();
+        if (rest.size() == 1) return rest[0];
+        return make_normal("Or", std::move(rest));
+    });
+    ctx.set_builtin("Not", [](const ExprPtr& e, Context&) -> ExprPtr {
+        if (e->size() != 1) return nullptr;
+        const ExprPtr& a = e->arg(0);
+        if (a->is_symbol("True")) return sym_false();
+        if (a->is_symbol("False")) return sym_true();
+        if (a->has_head("Not") && a->size() == 1) return a->arg(0);
+        return nullptr;
+    });
+    ctx.set_attributes("And", HoldAll | Protected);
+    ctx.set_attributes("Or", HoldAll | Protected);
+    ctx.set_attributes("Not", Protected);
+
+    // Dot: vector.vector -> scalar, matrix.vector, vector.matrix, matrix.matrix.
+    ctx.set_builtin("Dot", [](const ExprPtr& e, Context&) -> ExprPtr {
+        if (e->size() < 2) return e->size() == 1 ? e->arg(0) : nullptr;
+        ExprPtr acc = e->arg(0);
+        for (std::size_t i = 1; i < e->size(); ++i) {
+            ExprPtr r = dot2(acc, e->arg(i));
+            if (!r) return nullptr;  // not lists: leave symbolic, e.g. A . B
+            acc = r;
+        }
+        return acc;
+    });
+    ctx.set_attributes("Dot", Protected);
 
     // Elementary functions thread over lists; their math comes later (T-010/T-012).
     for (const char* f : {"Sin", "Cos", "Tan", "Cot", "Sec", "Csc", "ArcSin", "ArcCos", "ArcTan",

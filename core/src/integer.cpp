@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Loc Ngo and Symats contributors
-//
-// Built-in arbitrary-precision integer (schoolbook algorithms).
-// Reference: D. E. Knuth, The Art of Computer Programming, Vol. 2, Section 4.3.1.
+
 #include "symats/integer.h"
 
 #include <algorithm>
@@ -10,6 +8,127 @@
 #include <stdexcept>
 
 namespace symats {
+
+#ifdef SYMATS_USE_GMP
+
+Integer::Integer(long long v) {
+    value_ = std::to_string(v);
+}
+
+Integer Integer::from_string(std::string_view s) {
+    Integer r;
+    if (s.empty()) throw std::invalid_argument("Integer::from_string: no digits");
+    std::string str(s);
+    std::size_t start = (str[0] == '+' || str[0] == '-') ? 1 : 0;
+    if (start >= str.size()) throw std::invalid_argument("Integer::from_string: no digits");
+    for (std::size_t i = start; i < str.size(); ++i) {
+        if (str[i] < '0' || str[i] > '9')
+            throw std::invalid_argument("Integer::from_string: invalid character");
+    }
+    if (r.value_.set_str(str, 10) != 0) {
+        throw std::invalid_argument("Integer::from_string: parse failed");
+    }
+    return r;
+}
+
+bool Integer::is_zero() const { return value_ == 0; }
+bool Integer::is_one() const { return value_ == 1; }
+bool Integer::is_negative() const { return value_ < 0; }
+bool Integer::is_even() const { return mpz_even_p(value_.get_mpz_t()) != 0; }
+
+Integer Integer::abs() const {
+    Integer r;
+    mpz_abs(r.value_.get_mpz_t(), value_.get_mpz_t());
+    return r;
+}
+
+Integer Integer::operator-() const {
+    Integer r;
+    mpz_neg(r.value_.get_mpz_t(), value_.get_mpz_t());
+    return r;
+}
+
+Integer& Integer::operator+=(const Integer& o) {
+    value_ += o.value_;
+    return *this;
+}
+
+Integer& Integer::operator-=(const Integer& o) {
+    value_ -= o.value_;
+    return *this;
+}
+
+Integer& Integer::operator*=(const Integer& o) {
+    value_ *= o.value_;
+    return *this;
+}
+
+Integer& Integer::operator/=(const Integer& o) {
+    if (o.is_zero()) throw std::domain_error("Integer: division by zero");
+    mpz_tdiv_q(value_.get_mpz_t(), value_.get_mpz_t(), o.value_.get_mpz_t());
+    return *this;
+}
+
+Integer& Integer::operator%=(const Integer& o) {
+    if (o.is_zero()) throw std::domain_error("Integer: division by zero");
+    mpz_tdiv_r(value_.get_mpz_t(), value_.get_mpz_t(), o.value_.get_mpz_t());
+    return *this;
+}
+
+std::pair<Integer, Integer> Integer::divmod(const Integer& a, const Integer& b) {
+    if (b.is_zero()) throw std::domain_error("Integer: division by zero");
+    Integer q, r;
+    mpz_tdiv_qr(q.value_.get_mpz_t(), r.value_.get_mpz_t(), a.value_.get_mpz_t(), b.value_.get_mpz_t());
+    return {q, r};
+}
+
+Integer Integer::gcd(const Integer& a, const Integer& b) {
+    Integer r;
+    mpz_gcd(r.value_.get_mpz_t(), a.value_.get_mpz_t(), b.value_.get_mpz_t());
+    return r;
+}
+
+Integer Integer::pow(const Integer& base, unsigned long long exp) {
+    Integer r;
+    mpz_pow_ui(r.value_.get_mpz_t(), base.value_.get_mpz_t(), static_cast<unsigned long int>(exp));
+    return r;
+}
+
+std::pair<Integer, bool> Integer::iroot(unsigned long long n) const {
+    if (n == 0) throw std::domain_error("Integer::iroot: n must be positive");
+    if (is_negative()) throw std::domain_error("Integer::iroot: negative argument");
+    Integer root;
+    int exact = mpz_root(root.value_.get_mpz_t(), value_.get_mpz_t(), static_cast<unsigned long int>(n));
+    return {root, exact != 0};
+}
+
+std::optional<long long> Integer::to_int64() const {
+    if (mpz_fits_slong_p(value_.get_mpz_t())) {
+        return static_cast<long long>(value_.get_si());
+    }
+    std::string s = to_string();
+    try {
+        std::size_t pos = 0;
+        long long val = std::stoll(s, &pos);
+        if (pos == s.size()) return val;
+    } catch (...) {}
+    return std::nullopt;
+}
+
+double Integer::to_double() const {
+    return value_.get_d();
+}
+
+std::string Integer::to_string() const {
+    return value_.get_str(10);
+}
+
+std::size_t Integer::hash() const {
+    std::string s = to_string();
+    return std::hash<std::string>{}(s);
+}
+
+#else
 
 namespace {
 template <class V>
@@ -54,6 +173,11 @@ Integer Integer::from_string(std::string_view s) {
     r.neg_ = neg && !r.is_zero();
     return r;
 }
+
+bool Integer::is_zero() const { return limbs_.empty(); }
+bool Integer::is_one() const { return !neg_ && limbs_.size() == 1 && limbs_[0] == 1; }
+bool Integer::is_negative() const { return neg_; }
+bool Integer::is_even() const { return is_zero() || (limbs_[0] % 2 == 0); }
 
 void Integer::trim() {
     trim_vec(limbs_);
@@ -309,5 +433,7 @@ std::strong_ordering operator<=>(const Integer& a, const Integer& b) {
     return c < 0 ? std::strong_ordering::less
                  : (c > 0 ? std::strong_ordering::greater : std::strong_ordering::equal);
 }
+
+#endif
 
 }  // namespace symats

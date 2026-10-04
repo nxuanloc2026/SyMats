@@ -18,6 +18,10 @@
 #include <utility>
 #include <vector>
 
+#ifdef SYMATS_USE_GMP
+#include <gmpxx.h>
+#endif
+
 namespace symats {
 
 class Integer {
@@ -28,11 +32,11 @@ public:
     // Parses an optional sign followed by decimal digits. Throws std::invalid_argument.
     static Integer from_string(std::string_view s);
 
-    bool is_zero() const { return limbs_.empty(); }
-    bool is_one() const { return !neg_ && limbs_.size() == 1 && limbs_[0] == 1; }
-    bool is_negative() const { return neg_; }
-    int sign() const { return is_zero() ? 0 : (neg_ ? -1 : 1); }
-    bool is_even() const { return is_zero() || (limbs_[0] % 2 == 0); }
+    bool is_zero() const;
+    bool is_one() const;
+    bool is_negative() const;
+    int sign() const { return is_zero() ? 0 : (is_negative() ? -1 : 1); }
+    bool is_even() const;
 
     Integer abs() const;
     Integer operator-() const;
@@ -64,10 +68,22 @@ public:
     std::string to_string() const;
     std::size_t hash() const;
 
+#ifdef SYMATS_USE_GMP
+    friend bool operator==(const Integer& a, const Integer& b) { return a.value_ == b.value_; }
+    friend std::strong_ordering operator<=>(const Integer& a, const Integer& b) {
+        int cmp = mpz_cmp(a.value_.get_mpz_t(), b.value_.get_mpz_t());
+        return cmp < 0 ? std::strong_ordering::less
+                       : (cmp > 0 ? std::strong_ordering::greater : std::strong_ordering::equal);
+    }
+#else
     friend bool operator==(const Integer& a, const Integer& b) = default;
     friend std::strong_ordering operator<=>(const Integer& a, const Integer& b);
+#endif
 
 private:
+#ifdef SYMATS_USE_GMP
+    mpz_class value_{0};
+#else
     using Limb = std::uint32_t;
     static constexpr Limb kBase = 1000000000u;  // 10^9
     static constexpr int kBaseDigits = 9;
@@ -83,6 +99,7 @@ private:
     static std::vector<Limb> mul_small(const std::vector<Limb>& a, Limb m);
     static std::pair<std::vector<Limb>, std::vector<Limb>>
     divmod_abs(const std::vector<Limb>& a, const std::vector<Limb>& b);
+#endif
 };
 
 }  // namespace symats

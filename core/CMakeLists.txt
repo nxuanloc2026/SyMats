@@ -17,3 +17,11 @@ target_include_directories(symats_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 target_compile_features(symats_core PUBLIC cxx_std_20)
+
+if(SYMATS_USE_GMP)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(GMP REQUIRED gmp gmpxx)
+  target_compile_definitions(symats_core PUBLIC SYMATS_USE_GMP)
+  target_include_directories(symats_core PRIVATE ${GMP_INCLUDE_DIRS})
+  target_link_libraries(symats_core PRIVATE ${GMP_LIBRARIES})
+endif()

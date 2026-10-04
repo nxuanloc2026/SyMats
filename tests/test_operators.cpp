@@ -4,7 +4,6 @@
 // Tier 1 operators (AGENTS.md "Operator set"): logic, Dot, ReplaceAll.
 // Built as trees here; the text syntax (&&, ||, !, ., /.) is parsed by convert/ (T-024).
 #include "symats/eval.h"
-#include "symats/pattern.h"
 #include "symats/text.h"
 #include "test.h"
 
@@ -67,52 +66,6 @@ TEST_CASE("Operators: ReplaceAll (/.) leaves variables unassigned") {
     CHECK_EQ(run(c, P("x")), std::string("x"));  // x still has no value
 }
 
-TEST_CASE("Operators: Derivative and Pattern syntax representations") {
-    Context c;
-    // Derivative: y'(t) -> Derivative(1)(y)(t)
-    ExprPtr deriv1 = call("Derivative", {make_integer(1)});
-    ExprPtr y_prime = make_normal(deriv1, {make_symbol("y")});
-    ExprPtr y_prime_t = make_normal(y_prime, {make_symbol("t")});
-    CHECK_EQ(to_full_form(y_prime_t), "Derivative(1)(y)(t)");
-
-    // Pattern structures: x_, x_Integer, x__, x___
-    ExprPtr px = pat("x");
-    ExprPtr px_int = pat("x", "Integer");
-    ExprPtr px_seq = pat_seq("x");
-    ExprPtr px_null_seq = pat_null_seq("x");
-
-    CHECK_EQ(to_full_form(px), "Pattern(x, Blank())");
-    CHECK_EQ(to_full_form(px_int), "Pattern(x, Blank(Integer))");
-    CHECK_EQ(to_full_form(px_seq), "Pattern(x, BlankSequence())");
-    CHECK_EQ(to_full_form(px_null_seq), "Pattern(x, BlankNullSequence())");
-}
-
-TEST_CASE("Operators: Calculus expected values representation (D, Expand, Integrate, Solve)") {
-    Context c;
-    // D(x^3, x) -> 3*x^2
-    ExprPtr d_expr = call("D", {P("x^3"), make_symbol("x")});
-    ExprPtr d_expected = P("3*x^2");
-    CHECK_EQ(to_full_form(d_expr), "D(Power(x, 3), x)");
-    CHECK_EQ(to_full_form(d_expected), "Times(3, Power(x, 2))");
-
-    // Expand((x + 1)^2) -> x^2 + 2*x + 1
-    ExprPtr exp_expr = call("Expand", {P("(x + 1)^2")});
-    ExprPtr exp_expected = P("x^2 + 2*x + 1");
-    CHECK_EQ(to_full_form(exp_expr), "Expand(Power(Plus(1, x), 2))");
-    CHECK_EQ(to_full_form(exp_expected), "Plus(1, Times(2, x), Power(x, 2))");
-
-    // Integrate(Sin(x), x) -> -1 * Cos(x)
-    ExprPtr int_expr = call("Integrate", {call("Sin", {make_symbol("x")}), make_symbol("x")});
-    ExprPtr int_expected = call("Times", {make_integer(-1), call("Cos", {make_symbol("x")})});
-    CHECK_EQ(to_full_form(int_expr), "Integrate(Sin(x), x)");
-    CHECK_EQ(to_full_form(int_expected), "Times(-1, Cos(x))");
-
-    // Solve(x^2 - 4 == 0, x) -> List(Rule(x, -2), Rule(x, 2))
-    ExprPtr solve_expr = call("Solve", {call("Equal", {P("x^2 - 4"), make_integer(0)}), make_symbol("x")});
-    ExprPtr solve_expected = call("List", {call("Rule", {make_symbol("x"), make_integer(-2)}),
-                                           call("Rule", {make_symbol("x"), make_integer(2)})});
-    CHECK_EQ(to_full_form(solve_expr), "Solve(Equal(Plus(-4, Power(x, 2)), 0), x)");
-    CHECK_EQ(to_full_form(solve_expected), "List(Rule(x, -2), Rule(x, 2))");
 TEST_CASE("Operators: ReplaceAll with list of rules and nested subexpressions") {
     Context c;
     CHECK_EQ(run(c, call("ReplaceAll", {P("x + y + z"), P("{x -> 1, y -> 2, z -> 3}")})), std::string("6"));

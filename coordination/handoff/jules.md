@@ -6,15 +6,17 @@ In order, one PR each: **T-028** tests (incl. T-014 data fixes, Maxima as second
 **T-009** optional GMP backend, **T-030** Mathics3 semantics doc-tests (reference only, GPL).
 
 ## Current task
-T-014: Backend comparison suites (Rubi integral test set and SymPy cases). Status: review / PR ready.
+T-028: Tests: Session (multi-cell, %, errors), Tier 1 operators, and D/Expand expected values from mathematics, SymPy, Maxima; fix T-014 data; Maxima as second oracle.
+Branch: `jules/T-028-tests-maxima-oracle`
+Status: review / PR ready
 
 ## Notes
-- Created `tests/test_backend_comparison.cpp` and registered in `tests/CMakeLists.txt`.
-- Added dataset structures and test cases for:
-  - **Rubi integral cases** (MIT license): basic polynomial, rational, trigonometric, exponential, logarithm, inverse trigonometric integrals.
-  - **SymPy test cases** (BSD 3-Clause license): differentiation, expansion, factorization, simplification, linear algebra (determinant, trace), and equation solving representation.
-- Implemented `run_comparison_suite` harness that parses input/expected expressions, evaluates them (comparing actual vs. expected), and logs detailed reports on mismatches whenunevaluated operations remain or backend results differ.
-- Verified build and test suite passing via `ctest`.
+- Fixed T-014 dataset issues in `tests/test_backend_comparison.cpp` (`1/3` representation, dropped `+C` from antiderivatives, updated `Solve` output format to `{{x -> a}}`).
+- Added Maxima 5.47.0 oracle dataset (`maxima_cases` with 8 test cases across Integration, Differentiation, Expansion, Factorization, Limit, Solving, LinearAlgebra, DSolve with GPL source noted) and added `maxima_comparison_suite` test case.
+- Added test cases in `test_session.cpp` for multi-cell pipeline error recovery and history shortcut (`%`, `Out(-1)`, `%1`).
+- Added test cases in `test_operators.cpp` for rule lists with `ReplaceAll` and relational operators.
+- Added test cases in `test_eval.cpp` for `D` and `Expand` expected structural representations.
+- Verified all tests pass cleanly via `ctest`.
 
 ## Open questions
 None.

@@ -101,3 +101,29 @@ TEST_CASE("Text: nesting limit throws before stack exhaustion") {
     for (int i = 0; i < 300; ++i) deep = make_normal("f", {deep});
     CHECK_THROWS(to_text(deep));
 }
+
+TEST_CASE("Text: Tier 1 operators follow expression precedence") {
+    CHECK_EQ(to_full_form(parse_text("a /. x_ -> b")),
+             std::string("ReplaceAll(a, Rule(Pattern(x, Blank()), b))"));
+    CHECK_EQ(to_full_form(parse_text("1.5 . x + 2")),
+             std::string("Plus(2, Dot(3/2, x))"));
+    CHECK_EQ(to_full_form(parse_text("a && b || !c")),
+             std::string("Or(And(a, b), Not(c))"));
+    CHECK_EQ(to_full_form(parse_text("!x!")),
+             std::string("Not(Factorial(x))"));
+    CHECK_EQ(to_full_form(parse_text("y'(t)")),
+             std::string("Derivative(1, y)(t)"));
+    CHECK_EQ(to_full_form(parse_text("y''(t)")),
+             std::string("Derivative(2, y)(t)"));
+    CHECK_EQ(to_full_form(parse_text("clear(x)")), std::string("Clear(x)"));
+}
+
+TEST_CASE("Text: Tier 1 patterns and operators round trip") {
+    for (std::string_view source : {
+             "x_", "x_h", "x__", "x___", "_", "__", "___", "_Integer",
+             "f(x_) := x^2", "f(a) /. f(x_) -> x", "a . b * c", "a && b || !c",
+             "x!^2", "y''(t)", "clear(x)", "`x_y`", "a /. x_ -> b"}) {
+        round_trip(source);
+    }
+    CHECK_THROWS(parse_text("x____"));
+}

@@ -112,6 +112,8 @@ TEST_CASE("Session: multi-cell line numbering, history offset, and symbol cleari
     auto symbols = s.user_symbols();
     CHECK_EQ(symbols.size(), std::size_t(1));
     CHECK_EQ(symbols[0], std::string("y"));
+}
+
 TEST_CASE("Session: multi-cell pipeline with error recovery") {
     Session s;
     // Cell 1: valid definitions

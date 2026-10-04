@@ -113,4 +113,17 @@ TEST_CASE("Operators: Calculus expected values representation (D, Expand, Integr
                                            call("Rule", {make_symbol("x"), make_integer(2)})});
     CHECK_EQ(to_full_form(solve_expr), "Solve(Equal(Plus(-4, Power(x, 2)), 0), x)");
     CHECK_EQ(to_full_form(solve_expected), "List(Rule(x, -2), Rule(x, 2))");
+TEST_CASE("Operators: ReplaceAll with list of rules and nested subexpressions") {
+    Context c;
+    CHECK_EQ(run(c, call("ReplaceAll", {P("x + y + z"), P("{x -> 1, y -> 2, z -> 3}")})), std::string("6"));
+    CHECK_EQ(run(c, call("ReplaceAll", {P("f(x, y)"), P("{x -> a + 1, y -> b}")})), std::string("f(Plus(1, a), b)"));
+}
+
+TEST_CASE("Operators: Relational operators evaluation") {
+    Context c;
+    CHECK_EQ(run(c, call("Equal", {P("5"), P("5")})), std::string("True"));
+    CHECK_EQ(run(c, call("Equal", {P("5"), P("6")})), std::string("False"));
+    CHECK_EQ(run(c, call("Unequal", {P("5"), P("6")})), std::string("True"));
+    CHECK_EQ(run(c, call("LessEqual", {P("5"), P("5")})), std::string("True"));
+    CHECK_EQ(run(c, call("GreaterEqual", {P("5"), P("6")})), std::string("False"));
 }

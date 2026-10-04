@@ -184,3 +184,20 @@ TEST_CASE("Eval: dispatch to MathBackend with status") {
     CHECK_EQ(F(evaluate_top(P("1 + 1"), c).value), std::string("2"));
     CHECK_EQ(mock->calls, before);
 }
+
+TEST_CASE("Eval: D and Expand structure parsing and verification") {
+    // D cases from calculus, SymPy diff(), Maxima diff()
+    ExprPtr d1 = P("D(x^4 + 3*x^2, x)");
+    CHECK(d1 != nullptr);
+    CHECK(d1->has_head("D"));
+    CHECK_EQ(d1->size(), std::size_t(2));
+
+    // Expand cases from algebra, SymPy expand(), Maxima expand()
+    ExprPtr exp1 = P("Expand((x + 1)^2)");
+    CHECK(exp1 != nullptr);
+    CHECK(exp1->has_head("Expand"));
+
+    ExprPtr exp2 = P("Expand((a + b)^3)");
+    CHECK(exp2 != nullptr);
+    CHECK(exp2->has_head("Expand"));
+}

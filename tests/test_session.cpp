@@ -112,4 +112,43 @@ TEST_CASE("Session: multi-cell line numbering, history offset, and symbol cleari
     auto symbols = s.user_symbols();
     CHECK_EQ(symbols.size(), std::size_t(1));
     CHECK_EQ(symbols[0], std::string("y"));
+TEST_CASE("Session: multi-cell pipeline with error recovery") {
+    Session s;
+    // Cell 1: valid definitions
+    auto r1 = s.run_cell({{P("x = 10"), false}, {P("y = 20"), false}});
+    CHECK(r1[0].ok());
+    CHECK(r1[1].ok());
+    CHECK_EQ(F(r1[0].output), std::string("10"));
+    CHECK_EQ(F(r1[1].output), std::string("20"));
+
+    // Cell 2: middle statement fails (protected symbol assignment)
+    auto r2 = s.run_cell({{P("z = x + y"), false}, {P("pi = 3"), false}, {P("w = z * 2"), false}});
+    CHECK(r2[0].ok());
+    CHECK_EQ(F(r2[0].output), std::string("30"));
+    CHECK(!r2[1].ok());  // pi is protected
+    CHECK(r2[2].ok());
+    CHECK_EQ(F(r2[2].output), std::string("60"));
+
+    // Cell 3: subsequent cell uses definitions from Cell 2
+    auto r3 = s.run_cell({{P("w + 1"), false}});
+    CHECK(r3[0].ok());
+    CHECK_EQ(F(r3[0].output), std::string("61"));
+}
+
+TEST_CASE("Session: percent shortcut and history in multi-cell evaluations") {
+    Session s;
+    // Cell 1: statement 1 produces 100, statement 2 produces 200
+    auto c1 = s.run_cell({{P("10 * 10"), false}, {P("100 + 100"), false}});
+    CHECK_EQ(F(c1[0].output), std::string("100"));
+    CHECK_EQ(F(c1[1].output), std::string("200"));
+
+    // Cell 2: % refers to previous output (Out[2] = 200), %1 refers to Out[1] = 100
+    auto c2 = s.run_cell({{call("Out", {}), false}, {call("Out", {make_integer(1)}), false}});
+    CHECK_EQ(F(c2[0].output), std::string("200"));
+    CHECK_EQ(F(c2[1].output), std::string("100"));
+
+    // Cell 3: Out(-1) and Out(-2) relative history
+    auto c3 = s.run_cell({{call("Plus", {call("Out", {make_integer(-1)}), call("Out", {make_integer(-2)})}), false}});
+    // Line 5 evaluation: Out(-1) is Line 4 (100), Out(-2) is Line 3 (200) -> 300
+    CHECK_EQ(F(c3[0].output), std::string("300"));
 }

@@ -86,19 +86,22 @@ const std::vector<ComparisonTestCase> rubi_integral_cases = {
     {"RUBI-001", "Rubi", "MIT", "Integration", "Integrate(x^2, x)", "Times(Rational(1, 3), Power(x, 3))"},
     {"RUBI-002", "Rubi", "MIT", "Integration", "Integrate(Power(x, -1), x)", "Log(x)"},
     {"RUBI-003", "Rubi", "MIT", "Integration", "Integrate(Sin(x), x)", "Times(-1, Cos(x))"},
+    {"RUBI-001", "Rubi", "MIT", "Integration", "Integrate(x^2, x)", "1/3 * x^3"},
+    {"RUBI-002", "Rubi", "MIT", "Integration", "Integrate(1/x, x)", "Log(x)"},
+    {"RUBI-003", "Rubi", "MIT", "Integration", "Integrate(Sin(x), x)", "-Cos(x)"},
     {"RUBI-004", "Rubi", "MIT", "Integration", "Integrate(Cos(x), x)", "Sin(x)"},
     {"RUBI-005", "Rubi", "MIT", "Integration", "Integrate(Exp(x), x)", "Exp(x)"},
-    {"RUBI-006", "Rubi", "MIT", "Integration", "Integrate(Power(Plus(1, Power(x, 2)), -1), x)", "ArcTan(x)"},
-    {"RUBI-007", "Rubi", "MIT", "Integration", "Integrate(Times(x, Exp(x)), x)", "Plus(Times(x, Exp(x)), Times(-1, Exp(x)))"},
-    {"RUBI-008", "Rubi", "MIT", "Integration", "Integrate(Power(Plus(a, Times(b, x)), -1), x)", "Times(Power(b, -1), Log(Plus(a, Times(b, x))))"},
-    {"RUBI-009", "Rubi", "MIT", "Integration", "Integrate(Times(x, Power(Plus(1, Power(x, 2)), -1)), x)", "Times(Rational(1, 2), Log(Plus(1, Power(x, 2))))"},
-    {"RUBI-010", "Rubi", "MIT", "Integration", "Integrate(Power(Plus(1, Times(-1, Power(x, 2))), Rational(-1, 2)), x)", "ArcSin(x)"}
+    {"RUBI-006", "Rubi", "MIT", "Integration", "Integrate(1/(1 + x^2), x)", "ArcTan(x)"},
+    {"RUBI-007", "Rubi", "MIT", "Integration", "Integrate(x * Exp(x), x)", "x * Exp(x) - Exp(x)"},
+    {"RUBI-008", "Rubi", "MIT", "Integration", "Integrate(1/(a + b*x), x)", "1/b * Log(a + b*x)"},
+    {"RUBI-009", "Rubi", "MIT", "Integration", "Integrate(x/(1 + x^2), x)", "1/2 * Log(1 + x^2)"},
+    {"RUBI-010", "Rubi", "MIT", "Integration", "Integrate((1 - x^2)^(-1/2), x)", "ArcSin(x)"}
 };
 
 // SymPy test cases (BSD 3-Clause license).
 // Note: Solve results are represented as List(Rule(variable, val), ...).
 const std::vector<ComparisonTestCase> sympy_cases = {
-    {"SYMPY-001", "SymPy", "BSD-3-Clause", "Differentiation", "D(Power(x, 3), x)", "Times(3, Power(x, 2))"},
+    {"SYMPY-001", "SymPy", "BSD-3-Clause", "Differentiation", "D(x^3, x)", "3 * x^2"},
     {"SYMPY-002", "SymPy", "BSD-3-Clause", "Differentiation", "D(Sin(x), x)", "Cos(x)"},
     {"SYMPY-003", "SymPy", "BSD-3-Clause", "Differentiation", "D(Exp(Power(x, 2)), x)", "Times(2, x, Exp(Power(x, 2)))"},
     {"SYMPY-004", "SymPy", "BSD-3-Clause", "Expansion", "Expand(Power(Plus(x, 1), 2))", "Plus(Power(x, 2), Times(2, x), 1)"},
@@ -117,6 +120,26 @@ const std::vector<ComparisonTestCase> maxima_cases = {
     {"MAXIMA-003", "Maxima", "GPL-2.0-or-later", "Expansion", "Expand(Power(Plus(x, 2), 3))", "Plus(Power(x, 3), Times(6, Power(x, 2)), Times(12, x), 8)"},
     {"MAXIMA-004", "Maxima", "GPL-2.0-or-later", "LinearAlgebra", "Det(List(List(1, 2), List(3, 4)))", "-2"},
     {"MAXIMA-005", "Maxima", "GPL-2.0-or-later", "Solving", "Solve(Equal(Plus(Power(x, 2), -9), 0), x)", "List(Rule(x, -3), Rule(x, 3))"}
+    {"SYMPY-003", "SymPy", "BSD-3-Clause", "Differentiation", "D(Exp(x^2), x)", "2 * x * Exp(x^2)"},
+    {"SYMPY-004", "SymPy", "BSD-3-Clause", "Expansion", "Expand((x + 1)^2)", "x^2 + 2*x + 1"},
+    {"SYMPY-005", "SymPy", "BSD-3-Clause", "Expansion", "Expand((x + y)*(x - y))", "x^2 - y^2"},
+    {"SYMPY-006", "SymPy", "BSD-3-Clause", "Factorization", "Factor(x^2 - 1)", "(x - 1)*(x + 1)"},
+    {"SYMPY-007", "SymPy", "BSD-3-Clause", "Simplification", "Simplify(Sin(x)^2 + Cos(x)^2)", "1"},
+    {"SYMPY-008", "SymPy", "BSD-3-Clause", "LinearAlgebra", "Det([[a, b], [c, d]])", "a*d - b*c"},
+    {"SYMPY-009", "SymPy", "BSD-3-Clause", "LinearAlgebra", "Trace([[1, 2], [3, 4]])", "5"},
+    {"SYMPY-010", "SymPy", "BSD-3-Clause", "Solving", "Solve(x^2 - 4 == 0, x)", "{{x -> -2}, {x -> 2}}"}
+};
+
+// Maxima oracle cases (Source: Maxima 5.47.0 - GPL reference system)
+const std::vector<ComparisonTestCase> maxima_cases = {
+    {"MAXIMA-001", "Maxima", "GPL-2.0-or-later", "Integration", "Integrate(x * Sin(x), x)", "Sin(x) - x * Cos(x)"},
+    {"MAXIMA-002", "Maxima", "GPL-2.0-or-later", "Differentiation", "D(x^4 + 3*x^2, x)", "4*x^3 + 6*x"},
+    {"MAXIMA-003", "Maxima", "GPL-2.0-or-later", "Expansion", "Expand((a + b)^3)", "a^3 + 3*a^2*b + 3*a*b^2 + b^3"},
+    {"MAXIMA-004", "Maxima", "GPL-2.0-or-later", "Factorization", "Factor(x^3 - 8)", "(x - 2)*(x^2 + 2*x + 4)"},
+    {"MAXIMA-005", "Maxima", "GPL-2.0-or-later", "Limit", "Limit(Sin(x)/x, x, 0)", "1"},
+    {"MAXIMA-006", "Maxima", "GPL-2.0-or-later", "Solving", "Solve(x^2 - 9 == 0, x)", "{{x -> -3}, {x -> 3}}"},
+    {"MAXIMA-007", "Maxima", "GPL-2.0-or-later", "LinearAlgebra", "Det([[1, 2], [3, 4]])", "-2"},
+    {"MAXIMA-008", "Maxima", "GPL-2.0-or-later", "DSolve", "DSolve(D(y(x), x) == y(x), y(x), x)", "{{y(x) -> C_1 * Exp(x)}}"}
 };
 
 }  // namespace
@@ -151,6 +174,7 @@ TEST_CASE("sympy_comparison_suite") {
 
 TEST_CASE("maxima_comparison_suite") {
     // Parse verification for all Maxima test cases.
+    // Parse verification for all Maxima oracle test cases.
     for (const auto& tc : maxima_cases) {
         symats::ExprPtr input_expr = symats::parse_text(tc.input);
         symats::ExprPtr expected_expr = symats::parse_text(tc.expected);

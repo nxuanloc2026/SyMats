@@ -1,5 +1,23 @@
 # Handoff — Codex
 
+## Active session (2026-10-04)
+
+Loc assigned T-024 → T-020 → T-010 → T-019 → T-022 → T-029 → T-018 →
+T-011 → T-012 → T-013. Claude is out, so Codex covers its engine tasks.
+The main checkout has read-only Git metadata; this task uses the isolated
+`C:/Users/nxuan/Documents/Codex/2026-10-01/i-am-x20/work/Symats-tasks`
+clone. Its `main` matched GitHub at `0ded250` when the session began.
+
+T-024 is committed as `45871c8` on `codex/T-024-tier1-parser`. Windows Debug
+build and CTest pass. Push is waiting for GitHub authentication, so its PR is
+pending. No public core API or EXPR_SPEC changes.
+
+T-020 is implemented on `codex/T-020-parse-cell`: `parse_cell` returns Session
+statements, splits lines, handles bracket/operator continuation, combines
+semicolon expressions, suppresses a trailing semicolon, and expands `%`
+history references. Windows Debug build and CTest pass. No public core API or
+EXPR_SPEC changes. Next: commit/publish this branch, then start T-010.
+
 ## NEW DIRECTION (2026-10-02, from Loc via Claude) — read first
 Loc wants **Mathematica with a lighter UI**: a notebook with a live kernel where variables
 persist across cells and cells contain multiple lines of code. The current card layout

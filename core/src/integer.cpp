@@ -426,14 +426,6 @@ std::size_t Integer::hash() const {
     return h;
 }
 
-std::strong_ordering operator<=>(const Integer& a, const Integer& b) {
-    if (a.neg_ != b.neg_) return a.neg_ ? std::strong_ordering::less : std::strong_ordering::greater;
-    int c = Integer::cmp_abs(a.limbs_, b.limbs_);
-    if (a.neg_) c = -c;
-    return c < 0 ? std::strong_ordering::less
-                 : (c > 0 ? std::strong_ordering::greater : std::strong_ordering::equal);
-}
-
 #endif
 
 }  // namespace symats

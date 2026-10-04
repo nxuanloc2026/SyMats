@@ -116,31 +116,6 @@ const std::vector<ComparisonTestCase> maxima_cases = {
     {"MAXIMA-006", "Maxima", "GPL-2.0-or-later", "Solving", "Solve(x^2 - 9 == 0, x)", "{{x -> -3}, {x -> 3}}"},
     {"MAXIMA-007", "Maxima", "GPL-2.0-or-later", "LinearAlgebra", "Det([[1, 2], [3, 4]])", "-2"},
     {"MAXIMA-008", "Maxima", "GPL-2.0-or-later", "DSolve", "DSolve(D(y(x), x) == y(x), y(x), x)", "{{y(x) -> C_1 * Exp(x)}}"}
-    {"SYMPY-003", "SymPy", "BSD-3-Clause", "Differentiation", "D(Exp(Power(x, 2)), x)", "Times(2, x, Exp(Power(x, 2)))"},
-    {"SYMPY-004", "SymPy", "BSD-3-Clause", "Expansion", "Expand(Power(Plus(x, 1), 2))", "Plus(Power(x, 2), Times(2, x), 1)"},
-    {"SYMPY-005", "SymPy", "BSD-3-Clause", "Expansion", "Expand(Times(Plus(x, y), Plus(x, Times(-1, y))))", "Plus(Power(x, 2), Times(-1, Power(y, 2)))"},
-    {"SYMPY-006", "SymPy", "BSD-3-Clause", "Factorization", "Factor(Plus(Power(x, 2), -1))", "Times(Plus(x, -1), Plus(x, 1))"},
-    {"SYMPY-007", "SymPy", "BSD-3-Clause", "Simplification", "Simplify(Plus(Power(Sin(x), 2), Power(Cos(x), 2)))", "1"},
-    {"SYMPY-008", "SymPy", "BSD-3-Clause", "LinearAlgebra", "Det(List(List(a, b), List(c, d)))", "Plus(Times(a, d), Times(-1, b, c))"},
-    {"SYMPY-009", "SymPy", "BSD-3-Clause", "LinearAlgebra", "Trace(List(List(1, 2), List(3, 4)))", "5"},
-    {"SYMPY-010", "SymPy", "BSD-3-Clause", "Solving", "Solve(Equal(Plus(Power(x, 2), -4), 0), x)", "List(Rule(x, -2), Rule(x, 2))"}
-};
-
-// Maxima test oracle cases (Maxima 5.46.0, GPL-2.0-or-later reference/oracle).
-const std::vector<ComparisonTestCase> maxima_cases = {
-    {"MAXIMA-001", "Maxima", "GPL-2.0-or-later", "Differentiation", "D(Sin(Power(x, 2)), x)", "Times(2, x, Cos(Power(x, 2)))"},
-    {"MAXIMA-002", "Maxima", "GPL-2.0-or-later", "Integration", "Integrate(Times(x, Sin(x)), x)", "Plus(Times(-1, x, Cos(x)), Sin(x))"},
-    {"MAXIMA-003", "Maxima", "GPL-2.0-or-later", "Expansion", "Expand(Power(Plus(x, 2), 3))", "Plus(Power(x, 3), Times(6, Power(x, 2)), Times(12, x), 8)"},
-    {"MAXIMA-004", "Maxima", "GPL-2.0-or-later", "LinearAlgebra", "Det(List(List(1, 2), List(3, 4)))", "-2"},
-    {"MAXIMA-005", "Maxima", "GPL-2.0-or-later", "Solving", "Solve(Equal(Plus(Power(x, 2), -9), 0), x)", "List(Rule(x, -3), Rule(x, 3))"},
-    {"MAXIMA-006", "Maxima", "GPL-2.0-or-later", "Integration", "Integrate(x * Sin(x), x)", "Sin(x) - x * Cos(x)"},
-    {"MAXIMA-007", "Maxima", "GPL-2.0-or-later", "Differentiation", "D(x^4 + 3*x^2, x)", "4*x^3 + 6*x"},
-    {"MAXIMA-008", "Maxima", "GPL-2.0-or-later", "Expansion", "Expand((a + b)^3)", "a^3 + 3*a^2*b + 3*a*b^2 + b^3"},
-    {"MAXIMA-009", "Maxima", "GPL-2.0-or-later", "Factorization", "Factor(x^3 - 8)", "(x - 2)*(x^2 + 2*x + 4)"},
-    {"MAXIMA-010", "Maxima", "GPL-2.0-or-later", "Limit", "Limit(Sin(x)/x, x, 0)", "1"},
-    {"MAXIMA-011", "Maxima", "GPL-2.0-or-later", "Solving", "Solve(x^2 - 9 == 0, x)", "{{x -> -3}, {x -> 3}}"},
-    {"MAXIMA-012", "Maxima", "GPL-2.0-or-later", "LinearAlgebra", "Det([[1, 2], [3, 4]])", "-2"},
-    {"MAXIMA-013", "Maxima", "GPL-2.0-or-later", "DSolve", "DSolve(D(y(x), x) == y(x), y(x), x)", "{{y(x) -> C_1 * Exp(x)}}"}
 };
 
 }  // namespace
@@ -176,7 +151,6 @@ TEST_CASE("sympy_comparison_suite") {
 
 TEST_CASE("maxima_comparison_suite") {
     // Parse verification for all Maxima oracle test cases.
-    // Parse verification for all Maxima test cases.
     for (const auto& tc : maxima_cases) {
         symats::ExprPtr input_expr = symats::parse_text(tc.input);
         symats::ExprPtr expected_expr = symats::parse_text(tc.expected);

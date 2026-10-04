@@ -113,6 +113,8 @@ TEST_CASE("Operators: Calculus expected values representation (D, Expand, Integr
                                            call("Rule", {make_symbol("x"), make_integer(2)})});
     CHECK_EQ(to_full_form(solve_expr), "Solve(Equal(Plus(-4, Power(x, 2)), 0), x)");
     CHECK_EQ(to_full_form(solve_expected), "List(Rule(x, -2), Rule(x, 2))");
+}
+
 TEST_CASE("Operators: ReplaceAll with list of rules and nested subexpressions") {
     Context c;
     CHECK_EQ(run(c, call("ReplaceAll", {P("x + y + z"), P("{x -> 1, y -> 2, z -> 3}")})), std::string("6"));

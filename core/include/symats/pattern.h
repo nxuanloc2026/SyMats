@@ -14,10 +14,11 @@
 // A sequence match is bound as Sequence(a1, a2, ...); Sequence is spliced into the
 // argument list of the enclosing expression on substitution.
 //
-// v1 matching is structural on canonical trees. Flat/Orderless-aware matching
-// (e.g. a_ + b_ against a three-term sum) is a follow-up task.
+// Structural matching is available directly; attribute-aware matching uses
+// the evaluator's Flat/Orderless flags (e.g. a_ + b_ on a three-term sum).
 #pragma once
 
+#include <functional>
 #include <map>
 #include <string>
 
@@ -46,6 +47,11 @@ bool has_pattern(const ExprPtr& e);
 // a structurally equal value.
 bool match(const ExprPtr& pattern, const ExprPtr& expr, Bindings& bindings);
 
+// Match with the evaluator's Flat/Orderless attributes for each head.
+using AttributeLookup = std::function<unsigned(std::string_view)>;
+bool match_with_attributes(const ExprPtr& pattern, const ExprPtr& expr,
+                           Bindings& bindings, const AttributeLookup& attributes);
+
 // Replace every bound symbol in `e` by its value (Sequence values are spliced into
 // argument lists). The result is rebuilt raw; evaluate it to canonicalize.
 ExprPtr substitute(const ExprPtr& e, const Bindings& bindings);
@@ -55,5 +61,8 @@ ExprPtr substitute(const ExprPtr& e, const Bindings& bindings);
 // `rules` holds Rule(lhs, rhs) / RuleDelayed(lhs, rhs) expressions.
 // Sets *changed (if non-null) when anything was replaced.
 ExprPtr replace_all(const ExprPtr& e, const ExprList& rules, bool* changed = nullptr);
+ExprPtr replace_all_with_attributes(const ExprPtr& e, const ExprList& rules,
+                                    const AttributeLookup& attributes,
+                                    bool* changed = nullptr);
 
 }  // namespace symats

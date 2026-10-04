@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Loc Ngo and Symats contributors
 #include "symats/pattern.h"
+#include "symats/eval.h"
 #include "test.h"
 
 using namespace symats;
@@ -103,4 +104,55 @@ TEST_CASE("Pattern: has_pattern") {
     CHECK(has_pattern(f({pat("a")})));
     CHECK(has_pattern(blank()));
     CHECK(!has_pattern(f({x, Ex(1)})));
+}
+
+TEST_CASE("Pattern: Flat and Orderless group extra sum terms") {
+    Context ctx;
+    const auto attributes = [&](std::string_view h) { return ctx.attributes(std::string(h)); };
+    ExprPtr pattern = make_normal("Plus", {pat("a"), pat("b")});
+    ExprPtr expression = plus({x.ptr(), y.ptr(), make_symbol("z")});
+    Bindings structural;
+    CHECK(!match(pattern, expression, structural));
+    Bindings grouped;
+    CHECK(match_with_attributes(pattern, expression, grouped, attributes));
+    CHECK_EQ(F(grouped.at("a")), std::string("x"));
+    CHECK_EQ(F(grouped.at("b")), std::string("Plus(y, z)"));
+}
+
+TEST_CASE("Pattern: Orderless permutations and Flat contiguous grouping") {
+    Context ctx;
+    ctx.set_attributes("f", attr::Orderless);
+    ctx.set_attributes("g", attr::Flat);
+    const auto attributes = [&](std::string_view h) { return ctx.attributes(std::string(h)); };
+    Bindings ordered;
+    CHECK(match_with_attributes(f({pat("a"), Ex(2)}), f({Ex(2), x}), ordered, attributes));
+    CHECK_EQ(F(ordered.at("a")), std::string("x"));
+    Bindings flat;
+    CHECK(match_with_attributes(g({pat("a"), pat("b")}), g({x, y, Ex(3)}),
+                                flat, attributes));
+    CHECK_EQ(F(flat.at("a")), std::string("x"));
+    CHECK_EQ(F(flat.at("b")), std::string("g(y, 3)"));
+    Bindings repeated;
+    CHECK(!match_with_attributes(f({pat("a"), pat("a")}), f({x, y}),
+                                 repeated, attributes));
+}
+
+TEST_CASE("Eval: definitions respect Orderless attributes") {
+    Context ctx;
+    ctx.set_attributes("f", attr::Orderless);
+    ctx.add_definition("f", f({Ex(2), pat("a")}), make_symbol("a"));
+    CHECK_EQ(F(evaluate(f({x, Ex(2)}), ctx)), std::string("x"));
+}
+
+TEST_CASE("Pattern: replacement respects Flat and Orderless attributes") {
+    Context ctx;
+    const auto attributes = [&](std::string_view h) { return ctx.attributes(std::string(h)); };
+    ExprPtr rule = make_normal("Rule", {
+        make_normal("Plus", {pat("a"), pat("b")}),
+        make_normal("List", {make_symbol("a"), make_symbol("b")})});
+    bool changed = false;
+    ExprPtr result = replace_all_with_attributes(
+        plus({x.ptr(), y.ptr(), make_symbol("z")}), {rule}, attributes, &changed);
+    CHECK(changed);
+    CHECK_EQ(F(result), std::string("List(x, Plus(y, z))"));
 }

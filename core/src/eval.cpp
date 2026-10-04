@@ -270,9 +270,10 @@ void install_builtins(Context& ctx) {
     ctx.set_attributes("Clear", HoldAll | Protected);
 
     // Rules and replacement.
-    auto substitute_builtin = [](const ExprPtr& e, Context&) -> ExprPtr {
+    auto substitute_builtin = [](const ExprPtr& e, Context& c) -> ExprPtr {
         if (e->size() != 2) return nullptr;
-        return replace_all(e->arg(0), rules_from(e->arg(1)));
+        return replace_all_with_attributes(e->arg(0), rules_from(e->arg(1)),
+            [&](std::string_view h) { return c.attributes(std::string(h)); });
     };
     ctx.set_builtin("Substitute", substitute_builtin);
     ctx.set_builtin("ReplaceAll", substitute_builtin);
@@ -468,7 +469,9 @@ struct EvalStep {
                 if (equal(def.lhs, cur) && !equal(def.rhs, cur)) return {def.rhs, true};
             for (const auto& def : d->patterns) {
                 Bindings b;
-                if (!match(def.lhs, cur, b)) continue;
+                if (!match_with_attributes(def.lhs, cur, b, [&](std::string_view h) {
+                        return ctx.attributes(std::string(h));
+                    })) continue;
                 ExprPtr r = substitute(def.rhs, b);
                 if (!equal(r, cur)) return {r, true};
             }

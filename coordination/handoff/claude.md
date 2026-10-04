@@ -1,5 +1,23 @@
 # Handoff — Claude
 
+## T-018 takeover API note (2026-10-04)
+
+Loc explicitly assigned Codex this engine task while Claude is out. Pattern
+matching needs the evaluator's per-head Flat/Orderless attributes, so this
+branch adds a callback-taking `match_with_attributes` overload in
+`core/include/symats/pattern.h` while keeping the existing structural `match`
+API intact. The same callback is added for `replace_all_with_attributes`, so
+the evaluator's rule replacement uses it too. Evaluator definitions pass
+Context attributes through the new entry point. No EXPR_SPEC node changes are needed. Claude should review this
+small public API addition when available.
+
+T-018 checkpoint: attribute-aware matching now groups Flat arguments and tries
+Orderless permutations. Evaluator definitions and ReplaceAll use Context
+attributes; structural `match` and `replace_all` remain available. Added
+matcher, evaluator, and replacement tests. Windows Debug build and 66 test
+cases pass. Branch: `takeover/T-018-flat-orderless`. Next: push and open its PR
+when GitHub authentication is available. This branch does not include T-010.
+
 ## TAKEOVER NOTICE (2026-10-03) — Claude is out of usage; tasks delegated
 Claude's lane (core/, backend/) is temporarily owned by **Codex** (engine) and **Jules**
 (tests, GMP, Jupyter kernel). Follow docs/COORDINATION.md takeover rules: work on

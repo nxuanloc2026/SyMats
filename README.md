@@ -7,10 +7,21 @@ get exact symbolic answers, solve differential equations, and plot — including
 time-varying plots. See [AGENTS.md](AGENTS.md) for the full goals and
 [docs/EXPR_SPEC.md](docs/EXPR_SPEC.md) for the expression format.
 
+## Semantics
+
+Symats follows explicit evaluation and assignment semantics:
+
+- `=` (`Set`): Immediate assignment (`x = 5`, `f(2) = 10`). RHS is evaluated at definition time.
+- `:=` (`SetDelayed`): Delayed assignment (`f(x_) := x^2`). RHS is evaluated when invoked.
+- `==` (`Equal`): Equation / equality comparison (`x == 0`, `2 == 2` -> `True`).
+- `/.` / `subs()` (`ReplaceAll`): Rule substitution (`subs(x^2, x -> 3)` -> `9`).
+- Attributes: Built-in heads support `Listable` threading over lists/matrices, `Hold` for evaluation control, and protection for built-in constants (`pi`, `E`, `I`).
+
 ## Status
 
-**v0.1 — expression core.** Exact big integers and fractions, symbolic expression
-trees, and automatic canonical simplification:
+**v0.1 — expression core & evaluator.** Exact big integers and fractions, symbolic expression
+trees, automatic canonical simplification, pattern matching, definitions (`Set`/`SetDelayed`),
+and Tier 1 engine operators. Optional GMP backend for big integers available via `-DSYMATS_USE_GMP=ON`.
 
 ```
 x + x              => Times(2, x)
@@ -20,11 +31,9 @@ x + x              => Times(2, x)
 sqrt(2) * sqrt(2)  => 2
 ```
 
-Next: text parser and printer, evaluator and pattern matching, then calculus.
-
 ## Build
 
-Requirements: a C++20 compiler and CMake 3.20+. No other dependencies yet.
+Requirements: a C++20 compiler and CMake 3.20+. No other dependencies required by default.
 
 **Visual Studio 2022:** File → Open → Folder… → select this folder. Visual Studio
 reads `CMakePresets.json`; choose the `windows-debug` preset, then Build → Build All.
@@ -37,6 +46,13 @@ cmake -B build
 cmake --build build
 ctest --test-dir build --output-on-failure   # run tests
 ./build/cli/symats-cli                        # run demo (Windows: build\cli\Debug\symats-cli.exe)
+```
+
+**Optional GMP Backend:**
+
+```bash
+cmake -B build -DSYMATS_USE_GMP=ON
+cmake --build build
 ```
 
 ## License

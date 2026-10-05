@@ -1,6 +1,13 @@
-# Coordination protocol — four agents, with fallback
+# Coordination protocol — agents and scoped collaborators, with fallback
 
-Applies to Claude, Codex, GitHub Copilot, and Jules. **Read this before every work session.**
+Applies to Claude, Codex, GitHub Copilot, Jules, and collaborators assigned on
+the board. **Read this before every work session.**
+
+Prince (`princearwan-code`) owns the combined T-033 assignment in
+[GitHub issue #17](https://github.com/nxuanloc2026/Symats/issues/17). That issue
+is the handoff and checklist for this scoped collaboration. Prince may update
+T-033 and its seven `bundled` reference rows; Codex is the backup. The other
+lane assignments and backup order below are unchanged.
 
 Agents cannot talk to each other and can be cut off at any moment when their usage
 limit runs out. So all coordination lives in files in this repository:

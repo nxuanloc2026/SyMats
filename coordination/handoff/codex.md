@@ -1,5 +1,20 @@
 # Handoff — Codex
 
+## T-033 delegation to Prince (2026-10-05)
+
+Loc asked to combine half of the 14 unfinished Codex-owned tasks into one
+assignment for `princearwan-code`. The seven language/notebook tasks are
+T-024, T-018, T-020, T-006, T-023, T-022, and T-019, now tracked in
+[GitHub issue #17](https://github.com/nxuanloc2026/Symats/issues/17).
+Their original board rows are marked `bundled` for traceability. Codex keeps
+T-010, T-011, T-012, T-013, T-015, T-026, and T-029.
+
+Five prior Codex commits were published as reference-only GitHub branches
+and linked in the issue. They predate T-031 square-bracket syntax; Prince
+should start from current main and reuse only compatible changes. T-006 and
+T-023 have no prior implementation branch. No core public API or expression
+specification was changed by this delegation.
+
 ## T-032 task syntax audit (2026-10-05)
 
 Branch: `codex/T-032-task-syntax-audit`; PR: https://github.com/nxuanloc2026/Symats/pull/16.
@@ -34,11 +49,12 @@ Windows Debug and Release builds and all 71 test cases pass. PR CI
 is being checked before review. The original checkout has unresolved local
 coordination-file conflicts; this fix uses the `ci-build-fix` managed worktree.
 
-## NEW DIRECTION (2026-10-02, from Loc via Claude) — read first
+## Historical direction (2026-10-02, from Loc via Claude) — notebook tasks now in T-033
 Loc wants **Mathematica with a lighter UI**: a notebook with a live kernel where variables
 persist across cells and cells contain multiple lines of code. The current card layout
 ("Symbolic Mathematics / Symats / Expression 1 / Plain text" button) is too heavy.
-Spec: AGENTS.md -> "Notebook model". Your tasks, in order:
+Spec: AGENTS.md -> "Notebook model". The original Codex order, now assigned
+to Prince through T-033, was:
 0. **T-024** Tier 1 operators in the parser (replaces T-017; see EXPR_SPEC §3.12 precedence table). Engine side already done: And/Or/Not, Dot, ReplaceAll.
 1. **T-020** `parse_cell` (statements, `;` suppression, `%`/`Out`, CompoundExpression).
 2. **T-019** bare notebook UI (replaces T-016's card layout).

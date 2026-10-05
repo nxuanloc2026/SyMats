@@ -1,6 +1,7 @@
 # AGENTS.md — rules for every AI agent working on Symats
 
-Applies to Claude Code, OpenAI Codex, GitHub Copilot coding agent, and Google Jules.
+Applies to Claude Code, OpenAI Codex, GitHub Copilot coding agent, Google Jules,
+and collaborators assigned tasks on the board.
 Read this file in full before starting any task.
 
 > **Before every session, follow [docs/COORDINATION.md](docs/COORDINATION.md):**
@@ -200,6 +201,7 @@ If a change outside your lane is unavoidable, keep it minimal and explain it in 
 | Codex   | `app/` — MathLive editor, plain-text editor + toggle, matrix template, notebook, Plotly rendering (static/animated); `convert/` — MathJSON ⇄ Expr ⇄ text | `agent:codex`   |
 | Copilot | `third_party/` + building Giac/FLINT/SUNDIALS with CMake on Windows/Linux, `bridge/`, `cli/`, CI, installers, small bug fixes | `agent:copilot` |
 | Jules   | `tests/` — unit, symbolic⇄text round-trip, backend-comparison suites (Rubi integrals, SymPy cases), verification checks, plot-accuracy tests | `jules`         |
+| Prince (`princearwan-code`) | Scoped owner of the combined T-033 notebook workflow across `convert/`, `core/` matching, `cli/`, `bridge/`, and `app/`; see [issue #17](https://github.com/nxuanloc2026/Symats/issues/17) | — |
 
 ## Plotting requirements
 

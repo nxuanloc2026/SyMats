@@ -1,5 +1,14 @@
 # Handoff — Codex
 
+## T-012 Giac bridge (2026-10-05)
+
+Claimed `codex/T-012-giac-bridge` from the T-011 branch at `6240a8d` while
+PR #22 runs hosted CI. Implement `backend/giac/` only, with Expr/gen conversion
+and `MathBackend` dispatch for the board's operations. Keep the PR stacked on
+T-011 until that PR lands, then rebase on main. No existing public core API or
+EXPR_SPEC change is planned; any unavoidable change will be explained in
+`coordination/handoff/claude.md`.
+
 ## T-011 Giac build (2026-10-05)
 
 Claimed `codex/T-011-giac-build` from current main `6c41bda` after PR #21 merged.

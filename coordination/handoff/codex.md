@@ -23,7 +23,8 @@ Checkpoint at 22:56 UTC: forked GPL-3+ `sagemath/giac` release
 `upstream/1.9.0.57+dfsg2` (`3c8f0cb3`), and pushed C++20/MSVC fixes to the
 Symats fork at `2d4c1c9e` on `symats/msvc-cxx20-release`. The submodule pin is
 updated to that fork commit, then to `5867af33` for GCC template constructor
-syntax after the first Linux CI run. Added an opt-in `third_party::giac` CMake target,
+syntax and `e514be56` for Linux POSIX file headers after CI failures. Added an
+opt-in `third_party::giac` CMake target,
 generated parser/lexer, GMP/MPFR linkage, a linked arithmetic smoke test, and
 Windows/Linux CI job. VS 2026 MSVC Debug built the entire repository, and both
 `giac-smoke` and `symats_tests` passed locally. The GitHub CI run still needs

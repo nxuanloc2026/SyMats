@@ -10,7 +10,7 @@ Claude** (your own subscription). This page tells you and your Claude how to fit
 | Person | Area (lane) | First tasks (see `coordination/BOARD.md`) |
 |--------|-------------|-------------------------------------------|
 | **Charles** + Claude | **Engine math** — `core/` (calculus, simplification, pattern matching) | T-010 native `D` and `Expand`, then T-018 (Flat/Orderless matching), T-013 (result verification) |
-| **Prince** + Claude | **Notebook and integration** — `kernel/`, `bridge/`, `cli/` | T-023 (`.sym` scripts + `symats-cli file.sym`), T-022 (engine ⇄ app bridge), T-029 (Boost.Odeint numeric ODEs) |
+| **Prince (`princearwan-code`)** + Claude | **Notebook and integration** — `kernel/`, `bridge/`, `cli/` | T-032 (combined: `symats-cli` REPL, `.sym` script runner, engine-app bridge), T-029 (Boost.Odeint numeric ODEs) |
 
 These tasks are currently queued for Codex (temporarily covering Claude's lane). Before
 starting one, **reassign it on the board to yourself** (`Charles` / `Prince`) so Codex skips it.

@@ -9,4 +9,4 @@ States: `active`, `idle`, `out — resets <time>`.
 | Codex   | idle | T-031 PR #15 ready for review; local Debug/Release and GitHub CI pass | 2026-10-05 16:35 | |
 | Copilot | out — resets when GitHub Student Developer Pack is approved | Codex covers T-004, T-006 (backup matrix) | — | needs Copilot Pro for coding agent |
 | Jules   | active | T-030 Mathics3 semantics audit tests ready for review | 2026-10-05 02:00 | |
-| princearwan-code | idle | Assigned combined task T-032 (CLI REPL, script runner, and engine-app bridge) | 2026-10-05 | |
+| princearwan-code | idle | Assigned combined task T-032 (Jupyter kernel, tests/oracles, and Mathics3 semantics audit) | 2026-10-05 | |

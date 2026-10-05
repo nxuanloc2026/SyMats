@@ -2,6 +2,7 @@
 
 ## T-033 delegation to Prince (2026-10-05)
 
+Coordination PR: https://github.com/nxuanloc2026/Symats/pull/19.
 Loc asked to combine half of the 14 unfinished Codex-owned tasks into one
 assignment for `princearwan-code`. The seven language/notebook tasks are
 T-024, T-018, T-020, T-006, T-023, T-022, and T-019, now tracked in

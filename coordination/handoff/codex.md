@@ -1,5 +1,14 @@
 # Handoff — Codex
 
+## T-032 task syntax audit (2026-10-05)
+
+Audited all rows in `coordination/BOARD.md` and the only GitHub issue (#2,
+closed). The active/planned public-text tasks already use Tier 1 square-bracket
+calls and capitalized built-ins, and T-025 (Tier 2) is absent. Added a board-wide
+scope rule so indirect tasks (backends, tests, notebooks) cannot introduce Tier 2/3
+syntax; corrected legacy syntax in the delegated engine plan. PR #15 (T-031) and
+PR #10 (T-004) were confirmed merged. No public C++ API or EXPR_SPEC change.
+
 ## T-031 Tier 1 text syntax (2026-10-05)
 
 Branch: `codex/T-031-square-bracket-syntax`, based on main `d85f00c`.

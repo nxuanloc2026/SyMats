@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(SYMATS_BUILD_TESTS "Build the Symats test suite" ON)
 option(SYMATS_BUILD_CLI   "Build the symats-cli program" ON)
+option(SYMATS_BUILD_KERNEL "Build the Jupyter kernel executable" ON)
 option(SYMATS_USE_GMP     "Use GMP library for symats::Integer" OFF)
 
 if(MSVC)
@@ -22,6 +23,10 @@ add_subdirectory(convert)
 
 if(SYMATS_BUILD_CLI)
   add_subdirectory(cli)
+endif()
+
+if(SYMATS_BUILD_KERNEL)
+  add_subdirectory(kernel)
 endif()
 
 if(SYMATS_BUILD_TESTS)

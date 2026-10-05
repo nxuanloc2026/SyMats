@@ -2,12 +2,17 @@
 
 ## T-010 native calculus takeover (2026-10-05)
 
-Claimed T-010 on `takeover/T-010-native-calculus` from current main `4db3660`.
-The earlier local commit `504c1ae` has a C++ implementation and tests from an
-older base; inspect and port it to current Tier 1 syntax, then build and run
-all tests. Scope follows Claude's plan below: native `D` and `Expand`, chain,
-product, power, partial and higher derivatives, and evaluator dispatch.
-Any new public calculus header will be documented in Claude's takeover note.
+Completed T-010 on `takeover/T-010-native-calculus` from main `4db3660`.
+PR: https://github.com/nxuanloc2026/Symats/pull/21 (human merge required).
+Added native `D` and `Expand` in `core/src/calculus.cpp`, a shared calculus header,
+and evaluator dispatch. `D` handles product, power, chain, elementary, partial and
+higher derivative rules, including defined `Derivative[n][f][x]` applications.
+Unknown functions retain the Tier 1 `Derivative[1][f][x]` form. `Expand` handles
+products and nonnegative integer powers with a term limit. Tests cover exact
+forms and deterministic random finite-difference spot checks. Windows Debug
+configure/build and the full CTest suite passed on 2026-10-05. No existing
+public API or `docs/EXPR_SPEC.md` entry was changed; the new public header is
+explained in `coordination/handoff/claude.md`.
 
 ## T-032 task syntax audit (2026-10-05)
 

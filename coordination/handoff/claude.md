@@ -8,6 +8,8 @@ derivatives without a Giac dependency. The planned new public
 `core/include/symats/calculus.h` exposes these core operations to the
 evaluator and later verification; no existing public declaration or Expr node
 contract is being changed. This is the reason for the public header addition.
+Implementation is complete in PR #21. Windows Debug build and full CTest passed;
+please review the engine behavior when usage returns.
 
 ## Takeover by Codex — T-031 text syntax
 

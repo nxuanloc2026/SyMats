@@ -18,6 +18,137 @@ void trim_vec(V& v) {
 }
 }  // namespace
 
+#ifdef SYMATS_USE_GMP
+
+Integer::Integer(long long v) {
+    if (v >= LONG_MIN && v <= LONG_MAX) {
+        mpz_ = static_cast<long>(v);
+    } else {
+        mpz_ = std::to_string(v);
+    }
+}
+
+Integer Integer::from_string(std::string_view s) {
+    std::size_t pos = 0;
+    bool neg = false;
+    if (pos < s.size() && (s[pos] == '+' || s[pos] == '-')) {
+        neg = s[pos] == '-';
+        ++pos;
+    }
+    if (pos == s.size()) throw std::invalid_argument("Integer::from_string: no digits");
+    for (std::size_t i = pos; i < s.size(); ++i) {
+        if (s[i] < '0' || s[i] > '9')
+            throw std::invalid_argument("Integer::from_string: invalid character");
+    }
+    Integer r;
+    std::string str(neg ? "-" : "");
+    str.append(s.substr(pos));
+    mpz_set_str(r.mpz_.get_mpz_t(), str.c_str(), 10);
+    return r;
+}
+
+Integer Integer::abs() const {
+    Integer r;
+    r.mpz_ = ::abs(mpz_);
+    return r;
+}
+
+Integer Integer::operator-() const {
+    Integer r;
+    r.mpz_ = -mpz_;
+    return r;
+}
+
+Integer& Integer::operator+=(const Integer& o) {
+    mpz_ += o.mpz_;
+    return *this;
+}
+
+Integer& Integer::operator-=(const Integer& o) {
+    mpz_ -= o.mpz_;
+    return *this;
+}
+
+Integer& Integer::operator*=(const Integer& o) {
+    mpz_ *= o.mpz_;
+    return *this;
+}
+
+Integer& Integer::operator/=(const Integer& o) {
+    if (o.is_zero()) throw std::domain_error("Integer: division by zero");
+    mpz_ /= o.mpz_;
+    return *this;
+}
+
+Integer& Integer::operator%=(const Integer& o) {
+    if (o.is_zero()) throw std::domain_error("Integer: division by zero");
+    mpz_ %= o.mpz_;
+    return *this;
+}
+
+std::pair<Integer, Integer> Integer::divmod(const Integer& a, const Integer& b) {
+    if (b.is_zero()) throw std::domain_error("Integer: division by zero");
+    Integer q, r;
+    mpz_tdiv_qr(q.mpz_.get_mpz_t(), r.mpz_.get_mpz_t(), a.mpz_.get_mpz_t(), b.mpz_.get_mpz_t());
+    return {q, r};
+}
+
+Integer Integer::gcd(const Integer& a, const Integer& b) {
+    Integer r;
+    mpz_gcd(r.mpz_.get_mpz_t(), a.mpz_.get_mpz_t(), b.mpz_.get_mpz_t());
+    return r;
+}
+
+Integer Integer::pow(const Integer& base, unsigned long long exp) {
+    Integer result;
+    if (exp <= ULONG_MAX) {
+        mpz_pow_ui(result.mpz_.get_mpz_t(), base.mpz_.get_mpz_t(), static_cast<unsigned long>(exp));
+    } else {
+        result = 1;
+        Integer b = base;
+        while (exp) {
+            if (exp & 1ULL) result *= b;
+            exp >>= 1;
+            if (exp) b *= b;
+        }
+    }
+    return result;
+}
+
+std::pair<Integer, bool> Integer::iroot(unsigned long long n) const {
+    if (n == 0) throw std::domain_error("Integer::iroot: n must be positive");
+    if (is_negative()) throw std::domain_error("Integer::iroot: negative argument");
+    Integer root, rem;
+    if (n <= ULONG_MAX) {
+        mpz_rootrem(root.mpz_.get_mpz_t(), rem.mpz_.get_mpz_t(), mpz_.get_mpz_t(), static_cast<unsigned long>(n));
+    } else {
+        root = 1;
+        rem = *this - 1;
+    }
+    return {root, rem.is_zero()};
+}
+
+std::optional<long long> Integer::to_int64() const {
+    static const mpz_class min_val(std::to_string(LLONG_MIN));
+    static const mpz_class max_val(std::to_string(LLONG_MAX));
+    if (mpz_ < min_val || mpz_ > max_val) return std::nullopt;
+    return std::stoll(mpz_.get_str());
+}
+
+double Integer::to_double() const {
+    return mpz_.get_d();
+}
+
+std::string Integer::to_string() const {
+    return mpz_.get_str();
+}
+
+std::size_t Integer::hash() const {
+    return std::hash<std::string>{}(to_string());
+}
+
+#else
+
 Integer::Integer(long long v) {
     unsigned long long mag = v < 0 ? 0ULL - static_cast<unsigned long long>(v)
                                    : static_cast<unsigned long long>(v);
@@ -309,5 +440,7 @@ std::strong_ordering operator<=>(const Integer& a, const Integer& b) {
     return c < 0 ? std::strong_ordering::less
                  : (c > 0 ? std::strong_ordering::greater : std::strong_ordering::equal);
 }
+
+#endif
 
 }  // namespace symats

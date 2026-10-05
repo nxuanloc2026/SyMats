@@ -5,14 +5,22 @@ Statuses: `todo` → `in-progress` → `review` (PR open) → `done`; also `bloc
 `backup-ok` = a backup may start this task while the owner is out.
 `Updated` must be refreshed at every checkpoint (UTC). Stale after 12 h.
 
+All tasks that accept, display, print, document, or test public text use the Tier 1
+syntax in `AGENTS.md` and `docs/EXPR_SPEC.md`: capitalized, case-sensitive built-ins,
+square-bracket calls (`Sin[x]`), curly-brace lists (`{a, b}`), and parentheses only
+for grouping. User-defined names may be lowercase (`f[x]`). Internal C++ API names
+and MathJSON keys are unaffected. Tier 2 and Tier 3 operators are outside the
+scope of every task on this board.
+
 | ID | Task | Lane | Owner | Backup | Status | Blocks | Flags | Updated (UTC) |
 |----|------|------|-------|--------|--------|--------|-------|---------------|
 | T-008 | Install Git + C++ workload; build in VS 2022; push repo to GitHub — built in VS 2026, pushed, CI green | setup | Loc | — | done | T-004, T-005, all cloud work | | 2026-10-02 |
 | T-003 | Decide: `=` means assignment (Set) or equation (Equal)? **Decided: `=` → `Set`, `==` → `Equal`, `:=` → `SetDelayed`** (spec updated) | spec | Loc | — | done | | | 2026-10-02 |
-| T-031 | Canonical Tier 1 text syntax: square bracket calls, capitalized built-ins, curly brace lists/matrices; align printer, tests, docs and future tasks | convert/spec | Codex | Claude | review | T-019, T-020, T-024 | | 2026-10-05 16:35 |
+| T-031 | Canonical Tier 1 text syntax: square bracket calls, capitalized built-ins, curly brace lists/matrices; align printer, tests, docs and future tasks — merged (PR #15) | convert/spec | Codex | Claude | done | T-019, T-020, T-024 | | 2026-10-05 17:12 |
+| T-032 | Audit every task for canonical Tier 1 text syntax; clarify the board-wide rule and correct stale Codex handoff examples — PR #16 | coordination | Codex | Claude | review | | | 2026-10-05 17:16 |
 | T-001 | Evaluator: definitions (`Set`, `SetDelayed`), pattern matching (`x_`, `x_Integer`), rule replacement, attributes; **plus `MathBackend` interface in core/ and dispatch of math heads (`Integrate`, `Solve`, `DSolve`, …) to the registered backend** — merged (PR #5) (pattern.h, eval.h, backend.h; 17 new test cases) | core | Claude | Codex | done | T-010, T-012 | | 2026-10-02 |
 | T-002 | Converter fixes: (1) nesting-depth limit instead of crash, (2) readable output (`x - y`, `-x^2`, `Sin[x]`, `==`, `->`), (3) decimals, (4) document/decide space-before-paren, (5) `=` per T-003 | convert | Codex | Claude | done | | backup-ok | 2026-10-02 03:38 |
-| T-004 | Fix CI build failures on Windows and Linux — PR #10 restores test function linkage | build/CI | Codex (for Copilot) | Codex | review | | backup-ok | 2026-10-05 00:05 |
+| T-004 | Fix CI build failures on Windows and Linux — merged (PR #10), restoring test function linkage | build/CI | Codex (for Copilot) | Codex | done | | backup-ok | 2026-10-05 17:12 |
 | T-005 | Tests: parser edge cases (unicode, whitespace, huge numbers, malformed input), Integer/Rational property tests — PR #1 merged | tests | Jules | Copilot | done | | backup-ok | 2026-10-02 |
 | T-006 | `symats-cli` REPL: read Tier 1 square bracket input → `parse_text` → print `to_text` — Copilot out until Student Pack approval; Codex covers per backup matrix | cli | Codex (for Copilot) | Codex | todo | | backup-ok | 2026-10-02 05:00 |
 | T-007 | MathJSON ⇄ Expr converter — merged (PR #3). Follow-up: allow Unicode symbols (α, θ) | convert | Codex | Claude | done | app editor | | 2026-10-02 |

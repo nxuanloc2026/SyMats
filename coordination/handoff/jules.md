@@ -7,8 +7,16 @@ In order, one PR each:
 3. **T-030** Mathics3 semantics doc-tests (reference only, GPL).
 
 ## Current task
-T-028: Tests for Session, Tier 1 operators, calculus expected values, T-014 data fix, Maxima oracle.
+T-009: Optional GMP backend for Integer behind CMake option SYMATS_USE_GMP.
+Branch: `jules/T-009-gmp-backend`
 Status: review / PR ready.
+
+## Notes on T-009
+- Added `SYMATS_USE_GMP` option (default `OFF`) in `CMakeLists.txt`.
+- Added detection for `gmp.h`, `gmpxx.h`, `libgmp`, and `libgmpxx` in `core/CMakeLists.txt` when `SYMATS_USE_GMP` is `ON`.
+- Implemented `mpz_class` backend for `symats::Integer` in `core/include/symats/integer.h` and `core/src/integer.cpp`.
+- Forced base 10 in `Integer::from_string` (`mpz_set_str(..., 10)`) to avoid octal parsing of leading zeros.
+- Verified 100% of tests pass under both `SYMATS_USE_GMP=OFF` and `SYMATS_USE_GMP=ON`.
 
 ## Notes
 - Updated `tests/test_backend_comparison.cpp` with T-014 data fixes (Rational nodes, dropped +C, Rule output format for `Solve`) and added Maxima 5.46.0 test oracle suite.

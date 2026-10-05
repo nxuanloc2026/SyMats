@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(SYMATS_BUILD_TESTS "Build the Symats test suite" ON)
 option(SYMATS_BUILD_CLI   "Build the symats-cli program" ON)
+option(SYMATS_USE_GMP     "Use GMP library for symats::Integer" OFF)
 
 if(MSVC)
   add_compile_options(/W4 /permissive- /utf-8)

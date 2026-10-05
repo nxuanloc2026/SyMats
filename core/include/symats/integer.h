@@ -18,6 +18,10 @@
 #include <utility>
 #include <vector>
 
+#ifdef SYMATS_USE_GMP
+#include <gmpxx.h>
+#endif
+
 namespace symats {
 
 class Integer {
@@ -28,11 +32,19 @@ public:
     // Parses an optional sign followed by decimal digits. Throws std::invalid_argument.
     static Integer from_string(std::string_view s);
 
+#ifdef SYMATS_USE_GMP
+    bool is_zero() const { return mpz_ == 0; }
+    bool is_one() const { return mpz_ == 1; }
+    bool is_negative() const { return mpz_ < 0; }
+    int sign() const { return sgn(mpz_); }
+    bool is_even() const { return mpz_even_p(mpz_.get_mpz_t()) != 0; }
+#else
     bool is_zero() const { return limbs_.empty(); }
     bool is_one() const { return !neg_ && limbs_.size() == 1 && limbs_[0] == 1; }
     bool is_negative() const { return neg_; }
     int sign() const { return is_zero() ? 0 : (neg_ ? -1 : 1); }
     bool is_even() const { return is_zero() || (limbs_[0] % 2 == 0); }
+#endif
 
     Integer abs() const;
     Integer operator-() const;
@@ -64,10 +76,24 @@ public:
     std::string to_string() const;
     std::size_t hash() const;
 
+#ifdef SYMATS_USE_GMP
+    friend bool operator==(const Integer& a, const Integer& b) {
+        return a.mpz_ == b.mpz_;
+    }
+    friend std::strong_ordering operator<=>(const Integer& a, const Integer& b) {
+        int c = cmp(a.mpz_, b.mpz_);
+        return c < 0 ? std::strong_ordering::less
+                     : (c > 0 ? std::strong_ordering::greater : std::strong_ordering::equal);
+    }
+#else
     friend bool operator==(const Integer& a, const Integer& b) = default;
     friend std::strong_ordering operator<=>(const Integer& a, const Integer& b);
+#endif
 
 private:
+#ifdef SYMATS_USE_GMP
+    mpz_class mpz_{0};
+#else
     using Limb = std::uint32_t;
     static constexpr Limb kBase = 1000000000u;  // 10^9
     static constexpr int kBaseDigits = 9;
@@ -83,6 +109,7 @@ private:
     static std::vector<Limb> mul_small(const std::vector<Limb>& a, Limb m);
     static std::pair<std::vector<Limb>, std::vector<Limb>>
     divmod_abs(const std::vector<Limb>& a, const std::vector<Limb>& b);
+#endif
 };
 
 }  // namespace symats

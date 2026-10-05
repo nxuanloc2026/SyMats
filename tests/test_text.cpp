@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Loc Ngo and Symats contributors
+#include <iostream>
 #include "symats/text.h"
 #include "test.h"
 
@@ -7,8 +8,18 @@ using namespace symats;
 
 namespace {
 void round_trip(std::string_view input) {
-    ExprPtr first = parse_text(input);
-    CHECK(equal(first, parse_text(to_text(first))));
+    try {
+        ExprPtr first = parse_text(input);
+        std::string printed = to_text(first);
+        ExprPtr second = parse_text(printed);
+        if (!equal(first, second)) {
+            std::cout << "ROUND TRIP MISMATCH for '" << input << "': printed '" << printed << "'" << std::endl;
+        }
+        CHECK(equal(first, second));
+    } catch (const std::exception& ex) {
+        std::cout << "ROUND TRIP EXCEPTION for '" << input << "': " << ex.what() << std::endl;
+        throw;
+    }
 }
 }  // namespace
 
@@ -38,6 +49,53 @@ TEST_CASE("Text: calls, matrices, and internal form") {
              std::string("Equal(Power(x, 2), 1)"));
 }
 
+TEST_CASE("Text: Tier 1 operators (/. , . , &&, ||, !, ', patterns)") {
+    std::cout << "Testing ReplaceAll..." << std::endl;
+    CHECK_EQ(to_full_form(parse_text("x^2 + y /. x -> 3")),
+             std::string("ReplaceAll(Plus(Power(x, 2), y), Rule(x, 3))"));
+    round_trip("x^2 + y /. x -> 3");
+
+    std::cout << "Testing Dot..." << std::endl;
+    CHECK_EQ(to_full_form(parse_text("A . B")),
+             std::string("Dot(A, B)"));
+    round_trip("A . B");
+
+    std::cout << "Testing Logic..." << std::endl;
+    CHECK_EQ(to_full_form(parse_text("x > 0 && y < 0")),
+             std::string("And(Greater(x, 0), Less(y, 0))"));
+    CHECK_EQ(to_full_form(parse_text("p || !q")),
+             std::string("Or(p, Not(q))"));
+    round_trip("x > 0 && y < 0");
+    round_trip("p || !q");
+
+    std::cout << "Testing Derivatives..." << std::endl;
+    CHECK_EQ(to_full_form(parse_text("f'(x)")),
+             std::string("Derivative(1, f)(x)"));
+    CHECK_EQ(to_full_form(parse_text("y''(t)")),
+             std::string("Derivative(2, y)(t)"));
+    round_trip("f'(x)");
+    round_trip("y''(t)");
+
+    std::cout << "Testing Patterns..." << std::endl;
+    CHECK_EQ(to_full_form(parse_text("x_")),
+             std::string("Pattern(x, Blank())"));
+    CHECK_EQ(to_full_form(parse_text("x_Integer")),
+             std::string("Pattern(x, Blank(Integer))"));
+    CHECK_EQ(to_full_form(parse_text("x__")),
+             std::string("Pattern(x, BlankSequence())"));
+    CHECK_EQ(to_full_form(parse_text("x___")),
+             std::string("Pattern(x, BlankNullSequence())"));
+    CHECK_EQ(to_full_form(parse_text("_")),
+             std::string("Blank()"));
+    round_trip("f(x_) := x^2");
+    round_trip("g(x_Integer) := x + 1");
+
+    std::cout << "Testing Factorial..." << std::endl;
+    CHECK_EQ(to_full_form(parse_text("n!")),
+             std::string("Factorial(n)"));
+    round_trip("n!");
+}
+
 TEST_CASE("Text: stable print and parse") {
     round_trip("x^2 + 2*x + 1");
     round_trip("integrate(sin(x), x, 0, pi)");
@@ -60,6 +118,7 @@ TEST_CASE("Text: rejects malformed input") {
     CHECK_THROWS(parse_text("sin(x"));
     CHECK_THROWS(parse_text("1 2"));
     CHECK_THROWS(parse_text("[a, b}"));
+    CHECK_THROWS(parse_text("1..2"));
 }
 
 TEST_CASE("Text: readable output remains parseable") {

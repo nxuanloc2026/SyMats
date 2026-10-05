@@ -64,6 +64,7 @@ TEST_CASE("Operators: Dot for vectors and matrices") {
 TEST_CASE("Operators: ReplaceAll (/.) leaves variables unassigned") {
     Context c;
     CHECK_EQ(run(c, call("ReplaceAll", {P("x^2 + y"), P("x -> 3")})), std::string("Plus(9, y)"));
+    CHECK_EQ(run(c, P("x^2 + y /. x -> 3")), std::string("Plus(9, y)"));
     CHECK_EQ(run(c, P("x")), std::string("x"));  // x still has no value
 }
 

@@ -25,7 +25,7 @@ constexpr std::pair<std::string_view, std::string_view> aliases[] = {
         {"charpoly", "CharPoly"}, {"matrixexp", "MatrixExp"},
         {"linsolve", "LinearSolve"}, {"expand", "Expand"}, {"factor", "Factor"},
         {"simplify", "Simplify"}, {"solve", "Solve"}, {"subs", "Substitute"},
-        {"plot", "Plot"}, {"paramplot", "ParametricPlot"},
+        {"clear", "Clear"}, {"plot", "Plot"}, {"paramplot", "ParametricPlot"},
         {"polarplot", "PolarPlot"}, {"implicitplot", "ImplicitPlot"},
         {"plot3d", "Plot3D"}, {"contourplot", "ContourPlot"},
         {"animate", "Animate"}, {"slider", "Slider"},
@@ -78,7 +78,7 @@ public:
     explicit Parser(std::string_view input) : input_(input) {}
 
     ExprPtr parse() {
-        ExprPtr result = relation();
+        ExprPtr result = statement();
         space();
         if (pos_ != input_.size()) error("unexpected character");
         return result;
@@ -129,11 +129,53 @@ private:
         pos_ += token.size();
         return true;
     }
-    ExprPtr relation() {
+
+    // Level 12: Set (=), SetDelayed (:=)
+    ExprPtr statement() {
         DepthGuard guard(depth_);
+        ExprPtr left = replace_all();
+        if (take_token(":=")) return make_normal("SetDelayed", {left, statement()});
+        if (take_token("=")) return make_normal("Set", {left, statement()});
+        return left;
+    }
+
+    // Level 11: ReplaceAll (/.)
+    ExprPtr replace_all() {
+        ExprPtr left = rule();
+        while (take_token("/.")) {
+            left = make_normal("ReplaceAll", {left, rule()});
+        }
+        return left;
+    }
+
+    // Level 10: Rule (->)
+    ExprPtr rule() {
+        ExprPtr left = logical_or();
+        if (take_token("->")) return make_normal("Rule", {left, rule()});
+        return left;
+    }
+
+    // Level 9: Or (||)
+    ExprPtr logical_or() {
+        ExprPtr left = logical_and();
+        while (take_token("||")) {
+            left = make_normal("Or", {left, logical_and()});
+        }
+        return left;
+    }
+
+    // Level 8: And (&&)
+    ExprPtr logical_and() {
+        ExprPtr left = relation();
+        while (take_token("&&")) {
+            left = make_normal("And", {left, relation()});
+        }
+        return left;
+    }
+
+    // Level 7: Relations (==, !=, <=, >=, <, >)
+    ExprPtr relation() {
         ExprPtr left = sum();
-        if (take_token("->")) return make_normal("Rule", {left, relation()});
-        if (take_token(":=")) return make_normal("SetDelayed", {left, relation()});
         constexpr std::pair<std::string_view, std::string_view> operators[] = {
             {"==", "Equal"}, {"!=", "Unequal"}, {"<=", "LessEqual"},
             {">=", "GreaterEqual"}, {"<", "Less"}, {">", "Greater"},
@@ -141,9 +183,10 @@ private:
         for (const auto& [token, head] : operators) {
             if (take_token(token)) return make_normal(head, {left, sum()});
         }
-        if (take_token("=")) return make_normal("Set", {left, relation()});
         return left;
     }
+
+    // Level 6: Plus (+), Minus (-)
     ExprPtr sum() {
         ExprPtr left = product();
         while (true) {
@@ -153,33 +196,102 @@ private:
             else return left;
         }
     }
+
+    // Level 5: Times (*), Divide (/), Juxtaposition
     ExprPtr product() {
-        ExprPtr left = unary();
+        ExprPtr left = dot();
         while (true) {
-            if (take('*')) left = times(left, unary());
-            else if (take('/')) left = divide(left, unary());
+            if (take('*')) left = times(left, dot());
+            else if (peek() == '/' && input_.substr(pos_, 2) != "/." && take('/'))
+                left = divide(left, dot());
             else {
-                // Juxtaposition, such as 2x or a b, denotes multiplication.
+                // Juxtaposition (2x, a b) denotes multiplication.
                 char c = peek();
                 if (c == '(' || c == '[' || std::isalpha(static_cast<unsigned char>(c)))
-                    left = times(left, unary());
+                    left = times(left, dot());
                 else return left;
             }
         }
     }
+
+    // Level 4: Dot (.)
+    ExprPtr dot() {
+        ExprPtr left = unary();
+        while (true) {
+            space();
+            if (pos_ < input_.size() && input_[pos_] == '.') {
+                if (pos_ + 1 < input_.size() && input_[pos_ + 1] == '.') {
+                    error("invalid double dot syntax");
+                }
+                if (pos_ + 1 < input_.size() && input_[pos_ + 1] != '/' &&
+                    !std::isdigit(static_cast<unsigned char>(input_[pos_ + 1]))) {
+                    ++pos_;
+                    left = make_normal("Dot", {left, unary()});
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        return left;
+    }
+
+    // Level 3: Unary +, -, Not (!)
     ExprPtr unary() {
         DepthGuard guard(depth_);
         if (take('+')) return unary();
         if (take('-')) return negate(unary());
+        if (take('!')) return make_normal("Not", {unary()});
         return exponent();
     }
+
+    // Level 2: Power (^)
     ExprPtr exponent() {
-        ExprPtr base = atom();
+        ExprPtr base = primary();
         if (take('^')) return power(base, unary());  // right associative
         return base;
     }
+
+    // Level 1: Primes ('), Factorial (!), Calls f(x)
+    ExprPtr primary() {
+        ExprPtr core = atom();
+        while (true) {
+            space();
+            // Primes for derivatives: f'(x) -> Derivative(1, f)(x), y''(t) -> Derivative(2, y)(t)
+            if (pos_ < input_.size() && input_[pos_] == '\'') {
+                std::size_t count = 0;
+                while (pos_ < input_.size() && input_[pos_] == '\'') {
+                    ++count;
+                    ++pos_;
+                }
+                core = make_normal("Derivative", {make_integer(static_cast<long long>(count)), core});
+                // If followed immediately by arguments e.g. f'(x), apply arguments
+                if (peek() == '(') {
+                    ++pos_;
+                    ExprList args;
+                    if (!take(')')) {
+                        do { args.push_back(statement()); } while (take(','));
+                        expect(')');
+                    }
+                    core = make_normal(core, std::move(args));
+                }
+            } else if (pos_ < input_.size() && input_[pos_] == '!' &&
+                       (pos_ + 1 >= input_.size() || input_[pos_ + 1] != '=')) { // Factorial postfix !
+                ++pos_;
+                core = make_normal("Factorial", {core});
+            } else {
+                break;
+            }
+        }
+        return core;
+    }
+
     ExprPtr atom() {
         char c = peek();
+        if (input_.substr(pos_, 2) == "..") {
+            error("invalid double dot syntax");
+        }
         if (std::isdigit(static_cast<unsigned char>(c)) ||
             (c == '.' && pos_ + 1 < input_.size() &&
              std::isdigit(static_cast<unsigned char>(input_[pos_ + 1])))) {
@@ -218,12 +330,38 @@ private:
             }
             error("unterminated quoted symbol");
         }
+        // Blank alone: _
+        if (c == '_' && (pos_ + 1 >= input_.size() || !std::isalnum(static_cast<unsigned char>(input_[pos_ + 1])))) {
+            ++pos_;
+            return make_normal("Blank", {});
+        }
         if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
             std::size_t start = pos_++;
             while (pos_ < input_.size() &&
-                   (std::isalnum(static_cast<unsigned char>(input_[pos_])) ||
-                    input_[pos_] == '_')) ++pos_;
+                   (std::isalnum(static_cast<unsigned char>(input_[pos_])) || input_[pos_] == '_')) ++pos_;
             std::string name(input_.substr(start, pos_ - start));
+
+            // Pattern parsing: x_, x_Integer, x__, x___, _h
+            if (name[0] == '_' && name.size() > 1 && std::isalpha(static_cast<unsigned char>(name[1]))) {
+                std::string head_type = head_for(name.substr(1));
+                return make_normal("Blank", {make_symbol(head_type)});
+            }
+            std::size_t underscore_pos = name.find('_');
+            if (underscore_pos != std::string::npos && underscore_pos > 0) {
+                std::string sym = name.substr(0, underscore_pos);
+                std::string rest = name.substr(underscore_pos);
+                if (rest == "___") {
+                    return make_normal("Pattern", {make_symbol(sym), make_normal("BlankNullSequence", {})});
+                } else if (rest == "__") {
+                    return make_normal("Pattern", {make_symbol(sym), make_normal("BlankSequence", {})});
+                } else if (rest == "_") {
+                    return make_normal("Pattern", {make_symbol(sym), make_normal("Blank", {})});
+                } else if (rest.size() > 1 && rest[0] == '_' && std::isalpha(static_cast<unsigned char>(rest[1]))) {
+                    std::string head_type = head_for(rest.substr(1));
+                    return make_normal("Pattern", {make_symbol(sym), make_normal("Blank", {make_symbol(head_type)})});
+                }
+            }
+
             // Calls require no whitespace before '('. A space means multiplication.
             if (pos_ >= input_.size() || input_[pos_] != '(') {
                 if (name == "pi") name = "Pi";
@@ -235,13 +373,13 @@ private:
             ++pos_;
             ExprList args;
             if (!take(')')) {
-                do { args.push_back(relation()); } while (take(','));
+                do { args.push_back(statement()); } while (take(','));
                 expect(')');
             }
             return call(name, std::move(args));
         }
         if (take('(')) {
-            ExprPtr inside = relation();
+            ExprPtr inside = statement();
             expect(')');
             return inside;
         }
@@ -250,7 +388,7 @@ private:
             char close = c == '[' ? ']' : '}';
             ExprList items;
             if (!take(close)) {
-                do { items.push_back(relation()); } while (take(','));
+                do { items.push_back(statement()); } while (take(','));
                 expect(close);
             }
             return make_normal("List", std::move(items));
@@ -263,8 +401,9 @@ std::string_view infix_token(const ExprPtr& e) {
     if (e->size() != 2) return {};
     constexpr std::pair<std::string_view, std::string_view> tokens[] = {
         {"Rule", "->"}, {"Set", "="}, {"SetDelayed", ":="},
-        {"Equal", "=="}, {"Unequal", "!="}, {"Less", "<"},
+        {"ReplaceAll", "/."}, {"Equal", "=="}, {"Unequal", "!="}, {"Less", "<"},
         {"LessEqual", "<="}, {"Greater", ">"}, {"GreaterEqual", ">="},
+        {"And", "&&"}, {"Or", "||"}, {"Dot", "."},
     };
     for (const auto& [head, token] : tokens) {
         if (e->has_head(head)) return token;
@@ -279,9 +418,17 @@ bool negative_term(const ExprPtr& e) {
 }
 
 int precedence(const ExprPtr& e) {
-    if (!infix_token(e).empty()) return 5;
+    if (e->has_head("Set") || e->has_head("SetDelayed")) return 2;
+    if (e->has_head("ReplaceAll")) return 3;
+    if (e->has_head("Rule")) return 4;
+    if (e->has_head("Or")) return 5;
+    if (e->has_head("And")) return 6;
+    if (e->has_head("Equal") || e->has_head("Unequal") ||
+        e->has_head("Less") || e->has_head("LessEqual") ||
+        e->has_head("Greater") || e->has_head("GreaterEqual")) return 7;
     if (e->has_head("Plus")) return 10;
     if (e->has_head("Times")) return 20;
+    if (e->has_head("Dot")) return 30;
     if (e->has_head("Power")) return 40;
     return 50;
 }
@@ -318,6 +465,49 @@ std::string write(const ExprPtr& e, int parent, std::size_t depth) {
                 out += "`";
             }
         }
+    } else if (e->has_head("Blank") && e->size() == 0) {
+        out = "_";
+    } else if (e->has_head("Blank") && e->size() == 1 && e->arg(0)->is_symbol()) {
+        out = "_" + text_for_head(e->arg(0)->name());
+    } else if (e->has_head("Pattern") && e->size() == 2 && e->arg(0)->is_symbol()) {
+        std::string sym = e->arg(0)->name();
+        const ExprPtr& b = e->arg(1);
+        if (b->has_head("Blank") && b->size() == 0) out = sym + "_";
+        else if (b->has_head("Blank") && b->size() == 1 && b->arg(0)->is_symbol())
+            out = sym + "_" + text_for_head(b->arg(0)->name());
+        else if (b->has_head("BlankSequence")) out = sym + "__";
+        else if (b->has_head("BlankNullSequence")) out = sym + "___";
+        else out = write(e->head(), 0, depth + 1) + "(" + write(e->arg(0), 0, depth + 1) + ", " + write(e->arg(1), 0, depth + 1) + ")";
+    } else if (e->has_head("Derivative") && e->size() == 2 && e->arg(0)->is_integer()) {
+        auto n = e->arg(0)->integer().to_int64();
+        std::string primes = (n && *n > 0 && *n <= 5) ? std::string(static_cast<std::size_t>(*n), '\'') : "";
+        if (!primes.empty()) {
+            out = write(e->arg(1), 50, depth + 1) + primes;
+        } else {
+            out = "Derivative(" + write(e->arg(0), 0, depth + 1) + ", " + write(e->arg(1), 0, depth + 1) + ")";
+        }
+    } else if (e->head()->has_head("Derivative") && e->head()->size() == 2 && e->head()->arg(0)->is_integer()) {
+        auto n = e->head()->arg(0)->integer().to_int64();
+        std::string primes = (n && *n > 0 && *n <= 5) ? std::string(static_cast<std::size_t>(*n), '\'') : "";
+        if (!primes.empty()) {
+            out = write(e->head()->arg(1), 50, depth + 1) + primes + "(";
+            for (std::size_t i = 0; i < e->size(); ++i) {
+                if (i) out += ", ";
+                out += write(e->arg(i), 0, depth + 1);
+            }
+            out += ")";
+        } else {
+            out = write(e->head(), 0, depth + 1) + "(";
+            for (std::size_t i = 0; i < e->size(); ++i) {
+                if (i) out += ", ";
+                out += write(e->arg(i), 0, depth + 1);
+            }
+            out += ")";
+        }
+    } else if (e->has_head("Not") && e->size() == 1) {
+        out = "!" + write(e->arg(0), 50, depth + 1);
+    } else if (e->has_head("Factorial") && e->size() == 1) {
+        out = write(e->arg(0), 50, depth + 1) + "!";
     } else if (e->has_head("Plus") && e->size() > 0) {
         for (std::size_t i = 0; i < e->size(); ++i) {
             const bool negative = negative_term(e->arg(i));

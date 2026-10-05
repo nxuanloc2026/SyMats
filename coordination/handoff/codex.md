@@ -3,11 +3,13 @@
 ## T-031 Tier 1 text syntax (2026-10-05)
 
 Branch: `codex/T-031-square-bracket-syntax`, based on main `d85f00c`.
+PR: https://github.com/nxuanloc2026/Symats/pull/15 (human merge required).
 The user-facing text grammar uses `Sin[x]` and `f[x_] := Sin[x]`,
 capitalized built-ins, and curly brace lists/matrices. The internal Expr node
 names stay the same. Converter, full-form printer, regression tests, specifications,
 and queued task descriptions are updated. Windows Debug and Release builds and
-the full test suite pass. Next: check GitHub CI, then mark the PR ready for review.
+the full test suite pass. GitHub Linux and Windows CI checks passed on the first
+commit; the final documentation update reruns those checks. Ready for human review.
 
 ## T-004 CI repair (2026-10-05 UTC)
 

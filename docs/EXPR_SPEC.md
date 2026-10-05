@@ -107,7 +107,7 @@ Text: `Sin[x]`, `ArcTan[x]`, `Log[x]` = natural log, `Log[b, x]` = base b.
 | `DSolve` | symbolic solve | `DSolve[y''[x] + y[x] == 0, y[x], x]` |
 | `DSolve` (system) | eqns list, funcs list, var | `DSolve[{x'[t] == y[t], y'[t] == -x[t]}, {x[t], y[t]}, t]` |
 | `DSolve` (PDE) | eqn, u[x,t], {x, t} | `DSolve[D[u[x,t], t] == k*D[u[x,t], {x, 2}], u[x,t], {x,t}]` |
-| `NDSolve` | numeric solve | `NDSolve[{y' == -y, y[0] == 1}, y, {x, 0, 5}]` |
+| `NDSolve` | numeric solve | `NDSolve[{y'[x] == -y[x], y[0] == 1}, y, {x, 0, 5}]` |
 | `NIntegrate` | numeric integral | `NIntegrate[Exp[-x^2], {x, 0, Infinity}]` |
 
 Results are `List` of `Rule`s: `{{y[x] -> C1*Cos[x] + C2*Sin[x]}}`.
@@ -140,9 +140,9 @@ Text: `Expand[e]`, `Factor[e]`, `Simplify[e]`, `Solve[eqn, x]`, `Substitute[e, x
 | `Plot` | `Plot[Sin[x], {x, 0, 2*Pi}]`; multiple: `Plot[{Sin[x], Cos[x]}, {x, 0, 2*Pi}]` |
 | `ParametricPlot` | `ParametricPlot[{Cos[3t], Sin[2t]}, {t, 0, 2*Pi}]` |
 | `PolarPlot` | `PolarPlot[1 + Cos[th], {th, 0, 2*Pi}]` |
-| `ImplicitPlot` | `ImplicitPlot[x^2 + y^2 == 1, x, -2, 2, y, -2, 2]` |
-| `Plot3D` | `Plot3D[Sin[x]*Cos[y], x, -3, 3, y, -3, 3]` |
-| `ContourPlot` | `ContourPlot[x^2 - y^2, x, -2, 2, y, -2, 2]` |
+| `ImplicitPlot` | `ImplicitPlot[x^2 + y^2 == 1, {x, -2, 2}, {y, -2, 2}]` |
+| `Plot3D` | `Plot3D[Sin[x]*Cos[y], {x, -3, 3}, {y, -3, 3}]` |
+| `ContourPlot` | `ContourPlot[x^2 - y^2, {x, -2, 2}, {y, -2, 2}]` |
 | `Animate` | `Animate[Plot[Sin[x - t], {x, 0, 2*Pi}], {t, 0, 10}]` |
 | `Slider` | `Plot[Sin[a*x], {x, 0, 2*Pi}, Slider[a, 0, 5]]` |
 

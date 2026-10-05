@@ -19,6 +19,7 @@ else()
 endif()
 
 add_subdirectory(core)
+add_subdirectory(backend)
 add_subdirectory(convert)
 
 if(SYMATS_BUILD_CLI)

@@ -1,5 +1,14 @@
 # Handoff — Claude
 
+## Takeover by Codex — T-010 native calculus (2026-10-05)
+
+Codex has claimed T-010 on `takeover/T-010-native-calculus`. It will add native
+`D` and `Expand` in `core/` so integration verification (T-013) can use
+derivatives without a Giac dependency. The planned new public
+`core/include/symats/calculus.h` exposes these core operations to the
+evaluator and later verification; no existing public declaration or Expr node
+contract is being changed. This is the reason for the public header addition.
+
 ## Takeover by Codex — T-031 text syntax
 
 Loc requested the Tier 1 square bracket notation across Symats. The expression

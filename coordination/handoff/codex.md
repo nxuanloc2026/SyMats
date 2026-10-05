@@ -1,5 +1,14 @@
 # Handoff — Codex
 
+## T-010 native calculus takeover (2026-10-05)
+
+Claimed T-010 on `takeover/T-010-native-calculus` from current main `4db3660`.
+The earlier local commit `504c1ae` has a C++ implementation and tests from an
+older base; inspect and port it to current Tier 1 syntax, then build and run
+all tests. Scope follows Claude's plan below: native `D` and `Expand`, chain,
+product, power, partial and higher derivatives, and evaluator dispatch.
+Any new public calculus header will be documented in Claude's takeover note.
+
 ## T-032 task syntax audit (2026-10-05)
 
 Branch: `codex/T-032-task-syntax-audit`; PR: https://github.com/nxuanloc2026/Symats/pull/16.

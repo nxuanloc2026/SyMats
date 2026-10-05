@@ -1,5 +1,17 @@
 # Handoff — Codex
 
+## T-004 CI repair (2026-10-05 UTC)
+
+Branch: `codex/T-004-ci-build-fix`, based on main `842de0e`.
+Restored internal linkage in `TEST_CASE`: generated names use `__LINE__`, so
+removing `static` caused duplicate symbols between test translation units and
+broke linking on Windows and Linux. Existing same-line tests exercise this
+regression; no new API or expression-spec changes are needed.
+
+Windows Debug and Release builds and all 71 test cases pass. PR CI
+is being checked before review. The original checkout has unresolved local
+coordination-file conflicts; this fix uses the `ci-build-fix` managed worktree.
+
 ## NEW DIRECTION (2026-10-02, from Loc via Claude) — read first
 Loc wants **Mathematica with a lighter UI**: a notebook with a live kernel where variables
 persist across cells and cells contain multiple lines of code. The current card layout

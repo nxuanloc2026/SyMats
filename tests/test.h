@@ -56,11 +56,12 @@ std::string show(const T& v) {
 #define SYMATS_CAT2(a, b) a##b
 #define SYMATS_CAT(a, b) SYMATS_CAT2(a, b)
 
+// Line numbers repeat across source files, so test functions need internal linkage.
 #define TEST_CASE(name)                                                                      \
-    void SYMATS_CAT(symats_test_fn_, __LINE__)();                                            \
+    static void SYMATS_CAT(symats_test_fn_, __LINE__)();                                     \
     static ::symats_test::Registrar SYMATS_CAT(symats_test_reg_, __LINE__)(                  \
         name, &SYMATS_CAT(symats_test_fn_, __LINE__));                                       \
-    void SYMATS_CAT(symats_test_fn_, __LINE__)()
+    static void SYMATS_CAT(symats_test_fn_, __LINE__)()
 
 #define CHECK(cond)                                                                          \
     do {                                                                                     \

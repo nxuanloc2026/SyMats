@@ -360,4 +360,143 @@ std::string to_text(const ExprPtr& expr) {
     return write(expr, 0, 0);
 }
 
+namespace {
+
+std::string strip_comments(std::string_view input) {
+    std::string result;
+    result.reserve(input.size());
+    std::size_t i = 0;
+    int depth = 0;
+    while (i < input.size()) {
+        if (i + 1 < input.size() && input[i] == '(' && input[i + 1] == '*') {
+            depth++;
+            i += 2;
+        } else if (depth > 0 && i + 1 < input.size() && input[i] == '*' && input[i + 1] == ')') {
+            depth--;
+            i += 2;
+        } else {
+            if (depth == 0) {
+                result += input[i];
+            } else {
+                if (input[i] == '\n') result += '\n';
+                else result += ' ';
+            }
+            i++;
+        }
+    }
+    return result;
+}
+
+std::string expand_percents(std::string_view text) {
+    std::string result;
+    result.reserve(text.size());
+    std::size_t i = 0;
+    while (i < text.size()) {
+        if (text[i] == '%') {
+            std::size_t count = 0;
+            while (i + count < text.size() && text[i + count] == '%') {
+                count++;
+            }
+            if (count > 0 && i + count < text.size() &&
+                std::isdigit(static_cast<unsigned char>(text[i + count]))) {
+                std::size_t num_start = i + count;
+                std::size_t num_end = num_start;
+                while (num_end < text.size() &&
+                       std::isdigit(static_cast<unsigned char>(text[num_end]))) {
+                    num_end++;
+                }
+                std::string num_str(text.substr(num_start, num_end - num_start));
+                result += "Out[" + num_str + "]";
+                i = num_end;
+            } else {
+                result += "Out[-" + std::to_string(count) + "]";
+                i += count;
+            }
+        } else {
+            result += text[i++];
+        }
+    }
+    return result;
+}
+
+bool ends_with_continuation_operator(std::string_view s) {
+    while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) {
+        s.remove_suffix(1);
+    }
+    if (s.empty()) return false;
+    char last = s.back();
+    if (last == '+' || last == '-' || last == '*' || last == '/' || last == '^' ||
+        last == '=' || last == ':' || last == ',' || last == '>') return true;
+    if (s.size() >= 2) {
+        std::string_view end2 = s.substr(s.size() - 2);
+        if (end2 == "->" || end2 == ":=" || end2 == "==" || end2 == "!=" ||
+            end2 == "<=" || end2 == ">=" || end2 == "/." || end2 == "&&" || end2 == "||") {
+            return true;
+        }
+    }
+    return false;
+}
+
+}  // namespace
+
+std::vector<Statement> parse_cell(std::string_view input) {
+    std::string clean_text = strip_comments(input);
+    std::vector<Statement> statements;
+    std::string cur_stmt;
+    int bracket_depth = 0;
+
+    auto finish_statement = [&](bool suppressed) {
+        std::size_t start = 0;
+        while (start < cur_stmt.size() && std::isspace(static_cast<unsigned char>(cur_stmt[start]))) {
+            start++;
+        }
+        std::size_t end = cur_stmt.size();
+        while (end > start && std::isspace(static_cast<unsigned char>(cur_stmt[end - 1]))) {
+            end--;
+        }
+        if (start < end) {
+            std::string stmt_str = cur_stmt.substr(start, end - start);
+            std::string expanded = expand_percents(stmt_str);
+            ExprPtr parsed = parse_text(expanded);
+            statements.push_back(Statement{parsed, suppressed});
+        }
+        cur_stmt.clear();
+    };
+
+    std::size_t i = 0;
+    while (i < clean_text.size()) {
+        char c = clean_text[i];
+        if (c == '[' || c == '(' || c == '{') {
+            bracket_depth++;
+            cur_stmt += c;
+            i++;
+        } else if (c == ']' || c == ')' || c == '}') {
+            if (bracket_depth > 0) bracket_depth--;
+            cur_stmt += c;
+            i++;
+        } else if (c == ';') {
+            if (bracket_depth > 0) {
+                cur_stmt += c;
+                i++;
+            } else {
+                finish_statement(/*suppressed=*/true);
+                i++;
+            }
+        } else if (c == '\n') {
+            if (bracket_depth > 0 || ends_with_continuation_operator(cur_stmt)) {
+                cur_stmt += ' ';
+                i++;
+            } else {
+                finish_statement(/*suppressed=*/false);
+                i++;
+            }
+        } else {
+            cur_stmt += c;
+            i++;
+        }
+    }
+    finish_statement(/*suppressed=*/false);
+    return statements;
+}
+
 }  // namespace symats

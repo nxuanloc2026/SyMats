@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Loc Ngo and Symats contributors
+#include "symats/latex.h"
 #include "symats/text.h"
 #include "test.h"
 
@@ -114,4 +115,50 @@ TEST_CASE("Text: nesting limit throws before stack exhaustion") {
     ExprPtr deep = make_symbol("x");
     for (int i = 0; i < 300; ++i) deep = make_normal("f", {deep});
     CHECK_THROWS(to_text(deep));
+}
+
+TEST_CASE("Text: parse_cell handles multi-statement, comments, continuations, and percents") {
+    std::string cell_code =
+        "(* Define variables *)\n"
+        "a = 5;\n"
+        "b = 10;\n"
+        "a +\n"
+        "  b;\n"
+        "% + %%\n"
+        "%2 + 1";
+
+    auto stmts = parse_cell(cell_code);
+    CHECK_EQ(stmts.size(), std::size_t(5));
+
+    // Stmt 1: a = 5 (suppressed)
+    CHECK(stmts[0].suppressed);
+    CHECK_EQ(to_full_form(stmts[0].expr), std::string("Set[a, 5]"));
+
+    // Stmt 2: b = 10 (suppressed)
+    CHECK(stmts[1].suppressed);
+    CHECK_EQ(to_full_form(stmts[1].expr), std::string("Set[b, 10]"));
+
+    // Stmt 3: a + b (continued across lines, suppressed by trailing ;)
+    CHECK(stmts[2].suppressed);
+    CHECK_EQ(to_full_form(stmts[2].expr), std::string("Plus[a, b]"));
+
+    // Stmt 4: Out[-1] + Out[-2] (not suppressed)
+    CHECK(!stmts[3].suppressed);
+    CHECK_EQ(to_full_form(stmts[3].expr), std::string("Plus[Out[-2], Out[-1]]"));
+
+    // Stmt 5: Out[2] + 1 (not suppressed)
+    CHECK(!stmts[4].suppressed);
+    CHECK_EQ(to_full_form(stmts[4].expr), std::string("Plus[1, Out[2]]"));
+}
+
+TEST_CASE("LaTeX: formatting expressions into LaTeX math strings") {
+    CHECK_EQ(to_latex(parse_text("1/3")), std::string("\\frac{1}{3}"));
+    CHECK_EQ(to_latex(parse_text("-1/2")), std::string("-\\frac{1}{2}"));
+    CHECK_EQ(to_latex(parse_text("alpha + beta")), std::string("\\alpha + \\beta"));
+    CHECK_EQ(to_latex(parse_text("Sin[x]")), std::string("\\sin\\left(x\\right)"));
+    CHECK_EQ(to_latex(parse_text("Sqrt[x]")), std::string("\\sqrt{x}"));
+    CHECK_EQ(to_latex(parse_text("{{a, b}, {c, d}}")),
+             std::string("\\begin{pmatrix}a & b \\\\ c & d\\end{pmatrix}"));
+    CHECK_EQ(to_latex(parse_text("Integrate[x^2, x]")),
+             std::string("\\int x^{2} \\, dx"));
 }

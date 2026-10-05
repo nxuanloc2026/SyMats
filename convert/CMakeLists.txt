@@ -3,6 +3,7 @@
 add_library(symats_convert
   src/text.cpp
   src/mathjson.cpp
+  src/latex.cpp
 )
 add_library(symats::convert ALIAS symats_convert)
 target_include_directories(symats_convert PUBLIC

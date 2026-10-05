@@ -22,7 +22,7 @@ int main() {
         {"(x + 1) - (x + 1)", (x + 1) - (x + 1)},
         {"(2x)^2", pow(2 * x, 2)},
         {"8^(2/3)", pow(8, frac(2, 3))},
-        {"sqrt(2) * sqrt(2)", pow(2, frac(1, 2)) * pow(2, frac(1, 2))},
+        {"Sqrt[2] * Sqrt[2]", pow(2, frac(1, 2)) * pow(2, frac(1, 2))},
         {"2^100", pow(Ex(2), 100)},
         {"integral of x^2 dx", make_normal("Integrate", {pow(x, 2).ptr(), x.ptr()})},
     };

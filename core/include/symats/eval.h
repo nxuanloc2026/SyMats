@@ -4,9 +4,9 @@
 // The evaluator: definitions, rules, attributes, built-in functions, and dispatch
 // of math heads (Integrate, Solve, DSolve, ...) to registered MathBackends.
 //
-// Evaluation of a Normal expression f(a1, ..., an):
+// Evaluation of a Normal expression f[a1, ..., an]:
 //   1. evaluate the head; evaluate the arguments unless held (HoldFirst/HoldRest/HoldAll);
-//   2. splice Sequence(...) arguments;
+//   2. splice Sequence[...] arguments;
 //   3. if f is Listable and some arguments are lists of equal length, thread over them;
 //   4. try, in order: built-in function, user definitions (exact ones before
 //      pattern ones), backends. The first that changes the expression wins;
@@ -57,7 +57,7 @@ public:
     void set_value(const std::string& symbol, ExprPtr value);
     ExprPtr value(const std::string& symbol) const;  // nullptr if none
 
-    // Down values: f(x_) := x^2. A definition with a structurally equal lhs replaces
+    // Down values: f[x_] := x^2. A definition with a structurally equal lhs replaces
     // the old one. Definitions without patterns are tried before pattern ones.
     void add_definition(const std::string& symbol, ExprPtr lhs, ExprPtr rhs);
     void clear(const std::string& symbol);
@@ -73,8 +73,8 @@ public:
     BackendRegistry& backends() { return backends_; }
     const BackendRegistry& backends() const { return backends_; }
 
-    // Limits protecting against runaway recursion (f(x_) := f(x) + 1) and
-    // non-terminating rewriting (f(x_) := f(x)).
+    // Limits protecting against runaway recursion (f[x_] := f[x] + 1) and
+    // non-terminating rewriting (f[x_] := f[x]).
     std::size_t max_depth = 400;
     std::size_t max_iterations = 100000;
 

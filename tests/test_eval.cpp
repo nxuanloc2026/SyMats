@@ -22,7 +22,7 @@ std::string run(Context& c, std::string_view text) { return F(evaluate(P(text), 
 TEST_CASE("Eval: arithmetic and canonical form") {
     Context c;
     CHECK_EQ(run(c, "1 + 2*3"), std::string("7"));
-    CHECK_EQ(run(c, call("Plus", {S("x"), S("x")})), std::string("Times(2, x)"));
+    CHECK_EQ(run(c, call("Plus", {S("x"), S("x")})), std::string("Times[2, x]"));
     CHECK_EQ(run(c, "(x + 1) - (x + 1)"), std::string("0"));
     CHECK_EQ(run(c, "2^10"), std::string("1024"));
 }
@@ -32,7 +32,7 @@ TEST_CASE("Eval: own values, Clear, immediate vs delayed") {
     CHECK_EQ(run(c, "x = 5"), std::string("5"));
     CHECK_EQ(run(c, "x + 1"), std::string("6"));
     CHECK_EQ(run(c, call("Clear", {S("x")})), std::string("Null"));
-    CHECK_EQ(run(c, "x + 1"), std::string("Plus(1, x)"));
+    CHECK_EQ(run(c, "x + 1"), std::string("Plus[1, x]"));
 
     run(c, "y = 2");
     run(c, "b = y");    // immediate: b is 2 now
@@ -45,12 +45,21 @@ TEST_CASE("Eval: own values, Clear, immediate vs delayed") {
 TEST_CASE("Eval: recursive definitions with patterns (factorial)") {
     Context c;
     // Pattern rule first, exact rule second: exact rules are still tried first.
-    evaluate(call("SetDelayed", {call("fact", {pat("n", "Integer")}), P("n*fact(n - 1)")}), c);
+    evaluate(call("SetDelayed", {call("fact", {pat("n", "Integer")}), P("n*fact[n - 1]")}), c);
     evaluate(call("Set", {call("fact", {make_integer(0)}), make_integer(1)}), c);
-    CHECK_EQ(run(c, "fact(5)"), std::string("120"));
-    CHECK_EQ(run(c, "fact(20)"), std::string("2432902008176640000"));
-    CHECK_EQ(F(evaluate(P("fact(100)"), c)).size(), std::size_t(158));
-    CHECK_EQ(run(c, "fact(x)"), std::string("fact(x)"));  // x is not an Integer
+    CHECK_EQ(run(c, "fact[5]"), std::string("120"));
+    CHECK_EQ(run(c, "fact[20]"), std::string("2432902008176640000"));
+    CHECK_EQ(F(evaluate(P("fact[100]"), c)).size(), std::size_t(158));
+    CHECK_EQ(run(c, "fact[x]"), std::string("fact[x]"));  // x is not an Integer
+}
+
+TEST_CASE("Eval: square bracket function definition") {
+    Context c;
+    CHECK_EQ(run(c, "f[x_] := Sin[x]"), std::string("Null"));
+    CHECK_EQ(run(c, "f[t]"), std::string("Sin[t]"));
+    CHECK_EQ(run(c, "g[x_Integer] := x^2"), std::string("Null"));
+    CHECK_EQ(run(c, "g[3]"), std::string("9"));
+    CHECK_EQ(run(c, "g[t]"), std::string("g[t]"));
 }
 
 TEST_CASE("Eval: sequence patterns and redefinition") {
@@ -58,29 +67,29 @@ TEST_CASE("Eval: sequence patterns and redefinition") {
     evaluate(call("Set", {call("len", {}), make_integer(0)}), c);
     evaluate(call("SetDelayed", {call("len", {pat("h"), pat_null_seq("rest")}),
                                  call("Plus", {make_integer(1), call("len", {S("rest")})})}), c);
-    CHECK_EQ(run(c, "len(a, b, c, d)"), std::string("4"));
-    CHECK_EQ(run(c, "len()"), std::string("0"));
+    CHECK_EQ(run(c, "len[a, b, c, d]"), std::string("4"));
+    CHECK_EQ(run(c, "len[]"), std::string("0"));
 
     evaluate(call("SetDelayed", {call("f", {pat("x")}), P("x^2")}), c);
     evaluate(call("SetDelayed", {call("f", {pat("x")}), P("x^3")}), c);  // replaces
-    CHECK_EQ(run(c, "f(2)"), std::string("8"));
+    CHECK_EQ(run(c, "f[2]"), std::string("8"));
 
     // Pattern variables are not captured by global values.
     run(c, "x = 5");
     evaluate(call("SetDelayed", {call("sq", {pat("x")}), P("x^2")}), c);
-    CHECK_EQ(run(c, "sq(3)"), std::string("9"));
+    CHECK_EQ(run(c, "sq[3]"), std::string("9"));
 
-    // Left-hand side arguments are evaluated: g(1 + 1) = 7 defines g(2).
-    run(c, "g(1 + 1) = 7");
-    CHECK_EQ(run(c, "g(2)"), std::string("7"));
+    // Left-hand side arguments are evaluated: g[1 + 1] = 7 defines g[2].
+    run(c, "g[1 + 1] = 7");
+    CHECK_EQ(run(c, "g[2]"), std::string("7"));
 }
 
 TEST_CASE("Eval: Listable threading") {
     Context c;
-    CHECK_EQ(run(c, "{1, 2, 3} + 10"), std::string("List(11, 12, 13)"));
-    CHECK_EQ(run(c, "{1, 2} * {3, 4}"), std::string("List(3, 8)"));
-    CHECK_EQ(run(c, "sin({x, y})"), std::string("List(Sin(x), Sin(y))"));
-    CHECK_EQ(run(c, "[[1, 2], [3, 4]] * 2"), std::string("List(List(2, 4), List(6, 8))"));
+    CHECK_EQ(run(c, "{1, 2, 3} + 10"), std::string("List[11, 12, 13]"));
+    CHECK_EQ(run(c, "{1, 2} * {3, 4}"), std::string("List[3, 8]"));
+    CHECK_EQ(run(c, "Sin[{x, y}]"), std::string("List[Sin[x], Sin[y]]"));
+    CHECK_EQ(run(c, "{{1, 2}, {3, 4}} * 2"), std::string("List[List[2, 4], List[6, 8]]"));
     // Mismatched lengths: left alone, no crash.
     CHECK(evaluate(P("{1, 2} + {1, 2, 3}"), c)->has_head("Plus"));
 }
@@ -89,12 +98,12 @@ TEST_CASE("Eval: Hold, Sequence, Substitute") {
     Context c;
     // Build 1 + 1 raw (the text parser would already simplify it to 2).
     ExprPtr raw_sum = call("Plus", {make_integer(1), make_integer(1)});
-    CHECK_EQ(run(c, call("Hold", {raw_sum})), std::string("Hold(Plus(1, 1))"));
+    CHECK_EQ(run(c, call("Hold", {raw_sum})), std::string("Hold[Plus[1, 1]]"));
     CHECK_EQ(run(c, raw_sum), std::string("2"));
     CHECK_EQ(run(c, call("f", {call("Sequence", {make_integer(1), make_integer(2)}), make_integer(3)})),
-             std::string("f(1, 2, 3)"));
-    CHECK_EQ(run(c, "subs(x^2 + y, x -> 3)"), std::string("Plus(9, y)"));
-    CHECK_EQ(run(c, "subs(x + y, {x -> 1, y -> 2})"), std::string("3"));
+             std::string("f[1, 2, 3]"));
+    CHECK_EQ(run(c, "Substitute[x^2 + y, x -> 3]"), std::string("Plus[9, y]"));
+    CHECK_EQ(run(c, "Substitute[x + y, {x -> 1, y -> 2}]"), std::string("3"));
 }
 
 TEST_CASE("Eval: comparisons") {
@@ -102,7 +111,7 @@ TEST_CASE("Eval: comparisons") {
     CHECK_EQ(run(c, "2 == 2"), std::string("True"));
     CHECK_EQ(run(c, "1 == 2"), std::string("False"));
     CHECK_EQ(run(c, "x == x"), std::string("True"));
-    CHECK_EQ(run(c, "x == y"), std::string("Equal(x, y)"));
+    CHECK_EQ(run(c, "x == y"), std::string("Equal[x, y]"));
     CHECK_EQ(run(c, "1 < 2"), std::string("True"));
     CHECK_EQ(run(c, "1/2 < 1/3"), std::string("False"));
     CHECK_EQ(run(c, "3 != 3"), std::string("False"));
@@ -110,7 +119,7 @@ TEST_CASE("Eval: comparisons") {
 
 TEST_CASE("Eval: protected symbols refuse definitions") {
     Context c;
-    CHECK_THROWS(evaluate(P("pi = 3"), c));
+    CHECK_THROWS(evaluate(P("Pi = 3"), c));
     CHECK_THROWS(evaluate(call("SetDelayed", {call("Sin", {pat("x")}), make_integer(0)}), c));
     CHECK_THROWS(evaluate(call("Set", {make_integer(1), make_integer(2)}), c));
 }
@@ -125,9 +134,9 @@ TEST_CASE("Eval: runaway definitions hit limits, context stays usable") {
     run(c, "y = 1");
     CHECK_EQ(run(c, "y + 1"), std::string("2"));  // depth counter was restored
 
-    evaluate(call("SetDelayed", {call("h", {pat("n")}), P("h(n + 1)")}), c);
+    evaluate(call("SetDelayed", {call("h", {pat("n")}), P("h[n + 1]")}), c);
     c.max_iterations = 2000;
-    CHECK_THROWS(evaluate_top(P("h(1)"), c));
+    CHECK_THROWS(evaluate_top(P("h[1]"), c));
 
     // The rewrite budget is per outermost evaluation, not per session.
     c.max_iterations = 100000;
@@ -136,7 +145,7 @@ TEST_CASE("Eval: runaway definitions hit limits, context stays usable") {
 
     // A definition that rewrites to itself does not loop.
     evaluate(call("SetDelayed", {call("same", {pat("n")}), call("same", {S("n")})}), c);
-    CHECK_EQ(run(c, "same(4)"), std::string("same(4)"));
+    CHECK_EQ(run(c, "same[4]"), std::string("same[4]"));
 }
 
 namespace {
@@ -169,13 +178,13 @@ TEST_CASE("Eval: dispatch to MathBackend with status") {
     c.backends().add(mock);
 
     // Arguments are evaluated first: x*x becomes x^2 before the backend sees it.
-    EvalResult r = evaluate_top(P("integrate(x*x, x)"), c);
-    CHECK_EQ(F(r.value), std::string("Times(1/3, Power(x, 3))"));
+    EvalResult r = evaluate_top(P("Integrate[x*x, x]"), c);
+    CHECK_EQ(F(r.value), std::string("Times[1/3, Power[x, 3]]"));
     CHECK(r.status == ResultStatus::Unverified);
     CHECK_EQ(std::string(to_string(r.status)), std::string("unverified"));
 
     // Declined: stays unevaluated, status stays exact.
-    EvalResult r2 = evaluate_top(P("integrate(sin(x)/x, x)"), c);
+    EvalResult r2 = evaluate_top(P("Integrate[Sin[x]/x, x]"), c);
     CHECK(r2.value->has_head("Integrate"));
     CHECK(r2.status == ResultStatus::Exact);
 
@@ -187,17 +196,17 @@ TEST_CASE("Eval: dispatch to MathBackend with status") {
 
 TEST_CASE("Eval: D and Expand structure parsing and verification") {
     // D cases from calculus, SymPy diff(), Maxima diff()
-    ExprPtr d1 = P("D(x^4 + 3*x^2, x)");
+    ExprPtr d1 = P("D[x^4 + 3*x^2, x]");
     CHECK(d1 != nullptr);
     CHECK(d1->has_head("D"));
     CHECK_EQ(d1->size(), std::size_t(2));
 
     // Expand cases from algebra, SymPy expand(), Maxima expand()
-    ExprPtr exp1 = P("Expand((x + 1)^2)");
+    ExprPtr exp1 = P("Expand[(x + 1)^2]");
     CHECK(exp1 != nullptr);
     CHECK(exp1->has_head("Expand"));
 
-    ExprPtr exp2 = P("Expand((a + b)^3)");
+    ExprPtr exp2 = P("Expand[(a + b)^3]");
     CHECK(exp2 != nullptr);
     CHECK(exp2->has_head("Expand"));
 }

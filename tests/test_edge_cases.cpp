@@ -54,26 +54,26 @@ struct SimpleRNG {
 TEST_CASE("Edge Cases: parse_text with unusual whitespace") {
     // Leading, trailing, mixed newlines, tabs, and carriage returns
     ExprPtr e1 = parse_text(" \t\n\r 2 * x \t + \n 3 * y \r\n ");
-    CHECK_EQ(to_full_form(e1), std::string("Plus(Times(2, x), Times(3, y))"));
+    CHECK_EQ(to_full_form(e1), std::string("Plus[Times[2, x], Times[3, y]]"));
 
     // Multiline expression with tabs and extra spacing inside function arguments
-    ExprPtr e2 = parse_text(" \n\t integrate( \n\t x^2 \t , \n\t x \t , \n\t 0 \t , \n\t 1 \t ) \n ");
-    CHECK_EQ(to_full_form(e2), std::string("Integrate(Power(x, 2), List(x, 0, 1))"));
+    ExprPtr e2 = parse_text(" \n\t Integrate[ \n\t x^2 \t , \n\t { x \t , \n\t 0 \t , \n\t 1 } \t ] \n ");
+    CHECK_EQ(to_full_form(e2), std::string("Integrate[Power[x, 2], List[x, 0, 1]]"));
 
     // Matrix with irregular whitespace around brackets and separators
-    ExprPtr e3 = parse_text(" [ \n [ \t 1 , \t 2 \n ] \t , \n [ 3 \t , 4 \n ] \n ] ");
-    CHECK_EQ(to_full_form(e3), std::string("List(List(1, 2), List(3, 4))"));
+    ExprPtr e3 = parse_text(" { \n { \t 1 , \t 2 \n } \t , \n { 3 \t , 4 \n } \n } ");
+    CHECK_EQ(to_full_form(e3), std::string("List[List[1, 2], List[3, 4]]"));
 
     // Space before parenthesis means multiplication
     ExprPtr e4 = parse_text(" x \t ( y + 1 ) ");
-    CHECK_EQ(to_full_form(e4), std::string("Times(x, Plus(1, y))"));
+    CHECK_EQ(to_full_form(e4), std::string("Times[x, Plus[1, y]]"));
 
     // White space between relational operators and symbols
     ExprPtr e5 = parse_text(" x \t == \n y ");
-    CHECK_EQ(to_full_form(e5), std::string("Equal(x, y)"));
+    CHECK_EQ(to_full_form(e5), std::string("Equal[x, y]"));
 
     ExprPtr e6 = parse_text(" x \n -> \t y ");
-    CHECK_EQ(to_full_form(e6), std::string("Rule(x, y)"));
+    CHECK_EQ(to_full_form(e6), std::string("Rule[x, y]"));
 }
 
 TEST_CASE("Edge Cases: very long integers") {
@@ -112,9 +112,9 @@ TEST_CASE("Edge Cases: malformed input throws and does not crash") {
     CHECK_THROWS(parse_text("x + 1)"));
     CHECK_THROWS(parse_text("[1, 2"));
     CHECK_THROWS(parse_text("1, 2]"));
-    CHECK_THROWS(parse_text("sin(x,"));
-    CHECK_THROWS(parse_text("f(x, y"));
-    CHECK_THROWS(parse_text("[[1, 2], [3, 4]"));
+    CHECK_THROWS(parse_text("Sin[x,"));
+    CHECK_THROWS(parse_text("f[x, y"));
+    CHECK_THROWS(parse_text("{{1, 2}, {3, 4}"));
 
     // Incomplete or invalid binary operators
     CHECK_THROWS(parse_text("+"));

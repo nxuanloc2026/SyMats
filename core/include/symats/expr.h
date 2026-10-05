@@ -82,9 +82,9 @@ ExprPtr times(ExprList factors);
 ExprPtr power(const ExprPtr& base, const ExprPtr& exponent);
 ExprPtr plus(const ExprPtr& a, const ExprPtr& b);
 ExprPtr times(const ExprPtr& a, const ExprPtr& b);
-ExprPtr negate(const ExprPtr& a);                      // -a  = Times(-1, a)
-ExprPtr subtract(const ExprPtr& a, const ExprPtr& b);  // a-b = Plus(a, Times(-1, b))
-ExprPtr divide(const ExprPtr& a, const ExprPtr& b);    // a/b = Times(a, Power(b, -1))
+ExprPtr negate(const ExprPtr& a);                      // -a  = Times[-1, a]
+ExprPtr subtract(const ExprPtr& a, const ExprPtr& b);  // a-b = Plus[a, Times[-1, b]]
+ExprPtr divide(const ExprPtr& a, const ExprPtr& b);    // a/b = Times[a, Power[b, -1]]
 
 // ---------------------------------------------------------------- comparison
 // Total canonical order used to sort arguments of Plus/Times (docs/EXPR_SPEC.md §2).
@@ -100,7 +100,7 @@ struct ExprLess {
 };
 
 // ---------------------------------------------------------------- printing
-// Internal ("full") form, e.g. Plus(1, Times(2, x)). Also valid plain-text input.
+// Internal ("full") form, e.g. Plus[1, Times[2, x]]. Also valid plain-text input.
 std::string to_full_form(const ExprPtr& e);
 
 // ---------------------------------------------------------------- convenience

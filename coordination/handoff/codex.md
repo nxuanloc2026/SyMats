@@ -1,5 +1,16 @@
 # Handoff — Codex
 
+## T-031 Tier 1 text syntax (2026-10-05)
+
+Branch: `codex/T-031-square-bracket-syntax`, based on main `d85f00c`.
+PR: https://github.com/nxuanloc2026/Symats/pull/15 (human merge required).
+The user-facing text grammar uses `Sin[x]` and `f[x_] := Sin[x]`,
+capitalized built-ins, and curly brace lists/matrices. The internal Expr node
+names stay the same. Converter, full-form printer, regression tests, specifications,
+and queued task descriptions are updated. Windows Debug and Release builds and
+the full test suite pass. GitHub Linux and Windows CI checks passed on the first
+commit; the final documentation update reruns those checks. Ready for human review.
+
 ## T-004 CI repair (2026-10-05 UTC)
 
 Branch: `codex/T-004-ci-build-fix`, based on main `842de0e`.
@@ -24,7 +35,7 @@ Spec: AGENTS.md -> "Notebook model". Your tasks, in order:
 3. **T-022** engine bridge (covering Copilot) — uses `symats::Session` from core/session.h
    (T-021, Claude, in progress). API: `Session::run(expr, suppress)` -> StatementResult
    {line, input, output, status, suppressed, error}; `restart()`; `user_symbols()`.
-**Time-savers (approved in AGENTS.md):** T-019 must be built on CodeMirror 6 + MathLive + KaTeX/STIX Two + Plotly (assemble, don't write an editor). After T-010 add T-029 (Boost.Odeint NDSolve). Use Mathics3 (GPL) only as a behavior reference for T-018/T-025.
+**Time-savers (approved in AGENTS.md):** T-019 must be built on CodeMirror 6 + MathLive + KaTeX/STIX Two + Plotly (assemble, don't write an editor). After T-010 add T-029 (Boost.Odeint NDSolve). Use Mathics3 (GPL) only as a behavior reference for T-018.
 Still pending from before: T-004 (CI warnings), Unicode symbols in MathJSON.
 
 
@@ -63,7 +74,7 @@ Changes made 2026-10-02 03:19 UTC:
 - `convert/src/text.cpp`: parser and printer nesting limits; exact fixed-point
   decimals; readable minus signs, function names, comparisons, and rules;
   `=` → `Set`, `:=` → `SetDelayed`, `==` → `Equal`.
-- `convert/README.md`: documented that `f(x)` is a call while `f (x)` is
+- `convert/README.md`: documented that `f[x]` is a call while `f (x)` is
   multiplication, plus decimal and assignment behavior.
 - `tests/test_text.cpp`: focused examples and round-trip/deep-nesting checks.
 - `coordination/BOARD.md` and `coordination/STATUS.md`: task state.

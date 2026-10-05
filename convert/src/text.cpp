@@ -10,66 +10,32 @@
 namespace symats {
 namespace {
 
-constexpr std::pair<std::string_view, std::string_view> aliases[] = {
-        {"sin", "Sin"}, {"cos", "Cos"}, {"tan", "Tan"}, {"cot", "Cot"},
-        {"sec", "Sec"}, {"csc", "Csc"}, {"arcsin", "ArcSin"},
-        {"arccos", "ArcCos"}, {"arctan", "ArcTan"}, {"sinh", "Sinh"},
-        {"cosh", "Cosh"}, {"tanh", "Tanh"}, {"exp", "Exp"}, {"log", "Log"},
-        {"abs", "Abs"}, {"diff", "D"}, {"integrate", "Integrate"},
-        {"nintegrate", "NIntegrate"}, {"dsolve", "DSolve"},
-        {"ndsolve", "NDSolve"}, {"limit", "Limit"}, {"sum", "Sum"},
-        {"product", "Product"}, {"series", "Series"}, {"transpose", "Transpose"},
-        {"det", "Det"}, {"inverse", "Inverse"}, {"rank", "Rank"},
-        {"trace", "Trace"}, {"eigenvalues", "Eigenvalues"},
-        {"eigenvectors", "Eigenvectors"}, {"rref", "RowReduce"},
-        {"charpoly", "CharPoly"}, {"matrixexp", "MatrixExp"},
-        {"linsolve", "LinearSolve"}, {"expand", "Expand"}, {"factor", "Factor"},
-        {"simplify", "Simplify"}, {"solve", "Solve"}, {"subs", "Substitute"},
-        {"plot", "Plot"}, {"paramplot", "ParametricPlot"},
-        {"polarplot", "PolarPlot"}, {"implicitplot", "ImplicitPlot"},
-        {"plot3d", "Plot3D"}, {"contourplot", "ContourPlot"},
-        {"animate", "Animate"}, {"slider", "Slider"},
-};
-
-std::string head_for(std::string_view name) {
-    for (const auto& [alias, head] : aliases) {
-        if (name == alias) return std::string(head);
-    }
-    return std::string(name);
+bool plain_name(std::string_view name) {
+    if (name.empty() || !std::isalpha(static_cast<unsigned char>(name.front()))) return false;
+    for (char c : name)
+        if (!std::isalnum(static_cast<unsigned char>(c))) return false;
+    return true;
 }
 
-std::string text_for_head(std::string_view head) {
-    for (const auto& [alias, internal] : aliases) {
-        if (head == internal) return std::string(alias);
-    }
-    return std::string(head);
+bool short_blank(const ExprPtr& e) {
+    return e->has_head("Blank") &&
+           (e->size() == 0 ||
+            (e->size() == 1 && e->arg(0)->is_symbol() && plain_name(e->arg(0)->name())));
 }
 
 ExprPtr call(std::string_view name, ExprList args) {
-    const std::string head = head_for(name);
-    if (name == "ExprApply" && !args.empty()) {
-        ExprPtr applied_head = args.front();
-        args.erase(args.begin());
-        return make_normal(std::move(applied_head), std::move(args));
-    }
+    const std::string head(name);
     if (head == "Plus") return plus(std::move(args));
     if (head == "Times") return times(std::move(args));
     if (head == "Power" && args.size() == 2) return power(args[0], args[1]);
+    if (head == "Rational" && args.size() == 2 && args[0]->is_integer() &&
+        args[1]->is_integer())
+        return make_rational(args[0]->integer(), args[1]->integer());
     if (head == "List") return make_normal("List", std::move(args));
-    if (name == "sqrt" && args.size() == 1)
+    if (name == "Sqrt" && args.size() == 1)
         return power(args[0], make_rational(1, 2));
-    if (name == "root" && args.size() == 2)
+    if (name == "Root" && args.size() == 2)
         return power(args[0], divide(make_integer(1), args[1]));
-    if (name == "integrate" && args.size() >= 4 && (args.size() - 1) % 3 == 0) {
-        ExprList grouped{args[0]};
-        for (std::size_t i = 1; i < args.size(); i += 3)
-            grouped.push_back(make_normal("List", {args[i], args[i + 1], args[i + 2]}));
-        return make_normal("Integrate", std::move(grouped));
-    }
-    if ((name == "sum" || name == "product" || name == "series") && args.size() == 4)
-        return make_normal(head, {args[0], make_normal("List", {args[1], args[2], args[3]})});
-    if ((name == "D" || name == "diff") && args.size() == 3 && args[2]->is_integer())
-        return make_normal("D", {args[0], make_normal("List", {args[1], args[2]})});
     return make_normal(head, std::move(args));
 }
 
@@ -161,7 +127,7 @@ private:
             else {
                 // Juxtaposition, such as 2x or a b, denotes multiplication.
                 char c = peek();
-                if (c == '(' || c == '[' || std::isalpha(static_cast<unsigned char>(c)))
+                if (c == '(' || std::isalpha(static_cast<unsigned char>(c)))
                     left = times(left, unary());
                 else return left;
             }
@@ -179,6 +145,19 @@ private:
         return base;
     }
     ExprPtr atom() {
+        ExprPtr head = primary();
+        while (take('[')) {
+            ExprList args;
+            if (!take(']')) {
+                do { args.push_back(relation()); } while (take(','));
+                expect(']');
+            }
+            head = head->is_symbol() ? call(head->name(), std::move(args))
+                                     : make_normal(std::move(head), std::move(args));
+        }
+        return head;
+    }
+    ExprPtr primary() {
         char c = peek();
         if (std::isdigit(static_cast<unsigned char>(c)) ||
             (c == '.' && pos_ + 1 < input_.size() &&
@@ -218,40 +197,47 @@ private:
             }
             error("unterminated quoted symbol");
         }
-        if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
+        if (std::isalpha(static_cast<unsigned char>(c))) {
             std::size_t start = pos_++;
             while (pos_ < input_.size() &&
-                   (std::isalnum(static_cast<unsigned char>(input_[pos_])) ||
-                    input_[pos_] == '_')) ++pos_;
+                   std::isalnum(static_cast<unsigned char>(input_[pos_]))) ++pos_;
             std::string name(input_.substr(start, pos_ - start));
-            // Calls require no whitespace before '('. A space means multiplication.
-            if (pos_ >= input_.size() || input_[pos_] != '(') {
-                if (name == "pi") name = "Pi";
-                else if (name == "e") name = "E";
-                else if (name == "i") name = "I";
-                else if (name == "inf" || name == "infinity") name = "Infinity";
-                return make_symbol(std::move(name));
+            if (pos_ < input_.size() && input_[pos_] == '_') {
+                ++pos_;
+                if (pos_ < input_.size() && input_[pos_] == '_')
+                    error("sequence patterns are not in Tier 1");
+                std::size_t type_start = pos_;
+                while (pos_ < input_.size() &&
+                       std::isalnum(static_cast<unsigned char>(input_[pos_]))) ++pos_;
+                ExprList blank_args;
+                if (pos_ > type_start)
+                    blank_args.push_back(make_symbol(std::string(input_.substr(type_start, pos_ - type_start))));
+                return make_normal("Pattern", {make_symbol(std::move(name)),
+                                               make_normal("Blank", std::move(blank_args))});
             }
-            ++pos_;
+            return make_symbol(std::move(name));
+        }
+        if (take('_')) {
+            if (pos_ < input_.size() && input_[pos_] == '_')
+                error("sequence patterns are not in Tier 1");
+            std::size_t start = pos_;
+            while (pos_ < input_.size() &&
+                   std::isalnum(static_cast<unsigned char>(input_[pos_]))) ++pos_;
             ExprList args;
-            if (!take(')')) {
-                do { args.push_back(relation()); } while (take(','));
-                expect(')');
-            }
-            return call(name, std::move(args));
+            if (pos_ > start)
+                args.push_back(make_symbol(std::string(input_.substr(start, pos_ - start))));
+            return make_normal("Blank", std::move(args));
         }
         if (take('(')) {
             ExprPtr inside = relation();
             expect(')');
             return inside;
         }
-        if (c == '[' || c == '{') {
-            ++pos_;
-            char close = c == '[' ? ']' : '}';
+        if (take('{')) {
             ExprList items;
-            if (!take(close)) {
+            if (!take('}')) {
                 do { items.push_back(relation()); } while (take(','));
-                expect(close);
+                expect('}');
             }
             return make_normal("List", std::move(items));
         }
@@ -296,18 +282,12 @@ std::string write(const ExprPtr& e, int parent, std::size_t depth) {
         own = 20;
     } else if (e->is_symbol()) {
         const auto& name = e->name();
-        if (name == "Pi") out = "pi";
-        else if (name == "E") out = "e";
-        else if (name == "I") out = "i";
-        else if (name == "Infinity") out = "inf";
-        else {
+        {
             bool bare = !name.empty() &&
                 (std::isalpha(static_cast<unsigned char>(name[0])) || name[0] == '_');
             for (char c : name) {
-                if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_') bare = false;
+                if (!std::isalnum(static_cast<unsigned char>(c))) bare = false;
             }
-            if (name == "pi" || name == "e" || name == "i" ||
-                name == "inf" || name == "infinity") bare = false;
             if (bare) out = name;
             else {
                 out = "`";
@@ -318,6 +298,14 @@ std::string write(const ExprPtr& e, int parent, std::size_t depth) {
                 out += "`";
             }
         }
+    } else if (e->has_head("Pattern") && e->size() == 2 && e->arg(0)->is_symbol() &&
+               plain_name(e->arg(0)->name()) && short_blank(e->arg(1))) {
+        out = e->arg(0)->name() + "_";
+        if (e->arg(1)->size() == 1 && e->arg(1)->arg(0)->is_symbol())
+            out += e->arg(1)->arg(0)->name();
+    } else if (short_blank(e)) {
+        out = "_";
+        if (e->size() == 1 && e->arg(0)->is_symbol()) out += e->arg(0)->name();
     } else if (e->has_head("Plus") && e->size() > 0) {
         for (std::size_t i = 0; i < e->size(); ++i) {
             const bool negative = negative_term(e->arg(i));
@@ -354,29 +342,13 @@ std::string write(const ExprPtr& e, int parent, std::size_t depth) {
         }
         out += "}";
     } else {
-        bool ordinary_head = e->head()->is_symbol() &&
-            write(e->head(), 0, depth + 1) == e->head()->name() &&
-            head_for(e->head()->name()) == e->head()->name() &&
-            e->head()->name() != "sqrt" && e->head()->name() != "root" &&
-            e->head()->name() != "ExprApply" &&
-            !(e->head()->name() == "D" && e->size() == 3 && e->arg(2)->is_integer());
-        out = ordinary_head ? text_for_head(e->head()->name()) : "ExprApply";
-        if (ordinary_head && e->head()->name() == "Integrate" &&
-            e->size() >= 4 && (e->size() - 1) % 3 == 0) out = "Integrate";
-        if (ordinary_head && (e->head()->name() == "Sum" ||
-                              e->head()->name() == "Product" ||
-                              e->head()->name() == "Series") && e->size() == 4)
-            out = e->head()->name();
-        out += "(";
-        if (!ordinary_head) {
-            out += write(e->head(), 0, depth + 1);
-            if (e->size()) out += ", ";
-        }
+        out = write(e->head(), 50, depth + 1);
+        out += "[";
         for (std::size_t i = 0; i < e->size(); ++i) {
             if (i) out += ", ";
             out += write(e->arg(i), 0, depth + 1);
         }
-        out += ")";
+        out += "]";
     }
     return own < parent ? "(" + out + ")" : out;
 }

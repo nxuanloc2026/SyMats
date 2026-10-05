@@ -33,8 +33,8 @@ TEST_CASE("Session: function definitions across cells; Null is not shown") {
     auto d = s.run(call("SetDelayed", {call("f", {pat("x")}), P("x^2 + 1")}));
     CHECK(d.ok());
     CHECK(!d.visible());  // SetDelayed returns Null
-    CHECK_EQ(F(s.run(P("f(3)")).output), std::string("10"));
-    CHECK_EQ(F(s.run(P("f(t)")).output), std::string("Plus(1, Power(t, 2))"));
+    CHECK_EQ(F(s.run(P("f[3]")).output), std::string("10"));
+    CHECK_EQ(F(s.run(P("f[t]")).output), std::string("Plus[1, Power[t, 2]]"));
 }
 
 TEST_CASE("Session: errors are per statement and the kernel survives") {
@@ -47,7 +47,7 @@ TEST_CASE("Session: errors are per statement and the kernel survives") {
     CHECK_EQ(F(r[2].output), std::string("3"));
 }
 
-TEST_CASE("Session: Out history (% and Out(n))") {
+TEST_CASE("Session: Out history (% and Out[n])") {
     Session s;
     s.run(P("2 + 3"));                                            // Out[1] = 5
     s.run(P("10"));                                               // Out[2] = 10
@@ -75,7 +75,7 @@ TEST_CASE("Session: workspace listing and restart") {
     Session s;
     s.run(P("alpha = 1"));
     s.run(call("SetDelayed", {call("g", {pat("x")}), P("x")}));
-    s.run(P("sin(0) + 1"));  // defines nothing
+    s.run(P("Sin[0] + 1"));  // defines nothing
     auto names = s.user_symbols();
     CHECK_EQ(names.size(), std::size_t(2));
     CHECK_EQ(names[0], std::string("alpha"));
@@ -105,8 +105,8 @@ TEST_CASE("Session: multi-cell line numbering, history offset, and symbol cleari
 
     // Clear symbol 'x'
     s.run(call("Clear", {make_symbol("x")})); // Line 5
-    auto c3 = s.run(P("x + y"));              // Line 6 -> Plus(x, 20)
-    CHECK_EQ(F(c3.output), std::string("Plus(20, x)"));
+    auto c3 = s.run(P("x + y"));              // Line 6 -> Plus[x, 20]
+    CHECK_EQ(F(c3.output), std::string("Plus[20, x]"));
 
     // Check workspace active symbols: x was cleared, y remains
     auto symbols = s.user_symbols();
@@ -124,10 +124,10 @@ TEST_CASE("Session: multi-cell pipeline with error recovery") {
     CHECK_EQ(F(r1[1].output), std::string("20"));
 
     // Cell 2: middle statement fails (protected symbol assignment)
-    auto r2 = s.run_cell({{P("z = x + y"), false}, {P("pi = 3"), false}, {P("w = z * 2"), false}});
+    auto r2 = s.run_cell({{P("z = x + y"), false}, {P("Pi = 3"), false}, {P("w = z * 2"), false}});
     CHECK(r2[0].ok());
     CHECK_EQ(F(r2[0].output), std::string("30"));
-    CHECK(!r2[1].ok());  // pi is protected
+    CHECK(!r2[1].ok());  // Pi is protected
     CHECK(r2[2].ok());
     CHECK_EQ(F(r2[2].output), std::string("60"));
 
@@ -149,8 +149,8 @@ TEST_CASE("Session: percent shortcut and history in multi-cell evaluations") {
     CHECK_EQ(F(c2[0].output), std::string("200"));
     CHECK_EQ(F(c2[1].output), std::string("100"));
 
-    // Cell 3: Out(-1) and Out(-2) relative history
+    // Cell 3: Out[-1] and Out[-2] relative history
     auto c3 = s.run_cell({{call("Plus", {call("Out", {make_integer(-1)}), call("Out", {make_integer(-2)})}), false}});
-    // Line 5 evaluation: Out(-1) is Line 4 (100), Out(-2) is Line 3 (200) -> 300
+    // Line 5 evaluation: Out[-1] is Line 4 (100), Out[-2] is Line 3 (200) -> 300
     CHECK_EQ(F(c3[0].output), std::string("300"));
 }

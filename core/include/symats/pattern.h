@@ -4,14 +4,14 @@
 // Pattern matching and rule replacement (docs/EXPR_SPEC.md §3.10).
 //
 // Pattern nodes:
-//   Blank()                 `_`        matches any one expression
-//   Blank(h)                `_h`       matches one expression whose head is h
-//   BlankSequence(h?)       `__`       matches one or more arguments
-//   BlankNullSequence(h?)   `___`      matches zero or more arguments
-//   Pattern(name, blank)    `x_` ...   binds the match to `name`
+//   Blank[]                 `_`        matches any one expression
+//   Blank[h]                `_h`       matches one expression whose head is h
+//   BlankSequence[h?]       `__`       matches one or more arguments
+//   BlankNullSequence[h?]   `___`      matches zero or more arguments
+//   Pattern[name, blank]    `x_` ...   binds the match to `name`
 //
 // "Head" of an atom: Integer -> Integer, Rational -> Rational, Symbol -> Symbol.
-// A sequence match is bound as Sequence(a1, a2, ...); Sequence is spliced into the
+// A sequence match is bound as Sequence[a1, a2, ...]; Sequence is spliced into the
 // argument list of the enclosing expression on substitution.
 //
 // v1 matching is structural on canonical trees. Flat/Orderless-aware matching
@@ -34,7 +34,7 @@ ExprPtr pat(std::string name, std::string_view head = {});
 ExprPtr pat_seq(std::string name, std::string_view head = {});
 ExprPtr pat_null_seq(std::string name, std::string_view head = {});
 
-// The head name used by Blank(h) tests: "Integer", "Rational", "Symbol", or the
+// The head name used by Blank[h] tests: "Integer", "Rational", "Symbol", or the
 // head symbol's name for a Normal expression (empty if the head is not a symbol).
 std::string head_name(const Expr& e);
 
@@ -52,7 +52,7 @@ ExprPtr substitute(const ExprPtr& e, const Bindings& bindings);
 
 // Apply the first matching rule at the top level; if none matches, recurse into the
 // head and arguments. Each subexpression is rewritten at most once (one pass).
-// `rules` holds Rule(lhs, rhs) / RuleDelayed(lhs, rhs) expressions.
+// `rules` holds Rule[lhs, rhs] / RuleDelayed(lhs, rhs) expressions.
 // Sets *changed (if non-null) when anything was replaced.
 ExprPtr replace_all(const ExprPtr& e, const ExprList& rules, bool* changed = nullptr);
 

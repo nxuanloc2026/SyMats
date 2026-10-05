@@ -13,8 +13,8 @@ bool StatementResult::visible() const {
 Session::Session() : context_(std::make_unique<Context>()) { install_session_builtins(); }
 
 void Session::install_session_builtins() {
-    // Out() / Out(-k): k-th previous line; Out(n): line n. The statement being evaluated
-    // is not in the history yet, so Out(-1) is the line just before it.
+    // Out[] / Out[-k]: k-th previous line; Out[n]: line n. The statement being evaluated
+    // is not in the history yet, so Out[-1] is the line just before it.
     context_->set_builtin("Out", [this](const ExprPtr& e, Context&) -> ExprPtr {
         long long n = -1;
         if (e->size() == 1) {
@@ -28,9 +28,9 @@ void Session::install_session_builtins() {
         const long long size = static_cast<long long>(history_.size());
         const long long index = n > 0 ? n : size + 1 + n;  // 1-based line number
         if (index < 1 || index > size)
-            throw EvaluationError("Out(" + std::to_string(n) + ") does not exist");
+            throw EvaluationError("Out[" + std::to_string(n) + "] does not exist");
         ExprPtr v = history_[static_cast<std::size_t>(index - 1)].output;
-        if (!v) throw EvaluationError("Out(" + std::to_string(index) + ") failed");
+        if (!v) throw EvaluationError("Out[" + std::to_string(index) + "] failed");
         return v;
     });
     context_->set_attributes("Out", attr::Protected);

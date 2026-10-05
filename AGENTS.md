@@ -26,6 +26,13 @@ integrals, displays results as math, and plots — including time-varying (anima
 
 ## Notebook model (decided 2026-10-02) — read before touching app/, convert/, or the kernel
 
+**Text syntax.** Built-in functions and symbols have capitalized, case-sensitive names.
+Calls use square brackets (`Sin[x]`, `Integrate[x^2, x]`, `f[x_] := Sin[x]`), lists and
+matrices use curly braces (`{a, b}`, `{{a, b}, {c, d}}`), and parentheses group arithmetic.
+`f(x)` means multiplication; `f[x]` calls `f`. The parser and printer use this notation
+throughout the notebook, CLI, scripts, and tests. Only the Tier 1 operators below are
+part of the public text syntax.
+
 **Kernel.** One `symats::Session` (core/session.h) per open notebook. All cells share it:
 `a = 5` in cell 1 is visible in cell 7. *Restart kernel* clears all definitions.
 
@@ -36,7 +43,7 @@ integrals, displays results as math, and plots — including time-varying (anima
 - a statement ending in `;` is evaluated but its output is **not shown** (MATLAB/Mathematica);
 - statements run top to bottom; every shown result gets an output line
   `Out[n]` (numbering is per session, like Mathematica `In[n]:=` / `Out[n]=`);
-- `Null` results (e.g. from `f(x_) := x^2`) are not shown;
+- `Null` results (e.g. from `f[x_] := x^2`) are not shown;
 - an error in one statement is shown inline under that statement; later statements in the
   cell still run; the kernel survives.
 
@@ -44,7 +51,7 @@ integrals, displays results as math, and plots — including time-varying (anima
 needed). `Enter` inserts a newline. Also: *Run all*, *Abort* (stops a long evaluation),
 *Restart kernel*. A running cell shows a subtle busy marker; evaluation runs off the UI thread.
 
-**History.** `%` = last output, `%%` = the one before, `%5` / `Out(5)` = output 5.
+**History.** `%` = last output, `%%` = the one before, `%5` / `Out[5]` = output 5.
 
 **Workspace (MATLAB-style, optional).** A collapsible side panel listing user-defined
 symbols and their values/definitions (from `Session::user_symbols()`). Hidden by default.
@@ -98,19 +105,15 @@ spec as the common format, and delegates to proven open-source libraries:
 6. **Native first for the basics.** `D` (derivatives) and `Expand` are implemented natively in
    `core/` — they are needed to verify backend results and must not depend on Giac.
 
-## Operator set (decided 2026-10-03)
+## Text operators
 
 Precedence and node names: docs/EXPR_SPEC.md §3.12.
 
-- **Tier 1 — required now:** `+ - * / ^`, implicit multiplication, `=`, `:=`, `==`, `!=`,
-  `< <= > >=`, `->`, `/.`, patterns `x_` / `x_h`, `;`, `%` / `%%` / `%n`, lists `{ }` and
-  matrices `[[ ]]`, `.` (Dot), `'` (derivative: `y'(t)`), `&&`, `||`, `!`, postfix `!` (factorial).
-- **Tier 2 — later (board T-025):** `:>`, `//.`, `===`, `=.`, `/;`, `[[i]]` indexing, `;;`
-  spans, `++`, `+=`, `-=`.
-- **Tier 3 — deliberately excluded:** `@`, `@@`, `@@@`, `//` (postfix call), `/@`, `#`/`&`
-  pure functions (use `map(f, list)` and readable lambdas instead), `~f~`, `<>`, `<| |>`,
-  `?`/`??`, `>>`/`<<`, `\[Name]` characters, contexts and `$` variables. Do not add these;
-  leaving them out keeps Symats lighter and clearly distinct from Wolfram Language.
+- **Tier 1:** square bracket calls, capitalized built-ins, `+ - * / ^`, implicit
+  multiplication, `=`, `:=`, `==`, `!=`, `< <= > >=`, `->`, `/.`, patterns
+  `x_` / `x_Integer`, `;`, `%` / `%%` / `%n`, lists and matrices with `{ }`,
+  `.` (Dot), `'` (derivative: `y'[t]`), `&&`, `||`, prefix `!` and postfix `!`.
+  All future parser, editor, CLI, and script tasks implement this syntax.
 
 ## Core requirements
 
@@ -124,7 +127,7 @@ Precedence and node names: docs/EXPR_SPEC.md §3.12.
 2. **Symbolic matrix input.**
    - Matrix template with editable cells; add/remove rows and columns; entries may be
      any symbolic expression. Vectors (row/column) and block matrices.
-   - Plain-text equivalent: `[[a, b], [c, d]]`.
+   - Plain-text equivalent: `{{a, b}, {c, d}}`.
    - Operations: +, −, ×, scalar ×, transpose, det, inverse, rank, trace, rref,
      eigenvalues/eigenvectors, characteristic polynomial, matrix exponential, solve A·x = b.
 3. **Integration (single and multivariable).**
@@ -146,7 +149,7 @@ Precedence and node names: docs/EXPR_SPEC.md §3.12.
    - Symbolic ODEs and systems: Giac backend, verified by substitution.
    - Numeric ODE/PDE solvers: SUNDIALS (CVODE for stiff and non-stiff ODEs; method of lines for PDEs).
    - Notation: y′, y″, dy/dx, ∂u/∂t, ∂²u/∂x² all available in the 2-D editor and as text
-     (`D(y(x), x)`, `D(u(x,t), t)`).
+     (`D[y[x], x]`, `D[u[x, t], t]`).
    - Results feed directly into plotting (solution curves, phase portraits, animated PDE solutions).
 5. **Plotting, including time-varying plots** — see "Plotting requirements".
 
@@ -200,27 +203,28 @@ If a change outside your lane is unavoidable, keep it minimal and explain it in 
 
 ## Plotting requirements
 
-- Plot types: y = f(x); parametric (x(t), y(t)); polar r(θ); implicit F(x, y) = 0;
-  3-D surfaces z = f(x, y); contour plots. Multiple curves per plot.
+- Plot types: `y = f[x]`; parametric `(x[t], y[t])`; polar `r[θ]`;
+  implicit `F[x, y] == 0`; 3-D surfaces `z = f[x, y]`; contour plots.
+  Multiple curves per plot.
 - The engine compiles a symbolic expression into a fast numeric function, then samples
   adaptively: more points where curvature is high; detect discontinuities and asymptotes
   (e.g. tan x, 1/x) and break the curve instead of drawing vertical lines.
 - Implicit curves: marching squares. Surfaces: triangle mesh.
 - The front end renders interactively (zoom, pan, hover values) and supports parameter
-  sliders (e.g. plot sin(a·x) with a slider for a).
+  sliders (e.g. `Plot[Sin[a*x], {x, 0, 2*Pi}]` with a slider for `a`).
 - A plot can be created from any equation in the editor (Plot button / template).
 
 ### Time-varying (animated) plots
 
 - Any plot whose expression contains a time parameter (default `t`, user-selectable)
   can be animated: play / pause / step / loop, speed control, and a time slider.
-- Examples: traveling wave y = sin(x − t); rotating parametric curve; heat-equation
-  solution u(x, t); 3-D surface z = sin(√(x²+y²) − t); trajectories of ODE systems
+- Examples: traveling wave `y = Sin[x - t]`; rotating parametric curve; heat-equation
+  solution `u[x, t]`; 3-D surface `z = Sin[Sqrt[x^2+y^2] - t]`; trajectories of ODE systems
   traced over time; vector/phase fields with moving points.
 - The engine pre-samples frames (or samples on demand) using the compiled numeric
   function; the front end renders frames smoothly (target 30–60 fps).
 - Export animation as GIF/MP4 (later).
-- Text form: `animate(plot(sin(x - t), x, 0, 2*pi), t, 0, 10)`.
+- Text form: `Animate[Plot[Sin[x - t], {x, 0, 2*Pi}], {t, 0, 10}]`.
 
 ## Workflow
 

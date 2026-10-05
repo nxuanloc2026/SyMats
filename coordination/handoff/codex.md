@@ -1,5 +1,16 @@
 # Handoff — Codex
 
+## T-011 Giac build (2026-10-05)
+
+Claimed `codex/T-011-giac-build` from current main `6c41bda` after PR #21 merged.
+The user requested T-011, T-012, T-013, T-015, and T-026, one branch and PR
+per task. T-011 blocks T-012, which blocks the full T-013 verification path.
+Plan: pin a GPL-3+ Giac release in a fork and submodule, provide
+`third_party::giac`, and prove MSVC and Linux builds with GMP. The source
+currently uses Autotools and old Visual C++ build files; assess this before
+choosing the integration. No public core API or expression-spec change is
+planned for T-011.
+
 ## T-010 native calculus takeover (2026-10-05)
 
 Completed T-010 on `takeover/T-010-native-calculus` from main `4db3660`.

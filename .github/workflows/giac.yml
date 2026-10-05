@@ -59,6 +59,7 @@ jobs:
           $ninja = "$vsPath/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe"
           cmake -S . -B build-giac -G Ninja `
             -DSYMATS_USE_GIAC=ON `
+            -DCMAKE_BUILD_TYPE=Debug `
             "-DCMAKE_MAKE_PROGRAM=$ninja" `
             "-DCMAKE_TOOLCHAIN_FILE=$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
             "-DGIAC_FLEX=$env:GITHUB_WORKSPACE/tools/winflexbison/win_flex.exe" `

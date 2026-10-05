@@ -29,6 +29,11 @@ Studio via `vswhere` for a Ninja build. A bridge test also exposed an upstream
 Giac 64-bit Windows alias-size bug; the fork fixes it at `4ad344ce` by enabling
 `DOUBLEVAL` for `_WIN64`. The sanitizer build passes the conversion and factor
 tests. Normal Debug behavior and both hosted jobs still require validation.
+The follow-up Giac fork fixes signed `DOUBLEVAL` alias payloads for GCC and
+replaces comparisons of unrelated `std::vector` iterators in polynomial
+operations. That iterator bug caused the MSVC Debug assertion while factoring.
+The sanitizer Debug bridge test and the regular Debug Giac factor smoke test
+now pass locally. Hosted CI is rerunning with a Debug Windows build.
 
 ## T-010 native calculus takeover (2026-10-05)
 

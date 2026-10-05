@@ -3,6 +3,7 @@
 ## T-004 CI repair (2026-10-05 UTC)
 
 Branch: `codex/T-004-ci-build-fix`, based on main `842de0e`.
+PR: https://github.com/nxuanloc2026/Symats/pull/10 (human merge required).
 Restored internal linkage in `TEST_CASE`: generated names use `__LINE__`, so
 removing `static` caused duplicate symbols between test translation units and
 broke linking on Windows and Linux. Existing same-line tests exercise this

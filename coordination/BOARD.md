@@ -9,6 +9,7 @@ Statuses: `todo` → `in-progress` → `review` (PR open) → `done`; also `bloc
 |----|------|------|-------|--------|--------|--------|-------|---------------|
 | T-008 | Install Git + C++ workload; build in VS 2022; push repo to GitHub — built in VS 2026, pushed, CI green | setup | Loc | — | done | T-004, T-005, all cloud work | | 2026-10-02 |
 | T-003 | Decide: `=` means assignment (Set) or equation (Equal)? **Decided: `=` → `Set`, `==` → `Equal`, `:=` → `SetDelayed`** (spec updated) | spec | Loc | — | done | | | 2026-10-02 |
+<<<<<<< Updated upstream
 | T-001 | Evaluator: definitions (`Set`, `SetDelayed`), pattern matching (`x_`, `x__`, `x_Integer`), rule replacement, attributes; **plus `MathBackend` interface in core/ and dispatch of math heads (`Integrate`, `Solve`, `DSolve`, …) to the registered backend** — merged (PR #5) (pattern.h, eval.h, backend.h; 17 new test cases) | core | Claude | Codex | done | T-010, T-012 | | 2026-10-02 |
 | T-002 | Converter fixes: (1) nesting-depth limit instead of crash, (2) readable output (`x - y`, `-x^2`, `sin(x)`, `==`, `->`), (3) decimals, (4) document/decide space-before-paren, (5) `=` per T-003 | convert | Codex | Claude | done | | backup-ok | 2026-10-02 03:38 |
 | T-004 | Fix CI build failures on Windows and Linux — PR #10 restores test function linkage | build/CI | Codex (for Copilot) | Codex | review | | backup-ok | 2026-10-05 00:05 |
@@ -38,3 +39,19 @@ Statuses: `todo` → `in-progress` → `review` (PR open) → `done`; also `bloc
 | T-028 | Tests: Session (multi-cell, %, errors), Tier 1 operators, and D/Expand expected values from mathematics, SymPy, Maxima; fix T-014 data (1/3 not Rational(1,3), drop +C, Solve format {{x -> a}}); add **Maxima** as second oracle (expected values recorded in test files with source noted) | tests | Jules | Codex | review | | backup-ok | 2026-10-03 10:15 |
 | T-029 | Quick NDSolve with **Boost.Odeint** (RK45/Dormand–Prince, Rosenbrock for stiff) in `backend/odeint/` + numeric special functions via **Boost.Math**; SUNDIALS (T-015) later | backend | Codex (for Claude) | Jules | todo | numeric ODE plots | backup-ok | 2026-10-03 |
 | T-030 | Evaluator semantics audit vs **Mathics3** (GPL, reference only): attributes, Set/SetDelayed edge cases, Listable, Hold; translate its doc-tests for features Symats has into tests/test_mathics_semantics.cpp | tests | Jules | Codex | todo | | backup-ok | 2026-10-03 |
+=======
+| T-001 | Evaluator: definitions (`Set`, `SetDelayed`), pattern matching (`x_`, `x__`, `x_Integer`), rule replacement, attributes; **plus `MathBackend` interface in core/ and dispatch of math heads (`Integrate`, `Solve`, `DSolve`, …) to the registered backend** | core | Claude | Codex | todo | T-010, T-012 | | 2026-10-02 |
+| T-002 | Converter fixes: (1) nesting-depth limit instead of crash, (2) readable output (`x - y`, `-x^2`, `sin(x)`, `==`, `->`), (3) decimals, (4) document/decide space-before-paren, (5) `=` per T-003 | convert | Codex | Claude | done | | backup-ok | 2026-10-02 03:38 |
+| T-004 | Verify MSVC build + GitHub Actions CI green on Windows and Linux; fix warnings | build/CI | Copilot | Codex | todo | | backup-ok | 2026-10-01 |
+| T-005 | Tests: parser edge cases (unicode, whitespace, huge numbers, malformed input), Integer/Rational property tests | tests | Jules | Copilot | todo | | backup-ok | 2026-10-01 |
+| T-006 | `symats-cli` REPL: read a line → `parse_text` → print `to_text` | cli | Copilot | Codex | todo | | backup-ok | 2026-10-01 |
+| T-007 | MathJSON ⇄ Expr converter | convert | Codex | Claude | todo | app editor | | 2026-10-01 |
+| T-009 | Optional GMP backend for `Integer` behind CMake option `SYMATS_USE_GMP` | core | Claude | Copilot | todo | | backup-ok | 2026-10-01 |
+| T-010 | **Native** `D` (partial derivatives, chain/product rule, all elementary functions) and `Expand` in core/ — no Giac; these power result verification | core | Claude | Codex | todo | T-013 | | 2026-10-02 |
+| T-011 | Giac build: fork Giac under nxuanloc2026, pin a release, add as git submodule in `third_party/giac` (+ GMP via vcpkg), CMake target `third_party::giac`, building on Windows (MSVC) and Linux CI | third_party/build | Copilot | Codex | todo | T-012 | | 2026-10-02 |
+| T-012 | **Giac bridge**: `backend/giac/` implements `MathBackend`; `Expr ⇄ giac::gen` conversion for all EXPR_SPEC heads; first operations: Integrate, Limit, Series, Solve, Factor, Simplify, DSolve, linear algebra | backend | Claude | Codex | todo | T-013, T-014 | | 2026-10-02 |
+| T-013 | Verification layer: check integrals (differentiate), solutions (substitute), ODE solutions (substitute + conditions), matrix results; numeric fallback check with Arb/Boost; result status `verified`/`numeric`/`unverified` | core | Claude | Codex | todo | app result display | | 2026-10-02 |
+| T-014 | Backend comparison suites: Rubi integral test set (MIT) and SymPy cases (BSD) run through Symats in CI; report mismatches | tests | Jules | Copilot | todo | | backup-ok | 2026-10-02 |
+| T-015 | SUNDIALS: add to `third_party/` (Copilot builds) and `backend/sundials/` NDSolve adapter (Claude) | backend | Claude | Copilot | todo | numeric plots of ODEs | | 2026-10-02 |
+| T-016 | App shell: Tauri desktop app with MathLive editor cell, text toggle, Plotly plot cell; talks to engine through `bridge/` | app | Codex | Claude | todo | | | 2026-10-02 |
+>>>>>>> Stashed changes

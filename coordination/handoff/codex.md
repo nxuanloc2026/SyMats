@@ -29,6 +29,8 @@ Still pending from before: T-004 (CI warnings), Unicode symbols in MathJSON.
 
 
 ## Current task
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 T-007 MathJSON ⇄ Expr converter claimed 2026-10-02 03:58 UTC in the
 `mathjson-converter` worktree. Implementing JSON interchange in `convert/`;
 the managed checkout is detached because Git metadata lock creation was denied.
@@ -50,6 +52,12 @@ write permission grant for those exact paths still left
 `codex/T-007-mathjson-converter` still points at the initial commit.
 Next: attach checkout to that branch, commit these files, push branch and open
 PR. Keep T-007 `in-progress` until the PR exists.
+=======
+None in progress. T-002 is complete; next: T-007 MathJSON ⇄ Expr converter.
+>>>>>>> Stashed changes
+=======
+None in progress. T-002 is complete; next: T-007 MathJSON ⇄ Expr converter.
+>>>>>>> Stashed changes
 
 Changes made 2026-10-02 03:19 UTC:
 - `convert/src/text.cpp`: parser and printer nesting limits; exact fixed-point

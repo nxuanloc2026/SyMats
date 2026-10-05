@@ -232,6 +232,9 @@ If a change outside your lane is unavoidable, keep it minimal and explain it in 
 
 0. `coordination/BOARD.md` is the task list (mirror tasks as GitHub issues once the repo is on GitHub).
 1. One task = one branch = one pull request. Keep PRs small (< ~400 lines).
+   T-033 is a tracking bundle: each of its seven retained task IDs is one
+   implementation slice with its own reviewable branch and PR, all linked to
+   [issue #17](https://github.com/nxuanloc2026/Symats/issues/17).
 2. Never push directly to `main`. Open a PR; a human merges.
 3. The project must build and all tests must pass before a PR is ready for review.
 4. Do not start an issue that is already assigned or has an open PR.

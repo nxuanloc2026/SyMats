@@ -11,11 +11,12 @@ time-varying plots. See [AGENTS.md](AGENTS.md) for the full goals and
 
 Symats follows explicit evaluation and assignment semantics:
 
-- `=` (`Set`): Immediate assignment (`x = 5`, `f(2) = 10`). RHS is evaluated at definition time.
-- `:=` (`SetDelayed`): Delayed assignment (`f(x_) := x^2`). RHS is evaluated when invoked.
+- Plain text input follows Mathematica syntax: square brackets `Head[...]` for function calls and capitalized canonical names (`Sin[x]`, `Integrate[x^2, x]`).
+- `=` (`Set`): Immediate assignment (`x = 5`, `f[2] = 10`). RHS is evaluated at definition time.
+- `:=` (`SetDelayed`): Delayed assignment (`f[x_] := x^2`). RHS is evaluated when invoked.
 - `==` (`Equal`): Equation / equality comparison (`x == 0`, `2 == 2` -> `True`).
-- `/.` / `subs()` (`ReplaceAll`): Rule substitution (`subs(x^2, x -> 3)` -> `9`).
-- Attributes: Built-in heads support `Listable` threading over lists/matrices, `Hold` for evaluation control, and protection for built-in constants (`pi`, `E`, `I`).
+- `/.` / `subs[...]` (`ReplaceAll`): Rule substitution (`subs[x^2, x -> 3]` -> `9`).
+- Attributes: Built-in heads support `Listable` threading over lists/matrices, `Hold` for evaluation control, and protection for built-in constants (`Pi`, `E`, `I`).
 
 ## Status
 
@@ -28,7 +29,7 @@ x + x              => Times(2, x)
 (x + 1) - (x + 1)  => 0
 (2x)^2             => Times(4, Power(x, 2))
 8^(2/3)            => 4
-sqrt(2) * sqrt(2)  => 2
+Sqrt[2] * Sqrt[2]  => 2
 ```
 
 ## Build

@@ -6,8 +6,8 @@ In order, one PR each:
 2. **T-030** Mathics3 semantics doc-tests (reference only, GPL) — PR ready.
 
 ## Current task
-T-030: Evaluator semantics audit vs Mathics3 (GPL, reference only): attributes, Set/SetDelayed edge cases, Listable, Hold; translate its doc-tests for features Symats has into tests/test_mathics_semantics.cpp.
-Branch: `jules/T-030-mathics3-semantics-audit`
+T-024 / Mathematica plain-text syntax adoption: Adopt Mathematica square bracket syntax `Head[...]` for function calls/definitions, capitalized canonical function names, `{...}` lists, Tier 1 operators, and pattern variables.
+Branch: `jules/T-024-tier-1-operators`
 Status: review / PR ready.
 
 ## Notes on T-030

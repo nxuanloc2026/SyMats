@@ -32,10 +32,10 @@ TEST_CASE("Mathics3 semantics: Set (=) vs SetDelayed (:=) evaluation order") {
 
     // LHS argument evaluation on Set
     run_code(s, "idx = 2");
-    run_code(s, "f(idx) = 100");    // defines f(2) = 100
+    run_code(s, "f[idx] = 100");    // defines f(2) = 100
     run_code(s, "idx = 3");
-    CHECK_EQ(F(run_code(s, "f(2)").output), std::string("100"));
-    CHECK_EQ(F(run_code(s, "f(3)").output), std::string("f(3)"));
+    CHECK_EQ(F(run_code(s, "f[2]").output), std::string("100"));
+    CHECK_EQ(F(run_code(s, "f[3]").output), std::string("f(3)"));
 }
 
 TEST_CASE("Mathics3 semantics: Listable attribute threading") {
@@ -47,9 +47,9 @@ TEST_CASE("Mathics3 semantics: Listable attribute threading") {
     // List * List
     CHECK_EQ(F(run_code(s, "{2, 3} * {4, 5}").output), std::string("List(8, 15)"));
     // Listable function application over List
-    CHECK_EQ(F(run_code(s, "sin({a, b})").output), std::string("List(Sin(a), Sin(b))"));
+    CHECK_EQ(F(run_code(s, "Sin[{a, b}]").output), std::string("List(Sin(a), Sin(b))"));
     // Nested lists (matrices)
-    CHECK_EQ(F(run_code(s, "[[1, 2], [3, 4]] * 3").output), std::string("List(List(3, 6), List(9, 12))"));
+    CHECK_EQ(F(run_code(s, "{{1, 2}, {3, 4}} * 3").output), std::string("List(List(3, 6), List(9, 12))"));
 }
 
 TEST_CASE("Mathics3 semantics: Hold and Sequence evaluation control") {
@@ -66,7 +66,7 @@ TEST_CASE("Mathics3 semantics: Hold and Sequence evaluation control") {
     CHECK_EQ(F(run_code(s, "x").output), std::string("x"));
 
     // Sequence flattens into outer function arguments
-    CHECK_EQ(F(run_code(s, "f(1, Sequence(2, 3), 4)").output), std::string("f(1, 2, 3, 4)"));
+    CHECK_EQ(F(run_code(s, "f[1, Sequence[2, 3], 4]").output), std::string("f(1, 2, 3, 4)"));
 }
 
 TEST_CASE("Mathics3 semantics: Protected built-in symbol protection") {
@@ -80,21 +80,21 @@ TEST_CASE("Mathics3 semantics: Protected built-in symbol protection") {
     // User symbols can be assigned and cleared
     CHECK(run_code(s, "myVar = 42").ok());
     CHECK_EQ(F(run_code(s, "myVar").output), std::string("42"));
-    run_code(s, "Clear(myVar)");
+    run_code(s, "Clear[myVar]");
     CHECK_EQ(F(run_code(s, "myVar").output), std::string("myVar"));
 }
 
 TEST_CASE("Mathics3 semantics: Rule substitution and pattern scoping") {
     Session s;
     // Single rule substitution
-    CHECK_EQ(F(run_code(s, "subs(x^2 + x, x -> 3)").output), std::string("12"));
+    CHECK_EQ(F(run_code(s, "subs[x^2 + x, x -> 3]").output), std::string("12"));
     // Rule list substitution
-    CHECK_EQ(F(run_code(s, "subs(x + y, {x -> 1, y -> 2})").output), std::string("3"));
+    CHECK_EQ(F(run_code(s, "subs[x + y, {x -> 1, y -> 2}]").output), std::string("3"));
 
     // Pattern scope does not clash with outer global values
     run_code(s, "x = 99");
     s.run(make_normal("SetDelayed", {make_normal("square", {pat("x")}), P("x^2")}));
-    CHECK_EQ(F(run_code(s, "square(4)").output), std::string("16"));
+    CHECK_EQ(F(run_code(s, "square[4]").output), std::string("16"));
 }
 
 TEST_CASE("Mathics3 semantics: Relational and logical evaluation") {

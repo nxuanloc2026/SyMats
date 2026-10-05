@@ -35,32 +35,29 @@ TEST_CASE("Text: arithmetic precedence and exact numbers") {
 }
 
 TEST_CASE("Text: calls, matrices, and internal form") {
-    CHECK_EQ(to_full_form(parse_text("sin(x) + sqrt(4)")),
+    CHECK_EQ(to_full_form(parse_text("Sin[x] + Sqrt[4]")),
              std::string("Plus(2, Sin(x))"));
-    CHECK_EQ(to_full_form(parse_text("integrate(x^2, x, 0, 1)")),
+    CHECK_EQ(to_full_form(parse_text("Integrate[x^2, x, 0, 1]")),
              std::string("Integrate(Power(x, 2), List(x, 0, 1))"));
-    CHECK_EQ(to_full_form(parse_text("[[a,b],[c,d]]")),
+    CHECK_EQ(to_full_form(parse_text("{{a, b}, {c, d}}")),
              std::string("List(List(a, b), List(c, d))"));
-    CHECK_EQ(to_full_form(parse_text("Plus(1, Times(2, x))")),
+    CHECK_EQ(to_full_form(parse_text("Plus[1, Times[2, x]]")),
              std::string("Plus(1, Times(2, x))"));
-    CHECK_EQ(to_full_form(parse_text("limit(x^2, x -> 0)")),
+    CHECK_EQ(to_full_form(parse_text("Limit[x^2, x -> 0]")),
              std::string("Limit(Power(x, 2), Rule(x, 0))"));
     CHECK_EQ(to_full_form(parse_text("x^2 == 1")),
              std::string("Equal(Power(x, 2), 1)"));
 }
 
 TEST_CASE("Text: Tier 1 operators (/. , . , &&, ||, !, ', patterns)") {
-    std::cout << "Testing ReplaceAll..." << std::endl;
     CHECK_EQ(to_full_form(parse_text("x^2 + y /. x -> 3")),
              std::string("ReplaceAll(Plus(Power(x, 2), y), Rule(x, 3))"));
     round_trip("x^2 + y /. x -> 3");
 
-    std::cout << "Testing Dot..." << std::endl;
     CHECK_EQ(to_full_form(parse_text("A . B")),
              std::string("Dot(A, B)"));
     round_trip("A . B");
 
-    std::cout << "Testing Logic..." << std::endl;
     CHECK_EQ(to_full_form(parse_text("x > 0 && y < 0")),
              std::string("And(Greater(x, 0), Less(y, 0))"));
     CHECK_EQ(to_full_form(parse_text("p || !q")),
@@ -68,15 +65,13 @@ TEST_CASE("Text: Tier 1 operators (/. , . , &&, ||, !, ', patterns)") {
     round_trip("x > 0 && y < 0");
     round_trip("p || !q");
 
-    std::cout << "Testing Derivatives..." << std::endl;
-    CHECK_EQ(to_full_form(parse_text("f'(x)")),
+    CHECK_EQ(to_full_form(parse_text("f'[x]")),
              std::string("Derivative(1, f)(x)"));
-    CHECK_EQ(to_full_form(parse_text("y''(t)")),
+    CHECK_EQ(to_full_form(parse_text("y''[t]")),
              std::string("Derivative(2, y)(t)"));
-    round_trip("f'(x)");
-    round_trip("y''(t)");
+    round_trip("f'[x]");
+    round_trip("y''[t]");
 
-    std::cout << "Testing Patterns..." << std::endl;
     CHECK_EQ(to_full_form(parse_text("x_")),
              std::string("Pattern(x, Blank())"));
     CHECK_EQ(to_full_form(parse_text("x_Integer")),
@@ -87,10 +82,9 @@ TEST_CASE("Text: Tier 1 operators (/. , . , &&, ||, !, ', patterns)") {
              std::string("Pattern(x, BlankNullSequence())"));
     CHECK_EQ(to_full_form(parse_text("_")),
              std::string("Blank()"));
-    round_trip("f(x_) := x^2");
-    round_trip("g(x_Integer) := x + 1");
+    round_trip("f[x_] := x^2");
+    round_trip("g[x_Integer] := x + 1");
 
-    std::cout << "Testing Factorial..." << std::endl;
     CHECK_EQ(to_full_form(parse_text("n!")),
              std::string("Factorial(n)"));
     round_trip("n!");
@@ -98,37 +92,37 @@ TEST_CASE("Text: Tier 1 operators (/. , . , &&, ||, !, ', patterns)") {
 
 TEST_CASE("Text: stable print and parse") {
     round_trip("x^2 + 2*x + 1");
-    round_trip("integrate(sin(x), x, 0, pi)");
-    round_trip("[[a, 1/2], [c, d]]");
-    round_trip("f(x, y) + x^(1/2)");
+    round_trip("Integrate[Sin[x], x, 0, pi]");
+    round_trip("{{a, 1/2}, {c, d}}");
+    round_trip("f[x, y] + x^(1/2)");
     round_trip("(-8)^(1/3)");
     round_trip("`e` + e");
     round_trip("a b + c");
-    round_trip("dsolve(y(x) == 0, y(x), x)");
-    round_trip("sin(x) + `sin`");
+    round_trip("DSolve[y[x] == 0, y[x], x]");
+    round_trip("Sin[x] + `Sin`");
     ExprPtr applied = make_normal(make_normal("f", {make_symbol("x")}), {make_symbol("y")});
     CHECK(equal(applied, parse_text(to_text(applied))));
-    ExprPtr lower_head = make_normal("sin", {make_symbol("x")});
+    ExprPtr lower_head = make_normal("Sin", {make_symbol("x")});
     CHECK(equal(lower_head, parse_text(to_text(lower_head))));
 }
 
 TEST_CASE("Text: rejects malformed input") {
     CHECK_THROWS(parse_text(""));
     CHECK_THROWS(parse_text("x +"));
-    CHECK_THROWS(parse_text("sin(x"));
+    CHECK_THROWS(parse_text("Sin[x"));
     CHECK_THROWS(parse_text("1 2"));
-    CHECK_THROWS(parse_text("[a, b}"));
+    CHECK_THROWS(parse_text("{a, b]"));
     CHECK_THROWS(parse_text("1..2"));
 }
 
 TEST_CASE("Text: readable output remains parseable") {
     CHECK_EQ(to_text(parse_text("x-y")), std::string("x - y"));
     CHECK_EQ(to_text(parse_text("-x^2")), std::string("-x^2"));
-    CHECK_EQ(to_text(parse_text("sin(x)")), std::string("sin(x)"));
+    CHECK_EQ(to_text(parse_text("Sin[x]")), std::string("Sin[x]"));
     CHECK_EQ(to_text(parse_text("x==2")), std::string("x == 2"));
     CHECK_EQ(to_text(parse_text("x->2")), std::string("x -> 2"));
     round_trip("x-y");
-    round_trip("-2*x^2 + sin(x)");
+    round_trip("-2*x^2 + Sin[x]");
     round_trip("x == 2");
     round_trip("x -> 2");
 }
@@ -141,7 +135,7 @@ TEST_CASE("Text: exact decimals and assignment") {
     CHECK_EQ(to_full_form(parse_text("x := 2")), std::string("SetDelayed(x, 2)"));
     CHECK_EQ(to_full_form(parse_text("x == 2")), std::string("Equal(x, 2)"));
     round_trip("1.5*x = 3.75");
-    round_trip("f(x) := x^2");
+    round_trip("f[x] := x^2");
     CHECK_THROWS(parse_text("1."));
 }
 
@@ -149,7 +143,7 @@ TEST_CASE("Text: space before parenthesis means multiplication") {
     CHECK_EQ(to_full_form(parse_text("x (y+1)")),
              std::string("Times(x, Plus(1, y))"));
     CHECK_EQ(to_full_form(parse_text("x(y+1)")),
-             std::string("x(Plus(1, y))"));
+             std::string("Times(x, Plus(1, y))"));
 }
 
 TEST_CASE("Text: nesting limit throws before stack exhaustion") {

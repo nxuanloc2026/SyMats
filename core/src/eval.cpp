@@ -462,7 +462,7 @@ struct EvalStep {
 
         // 2. User definitions: exact first, then patterns in definition order.
         if (const Context::SymbolData* d = ctx.find(*hname)) {
-            // A definition that rewrites an expression to itself (f(x_) := f(x)) is
+            // A definition that rewrites an expression to itself (f[x_] := f[x]) is
             // treated as not applying, instead of looping.
             for (const auto& def : d->exact)
                 if (equal(def.lhs, cur) && !equal(def.rhs, cur)) return {def.rhs, true};

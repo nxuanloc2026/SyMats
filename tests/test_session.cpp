@@ -33,8 +33,8 @@ TEST_CASE("Session: function definitions across cells; Null is not shown") {
     auto d = s.run(call("SetDelayed", {call("f", {pat("x")}), P("x^2 + 1")}));
     CHECK(d.ok());
     CHECK(!d.visible());  // SetDelayed returns Null
-    CHECK_EQ(F(s.run(P("f(3)")).output), std::string("10"));
-    CHECK_EQ(F(s.run(P("f(t)")).output), std::string("Plus(1, Power(t, 2))"));
+    CHECK_EQ(F(s.run(P("f[3]")).output), std::string("10"));
+    CHECK_EQ(F(s.run(P("f[t]")).output), std::string("Plus(1, Power(t, 2))"));
 }
 
 TEST_CASE("Session: errors are per statement and the kernel survives") {
@@ -75,7 +75,7 @@ TEST_CASE("Session: workspace listing and restart") {
     Session s;
     s.run(P("alpha = 1"));
     s.run(call("SetDelayed", {call("g", {pat("x")}), P("x")}));
-    s.run(P("sin(0) + 1"));  // defines nothing
+    s.run(P("Sin[0] + 1"));  // defines nothing
     auto names = s.user_symbols();
     CHECK_EQ(names.size(), std::size_t(2));
     CHECK_EQ(names[0], std::string("alpha"));

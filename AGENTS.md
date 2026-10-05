@@ -36,7 +36,7 @@ integrals, displays results as math, and plots — including time-varying (anima
 - a statement ending in `;` is evaluated but its output is **not shown** (MATLAB/Mathematica);
 - statements run top to bottom; every shown result gets an output line
   `Out[n]` (numbering is per session, like Mathematica `In[n]:=` / `Out[n]=`);
-- `Null` results (e.g. from `f(x_) := x^2`) are not shown;
+- `Null` results (e.g. from `f[x_] := x^2`) are not shown;
 - an error in one statement is shown inline under that statement; later statements in the
   cell still run; the kernel survives.
 
@@ -146,7 +146,7 @@ Precedence and node names: docs/EXPR_SPEC.md §3.12.
    - Symbolic ODEs and systems: Giac backend, verified by substitution.
    - Numeric ODE/PDE solvers: SUNDIALS (CVODE for stiff and non-stiff ODEs; method of lines for PDEs).
    - Notation: y′, y″, dy/dx, ∂u/∂t, ∂²u/∂x² all available in the 2-D editor and as text
-     (`D(y(x), x)`, `D(u(x,t), t)`).
+  (`D[y[x], x]`, `D[u[x, t], t]`).
    - Results feed directly into plotting (solution curves, phase portraits, animated PDE solutions).
 5. **Plotting, including time-varying plots** — see "Plotting requirements".
 
@@ -220,7 +220,7 @@ If a change outside your lane is unavoidable, keep it minimal and explain it in 
 - The engine pre-samples frames (or samples on demand) using the compiled numeric
   function; the front end renders frames smoothly (target 30–60 fps).
 - Export animation as GIF/MP4 (later).
-- Text form: `animate(plot(sin(x - t), x, 0, 2*pi), t, 0, 10)`.
+- Text form: `Animate[Plot[Sin[x - t], {x, 0, 2*Pi}], {t, 0, 10}]`.
 
 ## Workflow
 

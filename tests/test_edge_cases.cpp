@@ -57,11 +57,11 @@ TEST_CASE("Edge Cases: parse_text with unusual whitespace") {
     CHECK_EQ(to_full_form(e1), std::string("Plus(Times(2, x), Times(3, y))"));
 
     // Multiline expression with tabs and extra spacing inside function arguments
-    ExprPtr e2 = parse_text(" \n\t integrate( \n\t x^2 \t , \n\t x \t , \n\t 0 \t , \n\t 1 \t ) \n ");
+    ExprPtr e2 = parse_text(" \n\t Integrate[ \n\t x^2 \t , \n\t x \t , \n\t 0 \t , \n\t 1 \t ] \n ");
     CHECK_EQ(to_full_form(e2), std::string("Integrate(Power(x, 2), List(x, 0, 1))"));
 
     // Matrix with irregular whitespace around brackets and separators
-    ExprPtr e3 = parse_text(" [ \n [ \t 1 , \t 2 \n ] \t , \n [ 3 \t , 4 \n ] \n ] ");
+    ExprPtr e3 = parse_text(" { \n { \t 1 , \t 2 \n } \t , \n { 3 \t , 4 \n } \n } ");
     CHECK_EQ(to_full_form(e3), std::string("List(List(1, 2), List(3, 4))"));
 
     // Space before parenthesis means multiplication
@@ -110,11 +110,11 @@ TEST_CASE("Edge Cases: malformed input throws and does not crash") {
     // Unbalanced parentheses and brackets
     CHECK_THROWS(parse_text("(x + 1"));
     CHECK_THROWS(parse_text("x + 1)"));
-    CHECK_THROWS(parse_text("[1, 2"));
-    CHECK_THROWS(parse_text("1, 2]"));
-    CHECK_THROWS(parse_text("sin(x,"));
-    CHECK_THROWS(parse_text("f(x, y"));
-    CHECK_THROWS(parse_text("[[1, 2], [3, 4]"));
+    CHECK_THROWS(parse_text("{1, 2"));
+    CHECK_THROWS(parse_text("1, 2}"));
+    CHECK_THROWS(parse_text("Sin[x,"));
+    CHECK_THROWS(parse_text("f[x, y"));
+    CHECK_THROWS(parse_text("{{1, 2}, {3, 4}"));
 
     // Incomplete or invalid binary operators
     CHECK_THROWS(parse_text("+"));

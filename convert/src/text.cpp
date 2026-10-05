@@ -39,9 +39,6 @@ std::string head_for(std::string_view name) {
 }
 
 std::string text_for_head(std::string_view head) {
-    for (const auto& [alias, internal] : aliases) {
-        if (head == internal) return std::string(alias);
-    }
     return std::string(head);
 }
 
@@ -56,19 +53,20 @@ ExprPtr call(std::string_view name, ExprList args) {
     if (head == "Times") return times(std::move(args));
     if (head == "Power" && args.size() == 2) return power(args[0], args[1]);
     if (head == "List") return make_normal("List", std::move(args));
-    if (name == "sqrt" && args.size() == 1)
+    if ((head == "Sqrt" || name == "sqrt") && args.size() == 1)
         return power(args[0], make_rational(1, 2));
-    if (name == "root" && args.size() == 2)
+    if ((head == "Root" || name == "root") && args.size() == 2)
         return power(args[0], divide(make_integer(1), args[1]));
-    if (name == "integrate" && args.size() >= 4 && (args.size() - 1) % 3 == 0) {
+    if ((head == "Integrate" || name == "integrate") && args.size() >= 4 && (args.size() - 1) % 3 == 0) {
         ExprList grouped{args[0]};
         for (std::size_t i = 1; i < args.size(); i += 3)
             grouped.push_back(make_normal("List", {args[i], args[i + 1], args[i + 2]}));
         return make_normal("Integrate", std::move(grouped));
     }
-    if ((name == "sum" || name == "product" || name == "series") && args.size() == 4)
+    if ((head == "Sum" || head == "Product" || head == "Series" ||
+         name == "sum" || name == "product" || name == "series") && args.size() == 4)
         return make_normal(head, {args[0], make_normal("List", {args[1], args[2], args[3]})});
-    if ((name == "D" || name == "diff") && args.size() == 3 && args[2]->is_integer())
+    if ((head == "D" || name == "diff") && args.size() == 3 && args[2]->is_integer())
         return make_normal("D", {args[0], make_normal("List", {args[1], args[2]})});
     return make_normal(head, std::move(args));
 }
@@ -253,12 +251,12 @@ private:
         return base;
     }
 
-    // Level 1: Primes ('), Factorial (!), Calls f(x)
+    // Level 1: Primes ('), Factorial (!), Calls f[x]
     ExprPtr primary() {
         ExprPtr core = atom();
         while (true) {
             space();
-            // Primes for derivatives: f'(x) -> Derivative(1, f)(x), y''(t) -> Derivative(2, y)(t)
+            // Primes for derivatives: f'[x] -> Derivative(1, f)[x], y''[t] -> Derivative(2, y)[t]
             if (pos_ < input_.size() && input_[pos_] == '\'') {
                 std::size_t count = 0;
                 while (pos_ < input_.size() && input_[pos_] == '\'') {
@@ -266,13 +264,13 @@ private:
                     ++pos_;
                 }
                 core = make_normal("Derivative", {make_integer(static_cast<long long>(count)), core});
-                // If followed immediately by arguments e.g. f'(x), apply arguments
-                if (peek() == '(') {
+                // If followed immediately by arguments e.g. f'[x], apply arguments
+                if (peek() == '[') {
                     ++pos_;
                     ExprList args;
-                    if (!take(')')) {
+                    if (!take(']')) {
                         do { args.push_back(statement()); } while (take(','));
-                        expect(')');
+                        expect(']');
                     }
                     core = make_normal(core, std::move(args));
                 }
@@ -362,8 +360,8 @@ private:
                 }
             }
 
-            // Calls require no whitespace before '('. A space means multiplication.
-            if (pos_ >= input_.size() || input_[pos_] != '(') {
+            // Calls require no whitespace before '[' in Mathematica syntax (e.g. Sin[x]).
+            if (pos_ >= input_.size() || input_[pos_] != '[') {
                 if (name == "pi") name = "Pi";
                 else if (name == "e") name = "E";
                 else if (name == "i") name = "I";
@@ -372,9 +370,9 @@ private:
             }
             ++pos_;
             ExprList args;
-            if (!take(')')) {
+            if (!take(']')) {
                 do { args.push_back(statement()); } while (take(','));
-                expect(')');
+                expect(']');
             }
             return call(name, std::move(args));
         }
@@ -383,13 +381,11 @@ private:
             expect(')');
             return inside;
         }
-        if (c == '[' || c == '{') {
-            ++pos_;
-            char close = c == '[' ? ']' : '}';
+        if (take('{')) {
             ExprList items;
-            if (!take(close)) {
+            if (!take('}')) {
                 do { items.push_back(statement()); } while (take(','));
-                expect(close);
+                expect('}');
             }
             return make_normal("List", std::move(items));
         }
@@ -484,25 +480,25 @@ std::string write(const ExprPtr& e, int parent, std::size_t depth) {
         if (!primes.empty()) {
             out = write(e->arg(1), 50, depth + 1) + primes;
         } else {
-            out = "Derivative(" + write(e->arg(0), 0, depth + 1) + ", " + write(e->arg(1), 0, depth + 1) + ")";
+            out = "Derivative[" + write(e->arg(0), 0, depth + 1) + ", " + write(e->arg(1), 0, depth + 1) + "]";
         }
     } else if (e->head()->has_head("Derivative") && e->head()->size() == 2 && e->head()->arg(0)->is_integer()) {
         auto n = e->head()->arg(0)->integer().to_int64();
         std::string primes = (n && *n > 0 && *n <= 5) ? std::string(static_cast<std::size_t>(*n), '\'') : "";
         if (!primes.empty()) {
-            out = write(e->head()->arg(1), 50, depth + 1) + primes + "(";
+            out = write(e->head()->arg(1), 50, depth + 1) + primes + "[";
             for (std::size_t i = 0; i < e->size(); ++i) {
                 if (i) out += ", ";
                 out += write(e->arg(i), 0, depth + 1);
             }
-            out += ")";
+            out += "]";
         } else {
-            out = write(e->head(), 0, depth + 1) + "(";
+            out = write(e->head(), 0, depth + 1) + "[";
             for (std::size_t i = 0; i < e->size(); ++i) {
                 if (i) out += ", ";
                 out += write(e->arg(i), 0, depth + 1);
             }
-            out += ")";
+            out += "]";
         }
     } else if (e->has_head("Not") && e->size() == 1) {
         out = "!" + write(e->arg(0), 50, depth + 1);
@@ -557,7 +553,7 @@ std::string write(const ExprPtr& e, int parent, std::size_t depth) {
                               e->head()->name() == "Product" ||
                               e->head()->name() == "Series") && e->size() == 4)
             out = e->head()->name();
-        out += "(";
+        out += "[";
         if (!ordinary_head) {
             out += write(e->head(), 0, depth + 1);
             if (e->size()) out += ", ";
@@ -566,7 +562,7 @@ std::string write(const ExprPtr& e, int parent, std::size_t depth) {
             if (i) out += ", ";
             out += write(e->arg(i), 0, depth + 1);
         }
-        out += ")";
+        out += "]";
     }
     return own < parent ? "(" + out + ")" : out;
 }

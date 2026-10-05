@@ -12,14 +12,14 @@ Every value in Symats is an **expression** (`Expr`). There are four kinds:
 | `Integer`  | exact arbitrary-precision integer    | `0`, `-7`, `123456789012345678901` |
 | `Rational` | exact fraction p/q, q > 1, gcd = 1   | `1/2`, `-3/4`             |
 | `Symbol`   | a name                               | `x`, `t`, `Pi`, `Plus`    |
-| `Normal`   | a head applied to arguments          | `Plus(x, 1)`, `Integrate(f, x)` |
+| `Normal`   | a head applied to arguments          | `Plus[x, 1]`, `Integrate[f, x]` |
 
 Later kinds (not in v0.1): `Real` (MPFR arbitrary precision), `String`.
 
 Rules:
 - Expressions are **immutable** and shared (`std::shared_ptr<const Expr>`).
 - A `Normal` has a head (any Expr, usually a Symbol) and an ordered list of arguments.
-- The **internal form** below (`Head(arg1, arg2, …)`) is also valid plain-text input.
+- Plain-text input uses Mathematica square bracket syntax `Head[arg1, arg2, …]`.
 
 ## 2. Canonical form (engine guarantees)
 
@@ -53,20 +53,20 @@ Text names are lowercase aliases; the internal form uses the capitalized head.
 | `Plus` | terms… | `a + b` | a + b |
 | `Times` | factors… | `a*b`, `a b` | a·b |
 | `Power` | base, exponent | `a^b` | aᵇ |
-| `Sqrt` (input only → `Power(x, 1/2)`) | x | `sqrt(x)` | √x |
-| `Root` (input only → `Power(x, 1/n)`) | x, n | `root(x, n)` | ⁿ√x |
-| `Abs` | x | `abs(x)` | \|x\| |
+| `Sqrt` (input only → `Power[x, 1/2]`) | x | `Sqrt[x]` | √x |
+| `Root` (input only → `Power[x, 1/n]`) | x, n | `Root[x, n]` | ⁿ√x |
+| `Abs` | x | `Abs[x]` | \|x\| |
 | `Factorial` | n | `n!` | n! |
 
 ### 3.2 Constants (Symbols)
 
 `Pi` (π), `E` (e), `I` (i), `Infinity` (∞), `True`, `False`.
-Text: `pi`, `e`, `i`, `inf`/`infinity`.
+Text: `Pi`, `E`, `I`, `Infinity` (or `pi`, `e`, `i`, `inf`/`infinity`).
 
 ### 3.3 Functions
 
 `Sin Cos Tan Cot Sec Csc ArcSin ArcCos ArcTan Sinh Cosh Tanh Exp Log`
-Text: lowercase (`sin(x)`, `arctan(x)`, `log(x)` = natural log, `log(b, x)` = base b).
+Text: Capitalized (`Sin[x]`, `ArcTan[x]`, `Log[x]` = natural log, `Log[b, x]` = base b).
 
 ### 3.4 Relations and logic
 
@@ -75,8 +75,8 @@ Text: lowercase (`sin(x)`, `arctan(x)`, `log(x)` = natural log, `log(b, x)` = ba
 | `Equal` | `a == b` (a single `=` is assignment, see §3.10) | a = b |
 | `Unequal` | `a != b` | a ≠ b |
 | `Less`, `LessEqual`, `Greater`, `GreaterEqual` | `<  <=  >  >=` | <  ≤  >  ≥ |
-| `And`, `Or`, `Not` | `a && b`, `a \|\| b`, `!a` (also `and`, `or`, `not`) | ∧ ∨ ¬ |
-| `ReplaceAll` | `expr /. x -> 3`, `expr /. {x -> 1, y -> 2}` (also `subs(expr, rules)`) | |
+| `And`, `Or`, `Not` | `a && b`, `a \|\| b`, `!a` | ∧ ∨ ¬ |
+| `ReplaceAll` | `expr /. x -> 3`, `expr /. {x -> 1, y -> 2}` (also `subs[expr, rules]`) | |
 | `List` | `{a, b, c}` | {a, b, c} |
 | `Rule` | `x -> 2` | x → 2 |
 

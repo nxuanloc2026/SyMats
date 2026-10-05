@@ -57,7 +57,7 @@ public:
     void set_value(const std::string& symbol, ExprPtr value);
     ExprPtr value(const std::string& symbol) const;  // nullptr if none
 
-    // Down values: f(x_) := x^2. A definition with a structurally equal lhs replaces
+    // Down values: f[x_] := x^2. A definition with a structurally equal lhs replaces
     // the old one. Definitions without patterns are tried before pattern ones.
     void add_definition(const std::string& symbol, ExprPtr lhs, ExprPtr rhs);
     void clear(const std::string& symbol);
@@ -73,8 +73,8 @@ public:
     BackendRegistry& backends() { return backends_; }
     const BackendRegistry& backends() const { return backends_; }
 
-    // Limits protecting against runaway recursion (f(x_) := f(x) + 1) and
-    // non-terminating rewriting (f(x_) := f(x)).
+    // Limits protecting against runaway recursion (f[x_] := f[x] + 1) and
+    // non-terminating rewriting (f[x_] := f[x]).
     std::size_t max_depth = 400;
     std::size_t max_iterations = 100000;
 

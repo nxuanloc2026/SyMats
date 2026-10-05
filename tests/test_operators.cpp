@@ -46,15 +46,15 @@ TEST_CASE("Operators: Dot for vectors and matrices") {
     Context c;
     CHECK_EQ(run(c, call("Dot", {P("{1, 2, 3}"), P("{4, 5, 6}")})), std::string("32"));
     CHECK_EQ(run(c, call("Dot", {P("{a, b}"), P("{c, d}")})), std::string("Plus(Times(a, c), Times(b, d))"));
-    CHECK_EQ(run(c, call("Dot", {P("[[1, 2], [3, 4]]"), P("{5, 6}")})), std::string("List(17, 39)"));
-    CHECK_EQ(run(c, call("Dot", {P("{1, 1}"), P("[[1, 2], [3, 4]]")})), std::string("List(4, 6)"));
-    CHECK_EQ(run(c, call("Dot", {P("[[1, 2], [3, 4]]"), P("[[0, 1], [1, 0]]")})),
+    CHECK_EQ(run(c, call("Dot", {P("{{1, 2}, {3, 4}}"), P("{5, 6}")})), std::string("List(17, 39)"));
+    CHECK_EQ(run(c, call("Dot", {P("{1, 1}"), P("{{1, 2}, {3, 4}}")})), std::string("List(4, 6)"));
+    CHECK_EQ(run(c, call("Dot", {P("{{1, 2}, {3, 4}}"), P("{{0, 1}, {1, 0}}")})),
              std::string("List(List(2, 1), List(4, 3))"));
     // Non-square: (2x3).(3x1)
-    CHECK_EQ(run(c, call("Dot", {P("[[1, 0, 2], [0, 1, 0]]"), P("[[1], [2], [3]]")})),
+    CHECK_EQ(run(c, call("Dot", {P("{{1, 0, 2}, {0, 1, 0}}"), P("{{1}, {2}, {3}}")})),
              std::string("List(List(7), List(2))"));
     // Chained A.B.v
-    CHECK_EQ(run(c, call("Dot", {P("[[1, 0], [0, 2]]"), P("[[1, 1], [0, 1]]"), P("{1, 1}")})),
+    CHECK_EQ(run(c, call("Dot", {P("{{1, 0}, {0, 2}}"), P("{{1, 1}, {0, 1}}"), P("{1, 1}")})),
              std::string("List(2, 2)"));
     // Symbolic operands stay unevaluated; bad shapes are an error.
     CHECK_EQ(run(c, call("Dot", {P("A"), P("B")})), std::string("Dot(A, B)"));
@@ -119,7 +119,7 @@ TEST_CASE("Operators: Calculus expected values representation (D, Expand, Integr
 TEST_CASE("Operators: ReplaceAll with list of rules and nested subexpressions") {
     Context c;
     CHECK_EQ(run(c, call("ReplaceAll", {P("x + y + z"), P("{x -> 1, y -> 2, z -> 3}")})), std::string("6"));
-    CHECK_EQ(run(c, call("ReplaceAll", {P("f(x, y)"), P("{x -> a + 1, y -> b}")})), std::string("f(Plus(1, a), b)"));
+    CHECK_EQ(run(c, call("ReplaceAll", {P("f[x, y]"), P("{x -> a + 1, y -> b}")})), std::string("f(Plus(1, a), b)"));
 }
 
 TEST_CASE("Operators: Relational operators evaluation") {

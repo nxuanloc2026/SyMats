@@ -10,14 +10,15 @@ Plan: pin a GPL-3+ Giac release in a fork and submodule, provide
 currently uses Autotools and old Visual C++ build files; assess this before
 choosing the integration. No public core API or expression-spec change is
 planned for T-011.
-Checkpoint at 18:43 UTC: created `nxuanloc2026/giac` from the GPL-3+
-`sagemath/giac` source and added `third_party/giac` at release
-`upstream/1.9.0.57+dfsg2` (commit `3c8f0cb3d901ff203fb4b69468d22f38c985c9c6`).
-The tagged source has an old MSVC makefile and no current native CMake build.
-Local vcpkg GMP/MPFR installation is running under VS 2026; the initial tool
-acquisition needed an ignored, local-only vcpkg Ninja path workaround. Next:
-compile a minimal Giac source target, then integrate and test CI. The submodule
-is not yet built, so T-011 remains in progress.
+Checkpoint at 22:56 UTC: forked GPL-3+ `sagemath/giac` release
+`upstream/1.9.0.57+dfsg2` (`3c8f0cb3`), and pushed C++20/MSVC fixes to the
+Symats fork at `2d4c1c9e` on `symats/msvc-cxx20-release`. The submodule pin is
+updated to that fork commit. Added an opt-in `third_party::giac` CMake target,
+generated parser/lexer, GMP/MPFR linkage, a linked arithmetic smoke test, and
+Windows/Linux CI job. VS 2026 MSVC Debug built the entire repository, and both
+`giac-smoke` and `symats_tests` passed locally. The GitHub CI run still needs
+Linux and hosted Windows validation. No core public header or EXPR_SPEC change
+was made. Do not mark T-011 done until CI is green and the PR is ready.
 
 ## T-010 native calculus takeover (2026-10-05)
 

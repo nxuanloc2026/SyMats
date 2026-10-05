@@ -1,0 +1,65 @@
+name: Giac backend build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  giac-build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgmp-dev libmpfr-dev flex bison
+
+      - name: Install Windows GMP and MPFR
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git vcpkg
+          git -C vcpkg checkout 5508584fd90f2cb4bb441c8c77860a418e50194b
+          ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
+          ./vcpkg/vcpkg.exe install gmp:x64-windows mpfr:x64-windows
+
+      - name: Install Windows parser generators
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'win_flex_bison-2.5.25.zip'
+          Invoke-WebRequest 'https://github.com/lexxmark/winflexbison/releases/download/v2.5.25/win_flex_bison-2.5.25.zip' -OutFile $zip
+          $actual = (Get-FileHash $zip -Algorithm SHA256).Hash
+          if ($actual -ne '8D324B62BE33604B2C45AD1DD34AB93D722534448F55A16CA7292DE32B6AC135') {
+            throw 'WinFlexBison archive checksum mismatch'
+          }
+          Expand-Archive $zip -DestinationPath tools/winflexbison
+
+      - name: Configure on Linux
+        if: runner.os == 'Linux'
+        run: cmake -S . -B build-giac -DCMAKE_BUILD_TYPE=Release -DSYMATS_USE_GIAC=ON
+
+      - name: Configure on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake -S . -B build-giac -G 'Visual Studio 17 2022' -A x64 `
+            -DSYMATS_USE_GIAC=ON `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            "-DGIAC_FLEX=$env:GITHUB_WORKSPACE/tools/winflexbison/win_flex.exe" `
+            "-DGIAC_BISON=$env:GITHUB_WORKSPACE/tools/winflexbison/win_bison.exe"
+
+      - name: Build
+        run: cmake --build build-giac --config Release --parallel 2
+
+      - name: Test
+        run: ctest --test-dir build-giac -C Release --output-on-failure

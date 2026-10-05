@@ -28,7 +28,7 @@ bool is_blank_kind(const Expr& e) {
     return e.has_head("Blank") || e.has_head("BlankSequence") || e.has_head("BlankNullSequence");
 }
 
-// Recognizes BlankSequence/BlankNullSequence, optionally wrapped in Pattern(name, ...).
+// Recognizes BlankSequence/BlankNullSequence, optionally wrapped in Pattern[name, ...].
 SeqInfo sequence_info(const ExprPtr& p) {
     SeqInfo info;
     const Expr* b = p.get();
@@ -107,7 +107,7 @@ bool has_pattern(const ExprPtr& e) {
 }
 
 bool match(const ExprPtr& p, const ExprPtr& e, Bindings& bindings) {
-    // Named pattern: Pattern(name, sub).
+    // Named pattern: Pattern[name, sub].
     if (p->has_head("Pattern") && p->size() == 2 && p->arg(0)->is_symbol()) {
         Bindings trial = bindings;
         const ExprPtr& sub = p->arg(1);
@@ -200,7 +200,7 @@ ExprPtr substitute(const ExprPtr& e, const Bindings& bindings) {
 ExprPtr replace_all(const ExprPtr& e, const ExprList& rules, bool* changed) {
     for (const auto& r : rules) {
         if (!(r->has_head("Rule") || r->has_head("RuleDelayed")) || r->size() != 2)
-            throw std::invalid_argument("replace_all: expected Rule(lhs, rhs) or RuleDelayed(lhs, rhs)");
+            throw std::invalid_argument("replace_all: expected Rule[lhs, rhs] or RuleDelayed[lhs, rhs]");
         Bindings b;
         if (match(r->arg(0), e, b)) {
             if (changed) *changed = true;

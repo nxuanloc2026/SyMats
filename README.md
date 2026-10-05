@@ -7,20 +7,24 @@ get exact symbolic answers, solve differential equations, and plot — including
 time-varying plots. See [AGENTS.md](AGENTS.md) for the full goals and
 [docs/EXPR_SPEC.md](docs/EXPR_SPEC.md) for the expression format.
 
+Plain text uses square brackets for calls and capitalized built-ins:
+`Sin[x]`, `Integrate[x^2, {x, 0, 1}]`, and `f[x_] := Sin[x]`.
+Use curly braces for lists and matrices: `{{a, b}, {c, d}}`.
+
 ## Status
 
 **v0.1 — expression core.** Exact big integers and fractions, symbolic expression
 trees, and automatic canonical simplification:
 
 ```
-x + x              => Times(2, x)
+x + x              => Times[2, x]
 (x + 1) - (x + 1)  => 0
-(2x)^2             => Times(4, Power(x, 2))
+(2x)^2             => Times[4, Power[x, 2]]
 8^(2/3)            => 4
-sqrt(2) * sqrt(2)  => 2
+Sqrt[2] * Sqrt[2]  => 2
 ```
 
-Next: text parser and printer, evaluator and pattern matching, then calculus.
+Next: complete Tier 1 text operators and the notebook UI, then calculus.
 
 ## Build
 

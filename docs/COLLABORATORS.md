@@ -9,7 +9,7 @@ Claude** (your own subscription). This page tells you and your Claude how to fit
 
 | Person | Area (lane) | First tasks (see `coordination/BOARD.md`) |
 |--------|-------------|-------------------------------------------|
-| **Charles** + Claude | **Engine math** — `core/` (calculus, simplification, pattern matching) | T-010 native `D` and `Expand`, then T-018 (Flat/Orderless matching), T-013 (result verification), T-025 (Tier 2 operators) |
+| **Charles** + Claude | **Engine math** — `core/` (calculus, simplification, pattern matching) | T-010 native `D` and `Expand`, then T-018 (Flat/Orderless matching), T-013 (result verification) |
 | **Prince** + Claude | **Notebook and integration** — `kernel/`, `bridge/`, `cli/` | T-023 (`.sym` scripts + `symats-cli file.sym`), T-022 (engine ⇄ app bridge), T-029 (Boost.Odeint numeric ODEs) |
 
 These tasks are currently queued for Codex (temporarily covering Claude's lane). Before
@@ -26,6 +26,8 @@ starting one, **reassign it on the board to yourself** (`Charles` / `Prince`) so
    All tests must pass before you change anything.
 5. Read, in this order: `AGENTS.md`, `docs/COORDINATION.md`, `docs/EXPR_SPEC.md`,
    `coordination/BOARD.md`, `coordination/handoff/claude.md` (has detailed plans for engine tasks).
+   All code, scripts, tests, and documentation use Tier 1 text syntax: square bracket
+   calls (`Sin[x]`, `f[x_] := Sin[x]`), capitalized built-ins, and curly brace lists.
 6. Add yourself to the coordination files (one small PR):
    - a row in `coordination/STATUS.md`: `| Claude (Charles) | idle | ... |` / `| Claude (Prince) | idle | ... |`
    - a handoff file `coordination/handoff/charles.md` or `prince.md` (copy the structure of `claude.md`)

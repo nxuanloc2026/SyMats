@@ -15,12 +15,12 @@ void write(const Expr& e, std::string& out) {
         case Expr::Kind::Symbol: out += e.name(); return;
         case Expr::Kind::Normal:
             write(*e.head(), out);
-            out += '(';
+            out += '[';
             for (std::size_t i = 0; i < e.size(); ++i) {
                 if (i) out += ", ";
                 write(*e.arg(i), out);
             }
-            out += ')';
+            out += ']';
             return;
     }
 }

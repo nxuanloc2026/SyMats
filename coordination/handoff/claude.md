@@ -1,5 +1,13 @@
 # Handoff — Claude
 
+## Takeover by Codex — T-031 text syntax
+
+Loc requested the Tier 1 square bracket notation across Symats. The expression
+specification now uses `Head[args]`, capitalized built-ins, and curly brace lists.
+`to_full_form` prints square brackets to match; the Expr node names and all public
+declarations in `core/include/symats/*.h` are unchanged. Header comment examples
+were updated to describe the new notation. No backend interface changed.
+
 ## TAKEOVER NOTICE (2026-10-03) — Claude is out of usage; tasks delegated
 Claude's lane (core/, backend/) is temporarily owned by **Codex** (engine) and **Jules**
 (tests, GMP, Jupyter kernel). Follow docs/COORDINATION.md takeover rules: work on
@@ -8,11 +16,11 @@ without noting it here. Claude will review when back.
 
 ### Plans for the delegated tasks
 - **T-010 native D and Expand (Codex)** — new `core/include/symats/calculus.h`, `core/src/calculus.cpp`.
-  `D(f, x)`: rules for Plus (linearity), Times (product rule over all factors), Power
+  `D[f, x]`: rules for Plus (linearity), Times (product rule over all factors), Power
   (a^b: b*a^(b-1)*a' when b free of x; general case a^b*(b'*Log(a) + b*a'/a)),
   Sin/Cos/Tan/Exp/Log/ArcSin/ArcCos/ArcTan/Sinh/Cosh/Tanh/Abs (chain rule), numbers/other
-  symbols -> 0, unknown f(u) -> Derivative(1, f)(u)*u'. `D(f, {x, n})`, `D(f, x, y)`.
-  Evaluate `Derivative(n, f)(t)` when f has a definition. `Expand`: distribute Times over
+  symbols -> 0, unknown `f[u]` -> `Derivative[1][f][u]*u'`. `D[f, {x, n}]`, `D[f, x, y]`.
+  Evaluate `Derivative[n, f](t)` when f has a definition. `Expand`: distribute Times over
   Plus and expand integer powers of sums (multinomial), recursively. Register as built-ins
   in install_builtins (eval.cpp). Verify by numeric spot checks at random points.
 - **T-018 Flat/Orderless matching (Codex)** — in pattern.cpp, for heads with Orderless
@@ -37,7 +45,7 @@ T-001 merged (PR #5). Next: T-010 (native `D` and `Expand`), then T-012 (Giac br
   `run(expr, suppressed)` -> `StatementResult{line, input, output, status, suppressed,
   error}` with `visible()` (hides suppressed, Null, errors); `run_cell(statements)`;
   `out(n)`, `history()`, `next_line()`; `restart()` keeps registered backends;
-  `user_symbols()` for the workspace panel. Built-in `Out()`, `Out(n)`, `Out(-k)`.
+  `user_symbols()` for the workspace panel. Built-in `Out[]`, `Out[n]`, `Out[-k]`.
 - `CompoundExpression` built-in (HoldAll) in core/eval.cpp; `Context::user_symbols()`.
 - Tests: `tests/test_session.cpp` (6 cases). 58/58 total pass under ASan/UBSan.
 - Spec: AGENTS.md "Notebook model" (bare UI rules, cells, Shift+Enter, `;`, history,

@@ -114,7 +114,7 @@ struct DepthGuard {
     std::size_t& depth;
 };
 
-// The symbol a definition is attached to: f for f(...), x for x.
+// The symbol a definition is attached to: f for f[...], x for x.
 const std::string* definition_symbol(const ExprPtr& lhs) {
     if (lhs->is_symbol()) return &lhs->name();
     if (lhs->is_normal() && lhs->head()->is_symbol()) return &lhs->head()->name();
@@ -122,7 +122,7 @@ const std::string* definition_symbol(const ExprPtr& lhs) {
 }
 
 // Evaluate the arguments (not the head) of a definition's left-hand side, so that
-// f(1 + 1) := ... defines f(2). Pattern nodes are HoldFirst and stay intact.
+// f[1 + 1] := ... defines f[2]. Pattern nodes are HoldFirst and stay intact.
 ExprPtr evaluate_lhs(const ExprPtr& lhs, Context& ctx) {
     if (!lhs->is_normal()) return lhs;
     ExprList args;
@@ -462,7 +462,7 @@ struct EvalStep {
 
         // 2. User definitions: exact first, then patterns in definition order.
         if (const Context::SymbolData* d = ctx.find(*hname)) {
-            // A definition that rewrites an expression to itself (f(x_) := f(x)) is
+            // A definition that rewrites an expression to itself (f[x_] := f[x]) is
             // treated as not applying, instead of looping.
             for (const auto& def : d->exact)
                 if (equal(def.lhs, cur) && !equal(def.rhs, cur)) return {def.rhs, true};

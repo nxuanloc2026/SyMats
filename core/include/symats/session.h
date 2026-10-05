@@ -5,7 +5,7 @@
 //
 // One Session per open notebook. Every cell's statements run in the same Context, so
 // definitions persist across cells. Each statement gets a line number n (In[n]/Out[n]);
-// `%` / Out(...) refer to earlier outputs. Errors are captured per statement and never
+// `%` / Out[...] refer to earlier outputs. Errors are captured per statement and never
 // kill the session.
 #pragma once
 

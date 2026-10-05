@@ -29,7 +29,7 @@ const ExprPtr& sym_power() {
 
 ExprPtr raw_power(const ExprPtr& b, const ExprPtr& e) { return make_normal(sym_power(), {b, e}); }
 
-// Splits a term into (numeric coefficient, rest):  Times(3, x, y) -> (3, Times(x, y)).
+// Splits a term into (numeric coefficient, rest):  Times[3, x, y] -> (3, Times[x, y]).
 std::pair<Rational, ExprPtr> split_coefficient(const ExprPtr& t) {
     if (t->has_head("Times") && t->size() >= 2 && t->arg(0)->is_number()) {
         Rational c = t->arg(0)->number();
@@ -135,7 +135,7 @@ ExprPtr times(ExprList factors) {
     if (coeff.is_zero()) return make_integer(0);
 
     if (needs_second_pass) {
-        // A power expanded into a product (e.g. Power(Times(2, x), 1) -> Times(2, x)):
+        // A power expanded into a product (e.g. Power[Times[2, x], 1] -> Times[2, x]):
         // collect again so equal bases merge.
         out.push_back(make_number(coeff));
         return times(std::move(out));

@@ -2,6 +2,7 @@
 
 ## T-032 task syntax audit (2026-10-05)
 
+Branch: `codex/T-032-task-syntax-audit`; PR: https://github.com/nxuanloc2026/Symats/pull/16.
 Audited all rows in `coordination/BOARD.md` and the only GitHub issue (#2,
 closed). The active/planned public-text tasks already use Tier 1 square-bracket
 calls and capitalized built-ins, and T-025 (Tier 2) is absent. Added a board-wide

@@ -31,6 +31,14 @@ Windows/Linux CI job. VS 2026 MSVC Debug built the entire repository, and both
 Linux and hosted Windows validation. No core public header or EXPR_SPEC change
 was made. Do not mark T-011 done until CI is green and the PR is ready.
 
+Follow-up checkpoint: CI exposed Linux's gettext declaration path and an
+outdated hard-coded Visual Studio generator on the Windows runner. The build
+now enables Giac's gettext path on Linux and selects the installed Visual
+Studio via `vswhere` for a Ninja build. A bridge test also exposed an upstream
+Giac 64-bit Windows alias-size bug; the fork fixes it at `4ad344ce` by enabling
+`DOUBLEVAL` for `_WIN64`. The sanitizer build passes the conversion and factor
+tests. Normal Debug behavior and both hosted jobs still require validation.
+
 ## T-010 native calculus takeover (2026-10-05)
 
 Completed T-010 on `takeover/T-010-native-calculus` from main `4db3660`.

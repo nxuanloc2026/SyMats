@@ -61,6 +61,9 @@ target_include_directories(symats_giac PUBLIC
 target_compile_definitions(symats_giac PUBLIC
   HAVE_GMPXX_H HAVE_LIBMPFR VERSION="1.9.0.57")
 target_compile_definitions(symats_giac PRIVATE IN_GIAC)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_compile_definitions(symats_giac PRIVATE HAVE_GETTEXT)
+endif()
 if(MSVC)
   target_compile_definitions(symats_giac PUBLIC
     VISUALC MS_SMART HAVE_NO_SYS_TIMES_H _USE_MATH_DEFINES YY_NO_UNISTD_H)

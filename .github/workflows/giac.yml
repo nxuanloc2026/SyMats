@@ -48,18 +48,31 @@ jobs:
         if: runner.os == 'Linux'
         run: cmake -S . -B build-giac -DCMAKE_BUILD_TYPE=Release -DSYMATS_USE_GIAC=ON
 
-      - name: Configure on Windows
+      - name: Configure, build, and test on Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          cmake -S . -B build-giac -G 'Visual Studio 17 2022' -A x64 `
+          Set-ExecutionPolicy -Scope Process Bypass -Force
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $vsPath = & $vswhere -latest -property installationPath
+          & "$vsPath/Common7/Tools/Launch-VsDevShell.ps1" -Arch amd64 -HostArch amd64
+          $ninja = "$vsPath/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe"
+          cmake -S . -B build-giac -G Ninja `
             -DSYMATS_USE_GIAC=ON `
+            "-DCMAKE_MAKE_PROGRAM=$ninja" `
             "-DCMAKE_TOOLCHAIN_FILE=$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
             "-DGIAC_FLEX=$env:GITHUB_WORKSPACE/tools/winflexbison/win_flex.exe" `
             "-DGIAC_BISON=$env:GITHUB_WORKSPACE/tools/winflexbison/win_bison.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build-giac --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build-giac --output-on-failure
+          exit $LASTEXITCODE
 
-      - name: Build
+      - name: Build on Linux
+        if: runner.os == 'Linux'
         run: cmake --build build-giac --config Release --parallel 2
 
-      - name: Test
+      - name: Test on Linux
+        if: runner.os == 'Linux'
         run: ctest --test-dir build-giac -C Release --output-on-failure

@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "@SYMATS_KERNEL_PATH@",
+    "-f",
+    "{connection_file}"
+  ],
+  "display_name": "Symats",
+  "language": "symats",
+  "mimetype": "text/x-symats",
+  "file_extension": ".sym"
+}

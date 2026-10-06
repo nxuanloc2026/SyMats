@@ -5,19 +5,27 @@ Statuses: `todo` → `in-progress` → `review` (PR open) → `done`; also `bloc
 `backup-ok` = a backup may start this task while the owner is out.
 `Updated` must be refreshed at every checkpoint (UTC). Stale after 12 h.
 
+All tasks that accept, display, print, document, or test public text use the Tier 1
+syntax in `AGENTS.md` and `docs/EXPR_SPEC.md`: capitalized, case-sensitive built-ins,
+square-bracket calls (`Sin[x]`), curly-brace lists (`{a, b}`), and parentheses only
+for grouping. User-defined names may be lowercase (`f[x]`). Internal C++ API names
+and MathJSON keys are unaffected. Tier 2 and Tier 3 operators are outside the
+scope of every task on this board.
+
 | ID | Task | Lane | Owner | Backup | Status | Blocks | Flags | Updated (UTC) |
 |----|------|------|-------|--------|--------|--------|-------|---------------|
 | T-008 | Install Git + C++ workload; build in VS 2022; push repo to GitHub — built in VS 2026, pushed, CI green | setup | Loc | — | done | T-004, T-005, all cloud work | | 2026-10-02 |
 | T-003 | Decide: `=` means assignment (Set) or equation (Equal)? **Decided: `=` → `Set`, `==` → `Equal`, `:=` → `SetDelayed`** (spec updated) | spec | Loc | — | done | | | 2026-10-02 |
-| T-031 | Canonical Tier 1 text syntax: square bracket calls, capitalized built-ins, curly brace lists/matrices; align printer, tests, docs and future tasks | convert/spec | Codex | Claude | review | T-019, T-020, T-024 | | 2026-10-05 16:35 |
+| T-031 | Canonical Tier 1 text syntax: square bracket calls, capitalized built-ins, curly brace lists/matrices; align printer, tests, docs and future tasks — merged (PR #15) | convert/spec | Codex | Claude | done | T-019, T-020, T-024 | | 2026-10-05 17:12 |
+| T-032 | Audit every task for canonical Tier 1 text syntax; clarify the board-wide rule and correct stale Codex handoff examples — PR #16 | coordination | Codex | Claude | review | | | 2026-10-05 17:16 |
 | T-001 | Evaluator: definitions (`Set`, `SetDelayed`), pattern matching (`x_`, `x_Integer`), rule replacement, attributes; **plus `MathBackend` interface in core/ and dispatch of math heads (`Integrate`, `Solve`, `DSolve`, …) to the registered backend** — merged (PR #5) (pattern.h, eval.h, backend.h; 17 new test cases) | core | Claude | Codex | done | T-010, T-012 | | 2026-10-02 |
 | T-002 | Converter fixes: (1) nesting-depth limit instead of crash, (2) readable output (`x - y`, `-x^2`, `Sin[x]`, `==`, `->`), (3) decimals, (4) document/decide space-before-paren, (5) `=` per T-003 | convert | Codex | Claude | done | | backup-ok | 2026-10-02 03:38 |
-| T-004 | Fix CI build failures on Windows and Linux — PR #10 restores test function linkage | build/CI | Codex (for Copilot) | Codex | review | | backup-ok | 2026-10-05 00:05 |
+| T-004 | Fix CI build failures on Windows and Linux — merged (PR #10), restoring test function linkage | build/CI | Codex (for Copilot) | Codex | done | | backup-ok | 2026-10-05 17:12 |
 | T-005 | Tests: parser edge cases (unicode, whitespace, huge numbers, malformed input), Integer/Rational property tests — PR #1 merged | tests | Jules | Copilot | done | | backup-ok | 2026-10-02 |
 | T-006 | `symats-cli` REPL: read Tier 1 square bracket input → `parse_text` → print `to_text` — Copilot out until Student Pack approval; Codex covers per backup matrix | cli | Codex (for Copilot) | Codex | todo | | backup-ok | 2026-10-02 05:00 |
 | T-007 | MathJSON ⇄ Expr converter — merged (PR #3). Follow-up: allow Unicode symbols (α, θ) | convert | Codex | Claude | done | app editor | | 2026-10-02 |
 | T-009 | Optional GMP backend for `Integer` behind CMake option `SYMATS_USE_GMP` — merged (PR #12) | core | Jules (for Claude) | Copilot | done | | backup-ok | 2026-10-05 |
-| T-010 | **Native** `D` (partial derivatives, chain/product rule, all elementary functions) and `Expand` in core/ — no Giac; these power result verification | core | Codex (for Claude) | Codex | todo | T-013 | | 2026-10-03 |
+| T-010 | **Native** `D` (partial derivatives, chain/product rule, all elementary functions) and `Expand` in core/ — no Giac; these power result verification — PR #21 | core | Codex (for Claude) | Codex | review | T-013 | | 2026-10-05 18:08 |
 | T-011 | Giac build: fork Giac under nxuanloc2026, pin a release, add as git submodule in `third_party/giac` (+ GMP via vcpkg), CMake target `third_party::giac`, building on Windows (MSVC) and Linux CI | third_party/build | Codex (for Copilot) | Codex | todo | T-012 | | 2026-10-03 |
 | T-012 | **Giac bridge**: `backend/giac/` implements `MathBackend`; `Expr ⇄ giac::gen` conversion for all EXPR_SPEC heads; first operations: Integrate, Limit, Series, Solve, Factor, Simplify, DSolve, linear algebra | backend | Codex (for Claude) | Codex | todo | T-013, T-014 | | 2026-10-03 |
 | T-013 | Verification layer: check integrals (differentiate), solutions (substitute), ODE solutions (substitute + conditions), matrix results; numeric fallback check with Arb/Boost; result status `verified`/`numeric`/`unverified` | core | Codex (for Claude) | Codex | todo | app result display | | 2026-10-03 |
@@ -35,6 +43,8 @@ Statuses: `todo` → `in-progress` → `review` (PR open) → `done`; also `bloc
 | T-026 | Port from Numerica (MIT, with attribution): Vegas Monte Carlo integration for NIntegrate of multiple integrals; error-tracking floats for numeric result status | core/numeric | Codex (for Claude) | Codex | todo | | | 2026-10-03 |
 | T-027 | **Merged into T-032** (Jupyter kernel with xeus) | kernel | princearwan-code | Codex | done | | | 2026-10-05 |
 | T-028 | **Merged into T-032** (Tests: Session, Tier 1 operators, D/Expand, Maxima oracle) | tests | princearwan-code | Codex | done | | backup-ok | 2026-10-05 |
+| T-027 | Jupyter kernel with **xeus** (BSD-3): new folder `kernel/`, wraps `symats::Session` + Tier 1 square bracket `parse_cell` (T-020) so Symats runs in JupyterLab / VS Code notebooks; returns text/plain + text/latex — **priority: gives a usable notebook (JupyterLab / VS Code) before T-019** | kernel | Jules (for Claude) | Codex | review | | | 2026-10-05 17:40 |
+| T-028 | Tests: Session (multi-cell, %, errors), Tier 1 operators, and D/Expand expected values from mathematics, SymPy, Maxima; fix T-014 data (1/3 not Rational[1,3], drop +C, Solve format {{x -> a}}); add **Maxima** as second oracle (expected values recorded in test files with source noted) | tests | Jules | Codex | review | | backup-ok | 2026-10-03 10:15 |
 | T-029 | Quick NDSolve with **Boost.Odeint** (RK45/Dormand–Prince, Rosenbrock for stiff) in `backend/odeint/` + numeric special functions via **Boost.Math**; SUNDIALS (T-015) later | backend | Codex (for Claude) | Jules | todo | numeric ODE plots | backup-ok | 2026-10-03 |
 | T-030 | **Merged into T-032** (Evaluator semantics audit vs Mathics3) | tests | princearwan-code | Codex | done | | backup-ok | 2026-10-05 |
 | T-032 | Combine T-027, T-028, T-030 (Jules tree tasks): Jupyter kernel with xeus (kernel/), test suites for Session/Tier 1 operators/oracles (tests/), and Mathics3 evaluator semantics audit | tests/kernel | princearwan-code | Codex | todo | | | 2026-10-05 |

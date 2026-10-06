@@ -7,6 +7,7 @@
 // and J. H. Davenport et al., "Computer Algebra: Systems and Algorithms for
 // Algebraic Computation", Academic Press, 1988, ch. 1-2.
 #include "symats/eval.h"
+#include "symats/calculus.h"
 
 #include <algorithm>
 #include <utility>
@@ -241,6 +242,42 @@ void install_builtins(Context& ctx) {
     ctx.set_attributes("Times", Flat | Orderless | Listable | Protected);
     ctx.set_attributes("Power", Listable | Protected);
 
+    // D holds the variable and its input until a local variable is known. This
+    // prevents an own value of x from turning D[f[x], x] into D[f[3], 3].
+    ctx.set_builtin("D", [](const ExprPtr& e, Context& c) -> ExprPtr {
+        if (e->size() < 2) return nullptr;
+        ExprPtr result = e->arg(0);
+        bool can_evaluate_input = true;
+        for (std::size_t i = 1; i < e->size(); ++i) {
+            const ExprPtr& spec = e->arg(i);
+            const ExprPtr& variable = spec->has_head("List") && spec->size() == 2
+                ? spec->arg(0) : spec;
+            if (!variable->is_symbol()) return nullptr;
+            if (c.value(variable->name())) can_evaluate_input = false;
+        }
+        if (can_evaluate_input) result = evaluate(result, c);
+        for (std::size_t i = 1; i < e->size(); ++i) {
+            const ExprPtr& spec = e->arg(i);
+            ExprPtr variable = spec;
+            long long order = 1;
+            if (spec->has_head("List") && spec->size() == 2) {
+                variable = spec->arg(0);
+                if (!spec->arg(1)->is_integer()) return nullptr;
+                const auto n = spec->arg(1)->integer().to_int64();
+                if (!n || *n < 0 || *n > 64) return nullptr;
+                order = *n;
+            }
+            for (long long j = 0; j < order; ++j)
+                result = differentiate(result, variable);
+        }
+        return result;
+    });
+    ctx.set_attributes("D", HoldAll | Protected);
+    ctx.set_builtin("Expand", [](const ExprPtr& e, Context&) -> ExprPtr {
+        return e->size() == 1 ? expand(e->arg(0)) : nullptr;
+    });
+    ctx.set_attributes("Expand", Protected);
+
     // Assignment.
     ctx.set_builtin("Set", [](const ExprPtr& e, Context& c) -> ExprPtr {
         if (e->size() != 2) return nullptr;
@@ -374,7 +411,7 @@ void install_builtins(Context& ctx) {
     });
     ctx.set_attributes("Dot", Protected);
 
-    // Elementary functions thread over lists; their math comes later (T-010/T-012).
+    // Elementary functions thread over lists; numerical evaluation comes later.
     for (const char* f : {"Sin", "Cos", "Tan", "Cot", "Sec", "Csc", "ArcSin", "ArcCos", "ArcTan",
                           "Sinh", "Cosh", "Tanh", "Exp", "Log", "Abs"})
         ctx.set_attributes(f, Listable | Protected);
@@ -390,6 +427,27 @@ void install_builtins(Context& ctx) {
 Context::Context() { install_builtins(*this); }
 
 // ---------------------------------------------------------------- evaluation
+
+// Evaluate Derivative[n][f][x] for a function defined by the user. A fresh
+// symbol keeps the function's argument symbolic while its definition expands.
+static ExprPtr evaluated_derivative_application(const ExprPtr& cur,
+                                                const ExprPtr& head, Context& ctx) {
+    if (!head->is_normal() || head->size() != 1 ||
+        !head->head()->has_head("Derivative") || head->head()->size() != 1 ||
+        cur->size() != 1 || !head->head()->arg(0)->is_integer() ||
+        !head->arg(0)->is_symbol()) return nullptr;
+    const auto order = head->head()->arg(0)->integer().to_int64();
+    if (!order || *order <= 0 || *order > 32) return nullptr;
+    std::string name = "$SymatsDerivativeDummy";
+    while (ctx.value(name)) name += "$";
+    ExprPtr variable = make_symbol(name);
+    ExprPtr call = make_normal(head->arg(0), {variable});
+    ExprPtr body = evaluate(call, ctx);
+    if (equal(body, call)) return nullptr;
+    for (long long i = 0; i < *order; ++i)
+        body = differentiate(body, variable);
+    return substitute(body, {{name, cur->arg(0)}});
+}
 
 struct EvalStep {
     // One rewrite step. Returns {expr, changed}. When changed is false, `expr` is fully
@@ -452,7 +510,10 @@ struct EvalStep {
         }
 
         const ExprPtr cur = args_changed ? make_normal(head, std::move(args)) : e;
-        if (!hname) return {cur, false};  // no rules attach to non-symbol heads (yet)
+        if (!hname) {
+            if (ExprPtr d = evaluated_derivative_application(cur, head, ctx)) return {d, true};
+            return {cur, false};
+        }
 
         // 1. Built-in.
         if (auto it = ctx.builtins_.find(*hname); it != ctx.builtins_.end()) {

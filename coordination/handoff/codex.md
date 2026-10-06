@@ -53,6 +53,10 @@ replaces comparisons of unrelated `std::vector` iterators in polynomial
 operations. That iterator bug caused the MSVC Debug assertion while factoring.
 The sanitizer Debug bridge test and the regular Debug Giac factor smoke test
 now pass locally. Hosted CI is rerunning with a Debug Windows build.
+2026-10-06: Windows hosted Debug CI passed. Linux reached `global.cc` and
+requires `HAVE_PWD_H`/`HAVE_SYS_TYPES_H`; these are now enabled. The fork pin
+also includes checked-iterator fixes for Solve and determinant row operations,
+covered by the expanded smoke test. Hosted Linux validation remains pending.
 
 ## T-010 native calculus takeover (2026-10-05)
 

@@ -9,3 +9,4 @@ States: `active`, `idle`, `out — resets <time>`.
 | Codex   | active | Reconciling Jules completion report; T-011 merged; tested T-012 implementation preserved locally | 2026-10-06 18:34 | |
 | Copilot | out — resets when GitHub Student Developer Pack is approved | Codex covers T-004, T-006 (backup matrix) | — | needs Copilot Pro for coding agent |
 | Jules   | active | T-030 Mathics3 semantics audit tests ready for review | 2026-10-05 02:00 | |
+| princearwan-code | idle | Assigned combined task T-032 (Jupyter kernel, tests/oracles, and Mathics3 semantics audit) | 2026-10-05 | |

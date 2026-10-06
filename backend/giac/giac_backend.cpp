@@ -4,6 +4,8 @@
 #include "conversion.h"
 
 #include <mutex>
+#include <sstream>
+#include <climits>
 #include <stdexcept>
 #include "static_extern.h"
 
@@ -29,6 +31,21 @@ const Operation* operation(std::string_view head) {
 
 void require(bool condition) {
     if (!condition) throw std::invalid_argument("unsupported Giac argument shape");
+}
+
+void symbol_names(const ExprPtr& expr, std::set<std::string>& names) {
+    if (expr->is_symbol()) names.insert(expr->name());
+    if (!expr->is_normal()) return;
+    symbol_names(expr->head(),names);
+    for (const auto& arg : expr->args()) symbol_names(arg,names);
+}
+
+bool unevaluated(const ExprPtr& expr) {
+    if (!expr->is_normal()) return false;
+    for (const auto name : {"Integrate","Limit","Series","Solve","DSolve"})
+        if (expr->has_head(name)) return true;
+    for (const auto& arg : expr->args()) if (unevaluated(arg)) return true;
+    return false;
 }
 
 bool is_matrix(const ExprPtr& expr, bool square = false) {
@@ -82,7 +99,8 @@ giac::gen invoke(const ExprPtr& expr, giac::context* context) {
     if (name == "Series") {
         require(args[1]->has_head("List") && args[1]->size() == 3 && args[1]->arg(0)->is_symbol());
         const auto& order = args[1]->arg(2);
-        require(order->is_integer() && order->integer().sign() >= 0 && order->integer().to_int64().has_value());
+        require(order->is_integer() && order->integer().sign() >= 0 &&
+                order->integer().to_int64().has_value() && *order->integer().to_int64() <= INT_MAX);
         giac::vecteur call = *sequence({args[0], args[1]->arg(0), args[1]->arg(1), order}).ref_VECTptr();
         giac::gen polynomial_option(giac::_POLY1__VECT);
         polynomial_option.subtype = giac::_INT_MAPLECONVERSION;
@@ -95,6 +113,7 @@ giac::gen invoke(const ExprPtr& expr, giac::context* context) {
     }
     if (name == "DSolve") {
         require(args[2]->is_symbol());
+        if (args[1]->has_head("List")) return solve_system(expr,context);
         const ExprList dependents = args[1]->has_head("List") ? args[1]->args() : ExprList{args[1]};
         require(!dependents.empty());
         ExprList names;
@@ -112,7 +131,14 @@ giac::gen invoke(const ExprPtr& expr, giac::context* context) {
     if (name == "MatrixExp")
         return giac::gen(giac::analytic_apply(giac::at_exp, *to_giac(args[0]).ref_VECTptr(), context));
     if (name == "Dot") {
-        require(args[0]->has_head("List") && args[1]->has_head("List"));
+        for (const auto& arg : args) {
+            require(arg->has_head("List") && arg->size()>0);
+            const bool matrix = arg->arg(0)->has_head("List");
+            if (matrix) require(is_matrix(arg));
+            else for (const auto& item : arg->args()) require(!item->has_head("List"));
+        }
+        const auto columns = is_matrix(args[0]) ? args[0]->arg(0)->size() : args[0]->size();
+        require(columns == args[1]->size());
         return to_giac(args[0]) * to_giac(args[1]);
     }
     const auto head = find_head(name);
@@ -162,12 +188,16 @@ std::optional<BackendResult> GiacBackend::evaluate(const ExprPtr& expr) {
     const std::lock_guard lock(giac_mutex);
     try {
         giac::context context;
+        std::ostringstream diagnostics;
+        giac::logptr(&diagnostics,&context);
         giac::approx_mode(false, &context);
         giac::angle_radian(true, &context);
         const giac::gen output = invoke(expr, &context);
         if (output == to_giac(expr, true, expr->has_head("DSolve") ? expr->arg(2) : ExprPtr{})) return std::nullopt;
-        auto converted = from_giac(output);
-        if (!converted) return std::nullopt;
+        std::set<std::string> reserved;
+        symbol_names(expr,reserved);
+        auto converted = from_giac(output,reserved);
+        if (!converted || unevaluated(*converted)) return std::nullopt;
         if (expr->has_head("Series"))
             converted = make_normal("SeriesData", {*converted, expr->arg(1)});
         if (expr->has_head("Solve"))

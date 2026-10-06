@@ -3,44 +3,10 @@
 #include "giac_backend.h"
 #include "symats/text.h"
 #include "symats/calculus.h"
+#include "symats/eval.h"
 
 #include "test.h"
 
-#if defined(_MSC_VER) && defined(_DEBUG)
-#include <crtdbg.h>
-#include <windows.h>
-#include <dbghelp.h>
-#pragma comment(lib, "dbghelp.lib")
-namespace {
-int __cdecl trace_assert(int, char* message, int* response) {
-    std::cerr << "CRT ASSERT: " << message << '\n';
-    void* frames[32]{};
-    const auto count = CaptureStackBackTrace(0, 32, frames, nullptr);
-    HANDLE process = GetCurrentProcess();
-    SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME);
-    SymInitialize(process, nullptr, TRUE);
-    char storage[sizeof(SYMBOL_INFO) + MAX_SYM_NAME]{};
-    auto* symbol = reinterpret_cast<SYMBOL_INFO*>(storage);
-    symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-    symbol->MaxNameLen = MAX_SYM_NAME;
-    for (USHORT i = 0; i < count; ++i) {
-        DWORD64 displacement = 0;
-        IMAGEHLP_LINE64 line{};
-        line.SizeOfStruct = sizeof(line);
-        DWORD lineDisplacement = 0;
-        if (SymFromAddr(process, reinterpret_cast<DWORD64>(frames[i]), &displacement, symbol)) {
-            std::cerr << "  " << symbol->Name;
-            if (SymGetLineFromAddr64(process, reinterpret_cast<DWORD64>(frames[i]),
-                                     &lineDisplacement, &line))
-                std::cerr << " " << line.FileName << ':' << line.LineNumber;
-            std::cerr << '\n';
-        }
-    }
-    *response = 0;
-    return TRUE;
-}
-}
-#endif
 
 using namespace symats;
 namespace {
@@ -64,9 +30,6 @@ void check(std::string_view input, std::string_view expected) {
 }
 
 TEST_CASE("Giac bridge roundtrips Tier 1 expression trees") {
-#if defined(_MSC_VER) && defined(_DEBUG)
-    _CrtSetReportHook(trace_assert);
-#endif
     constexpr std::string_view cases[] = {
         "123456789012345678901234567890", "-7/13", "{x, Pi, pi, E, I, Infinity, True, False}",
         "2*x^2 + Sin[x]", "f[x, {a, b}]", "f[]", "Derivative[2][y][t]", "D[u[x,t],{x,2}]",
@@ -109,6 +72,11 @@ TEST_CASE("Giac bridge shapes algebraic and differential solutions as rules") {
     check("DSolve[{Derivative[2][y][x]+y[x]==0,y[0]==0,Derivative[1][y][0]==1},y[x],x]", "{{y[x]->Sin[x]}}");
     check("DSolve[{Derivative[1][u][t]==v[t],Derivative[1][v][t]==-u[t],u[0]==0,v[0]==1},{u[t],v[t]},t]",
           "{{u[t]->Sin[t],v[t]->Cos[t]}}");
+    check("DSolve[Derivative[1][y][x]==C1,y[x],x]", "{{y[x]->C1*x+C2}}");
+    check("DSolve[{D[u[t],t]==v[t],D[v[t],t]==0,u[0]==0,v[0]==1},{u[t],v[t]},t]",
+          "{{u[t]->t,v[t]->1}}");
+    check("DSolve[{D[u[t],t]==t,D[v[t],t]==u[t],u[0]==0,v[0]==0},{u[t],v[t]},t]",
+          "{{u[t]->t^2/2,v[t]->t^3/6}}");
 }
 
 TEST_CASE("Giac bridge performs exact linear algebra") {
@@ -148,6 +116,16 @@ TEST_CASE("Giac bridge declines malformed and unsupported requests") {
         "Factor[]", "Limit[x,x]", "Integrate[x,{x,0}]", "Series[Exp[x],{x,0,-1}]",
         "Solve[x==1,3]", "Solve[x==1,{x,x}]", "Det[{{1,2},{3}}]", "Inverse[{{0}}]",
         "DSolve[u[x,t]==0,u[x,t],{x,t}]", "Plot[x,{x,0,1}]",
+        "Dot[{{1},{2,3}},{1,2}]", "Dot[{1},{1,2}]",
+        "DSolve[{D[u[t],t]==u[t]^2,D[v[t],t]==0},{u[t],v[t]},t]",
     };
     for (const auto text : cases) CHECK(!backend.evaluate(parse_text(text)));
+}
+
+TEST_CASE("Giac registers with the evaluator and keeps backend status") {
+    Context context;
+    context.backends().add(std::make_shared<GiacBackend>());
+    const auto result = evaluate_top(parse_text("Integrate[x^2,{x,0,1}]"),context);
+    CHECK(equal(result.value,parse_text("1/3")));
+    CHECK(result.status == ResultStatus::Unverified);
 }

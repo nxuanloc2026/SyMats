@@ -144,7 +144,7 @@ giac::gen to_giac(const ExprPtr& expr, bool for_evaluation, const ExprPtr& ode_v
         giac::makesequence(to_giac(expr->head(), for_evaluation, ode_variable), leaf));
 }
 
-std::optional<ExprPtr> from_giac(const giac::gen& value) {
+std::optional<ExprPtr> from_giac(const giac::gen& value, const std::set<std::string>& reserved) {
     if (giac::is_undef(value)) return std::nullopt;
     if (value == giac::plus_inf) return make_symbol("Infinity");
     if (value == giac::minus_inf) return negate(make_symbol("Infinity"));
@@ -159,25 +159,33 @@ std::optional<ExprPtr> from_giac(const giac::gen& value) {
         if (auto decoded = decode(name)) return make_symbol(*decoded);
         if (name == "pi") return make_symbol("Pi");
         if (name.starts_with("c_") && name.size() > 2 &&
-            name.find_first_not_of("0123456789", 2) == std::string::npos)
-            return make_symbol("C" + (Integer::from_string(name.substr(2)) + Integer(1)).to_string());
+            name.find_first_not_of("0123456789", 2) == std::string::npos) {
+            auto remaining = std::stoull(name.substr(2));
+            for (std::size_t i = 1; ; ++i) {
+                const auto candidate = "C" + std::to_string(i);
+                if (!reserved.contains(candidate)) {
+                    if (remaining == 0) return make_symbol(candidate);
+                    --remaining;
+                }
+            }
+        }
         return std::nullopt;
     }
     if (value.type == giac::_FRAC) {
         const auto& f = *value.ref_FRACptr();
-        auto n = from_giac(f.num), d = from_giac(f.den);
+        auto n = from_giac(f.num,reserved), d = from_giac(f.den,reserved);
         if (!n || !d) return std::nullopt;
         return divide(*n, *d);
     }
     if (value.type == giac::_CPLX) {
-        auto real = from_giac(value.ref_CPLXptr()[0]), imaginary = from_giac(value.ref_CPLXptr()[1]);
+        auto real = from_giac(value.ref_CPLXptr()[0],reserved), imaginary = from_giac(value.ref_CPLXptr()[1],reserved);
         if (!real || !imaginary) return std::nullopt;
         return plus({*real, times({make_symbol("I"), *imaginary})});
     }
     if (value.type == giac::_VECT) {
         ExprList args;
         for (const auto& item : *value.ref_VECTptr()) {
-            auto converted = from_giac(item);
+            auto converted = from_giac(item,reserved);
             if (!converted) return std::nullopt;
             args.push_back(*converted);
         }
@@ -187,7 +195,7 @@ std::optional<ExprPtr> from_giac(const giac::gen& value) {
     if (value.type != giac::_SYMB) return std::nullopt;
     const auto& sym = *value.ref_SYMBptr();
     if (sym.sommet == giac::at_inv || sym.sommet == giac::at_neg) {
-        auto arg = from_giac(sym.feuille);
+        auto arg = from_giac(sym.feuille,reserved);
         if (!arg) return std::nullopt;
         return sym.sommet == giac::at_inv ? power(*arg, make_integer(-1)) : negate(*arg);
     }
@@ -195,7 +203,7 @@ std::optional<ExprPtr> from_giac(const giac::gen& value) {
     giac::gen leaf = sym.feuille;
     if (sym.sommet == giac::at_of) {
         if (leaf.type != giac::_VECT || leaf.ref_VECTptr()->size() != 2) return std::nullopt;
-        auto converted = from_giac(leaf.ref_VECTptr()->at(0));
+        auto converted = from_giac(leaf.ref_VECTptr()->at(0),reserved);
         if (!converted) return std::nullopt;
         head = *converted;
         const giac::gen arguments = leaf.ref_VECTptr()->at(1);
@@ -210,7 +218,7 @@ std::optional<ExprPtr> from_giac(const giac::gen& value) {
     const giac::vecteur leaves = leaf.type == giac::_VECT && leaf.subtype == giac::_SEQ__VECT
         ? *leaf.ref_VECTptr() : giac::makevecteur(leaf);
     for (const auto& item : leaves) {
-        auto converted = from_giac(item);
+        auto converted = from_giac(item,reserved);
         if (!converted) return std::nullopt;
         args.push_back(*converted);
     }

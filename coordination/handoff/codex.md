@@ -1,5 +1,18 @@
 # Handoff — Codex
 
+## T-012 checkpoint (2026-10-06 13:24 UTC)
+
+All six Giac bridge test cases pass under MSVC AddressSanitizer Debug, including
+exact round-trips, calculus/algebra, scalar and coupled ODEs, matrix operations,
+malformed input, fresh ODE constant names, and evaluator registration. Removed
+the temporary Windows assertion tracer. The system adapter uses Giac's Laplace
+and linear solvers for first-order constant-coefficient systems; its limits are
+documented in backend/giac/README.md. One additional fork fix in
+signalprocessing.cc prevents a repeated inverse-Laplace use-after-free; fold
+that pin and regression into T-011 before final bridge PR. Linux T-011 CI passed
+again; Windows GMP downloads repeatedly time out. A kernel.org mirror matches
+the pinned vcpkg port's SHA512 and will be used to seed its download cache.
+
 ## T-012 Giac bridge (2026-10-05)
 
 Claimed `codex/T-012-giac-bridge` from the T-011 branch at `6240a8d` while

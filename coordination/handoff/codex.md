@@ -1,5 +1,17 @@
 # Handoff — Codex
 
+## Reconcile Jules completion report (2026-10-06 18:35 UTC)
+
+Loc reports that Jules finished the work. Fetched all remote branches and
+merged origin/main (6aa447b) into the local T-012 branch, resolving coordination
+conflicts without dropping the bridge. T-011 PR #22 is merged and all three
+workflows passed at 1dca42e, including Windows/Linux Giac builds. The published
+Jules handoff and remote branches do not yet contain T-012/T-013/T-015/T-026;
+requested the Jules task or PR link to identify and review the newer work.
+T-012 is preserved locally at 1f9acf4 with its six passing sanitizer test cases;
+no duplicate PR has been opened. Further overlapping implementation awaits
+identification of Jules's result. T-013/T-015/T-026 have not been implemented here.
+
 ## T-011 checkpoint (2026-10-06 13:28 UTC)
 
 The fork pin 6ba6b31 also fixes the inverse-Laplace temporary-identifier

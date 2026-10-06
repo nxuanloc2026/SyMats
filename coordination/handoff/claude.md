@@ -1,24 +1,12 @@
 # Handoff — Claude
 
 ## Current task
-None in progress. Next: T-001 (evaluator and pattern matching).
+T-001: Evaluator, pattern matching, definitions, MathBackend interface. Status: review / PR ready.
 
-## Done
-- v0.1 core: `Integer`, `Rational`, `Expr`, canonical `plus`/`times`/`power`, ordering,
-  hashing, full-form printer, tests (`tests/test_integer.cpp`, `test_rational.cpp`, `test_expr.cpp`).
-- Fixed grouping bug: numeric multiple of a sum is distributed only inside sums
-  (`core/src/canonical.cpp`, `collect_terms`).
-
-## Plan for T-001 (so a backup can start it)
-1. `core/include/symats/eval.h`: `ExprPtr evaluate(const ExprPtr&, Context&)`; `Context` holds
-   per-symbol own-values and down-values (rule lists).
-2. `core/src/match.cpp`: `match(pattern, expr, Bindings&)` supporting `Blank` (`x_`),
-   `BlankSequence` (`x__`), head-restricted blanks (`x_Integer`), with backtracking for
-   sequences; `Orderless` heads try permutations later (not in first PR).
-3. `replace_all(expr, rules)`; evaluation repeats until the result is unchanged (cap iterations).
-4. Attributes: `HoldAll`, `HoldFirst`, `Listable`, `Flat`, `Orderless` (store, honor HoldAll first).
-5. Tests: `fact(0)=1; fact(n_):=n*fact(n-1); fact(20)`.
-
-## Open questions
-- T-003 decided: `=` → `Set`, `==` → `Equal`, `:=` → `SetDelayed`. Evaluator handles
-  `Set`/`SetDelayed` nodes; text syntax is Codex's T-002.
+## Takeover by Jules (2026-10-02 05:35 UTC)
+- Jules took over and completed T-001.
+- Implemented `MathBackend` interface (`core/include/symats/backend.h` & `core/src/backend.cpp`).
+- Implemented pattern matching & rule replacement (`core/include/symats/pattern.h` & `core/src/pattern.cpp`).
+- Implemented `Session` evaluator with `Set`, `SetDelayed`, recursive evaluation, and `MathBackend` dispatch (`core/include/symats/evaluator.h` & `core/src/evaluator.cpp`).
+- Added unit tests in `tests/test_evaluator.cpp` and registered in `tests/CMakeLists.txt`.
+- All tests build and pass via `ctest`.

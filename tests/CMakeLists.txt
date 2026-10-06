@@ -9,6 +9,7 @@ add_executable(symats_tests
   test_mathjson.cpp
   test_edge_cases.cpp
   test_backend_comparison.cpp
+  test_evaluator.cpp
 )
 target_link_libraries(symats_tests PRIVATE symats::core symats::convert)
 add_test(NAME symats_tests COMMAND symats_tests)

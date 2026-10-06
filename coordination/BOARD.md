@@ -9,7 +9,7 @@ Statuses: `todo` → `in-progress` → `review` (PR open) → `done`; also `bloc
 |----|------|------|-------|--------|--------|--------|-------|---------------|
 | T-008 | Install Git + C++ workload; build in VS 2022; push repo to GitHub | setup | Loc | — | todo | T-004, T-005, all cloud work | | 2026-10-01 |
 | T-003 | Decide: `=` means assignment (Set) or equation (Equal)? **Decided: `=` → `Set`, `==` → `Equal`, `:=` → `SetDelayed`** (spec updated) | spec | Loc | — | done | | | 2026-10-02 |
-| T-001 | Evaluator: definitions (`Set`, `SetDelayed`), pattern matching (`x_`, `x__`, `x_Integer`), rule replacement, attributes; **plus `MathBackend` interface in core/ and dispatch of math heads (`Integrate`, `Solve`, `DSolve`, …) to the registered backend** | core | Claude | Codex | todo | T-010, T-012 | | 2026-10-02 |
+| T-001 | Evaluator: definitions (`Set`, `SetDelayed`), pattern matching (`x_`, `x__`, `x_Integer`), rule replacement, attributes; **plus `MathBackend` interface in core/ and dispatch of math heads (`Integrate`, `Solve`, `DSolve`, …) to the registered backend** | core | Jules (for Claude) | Codex | review | T-010, T-012 | | 2026-10-02 05:35 |
 | T-002 | Converter fixes: (1) nesting-depth limit instead of crash, (2) readable output (`x - y`, `-x^2`, `sin(x)`, `==`, `->`), (3) decimals, (4) document/decide space-before-paren, (5) `=` per T-003 | convert | Codex | Claude | done | | backup-ok | 2026-10-02 03:38 |
 | T-004 | Verify MSVC build + GitHub Actions CI green on Windows and Linux; fix warnings | build/CI | Copilot | Codex | todo | | backup-ok | 2026-10-01 |
 | T-005 | Tests: parser edge cases (unicode, whitespace, huge numbers, malformed input), Integer/Rational property tests | tests | Jules | Copilot | review | | backup-ok | 2026-10-02 03:46 |

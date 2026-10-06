@@ -23,3 +23,4 @@ Statuses: `todo` → `in-progress` → `review` (PR open) → `done`; also `bloc
 | T-014 | Backend comparison suites: Rubi integral test set (MIT) and SymPy cases (BSD) run through Symats in CI; report mismatches | tests | Jules | Copilot | review | | backup-ok | 2026-10-02 04:35 |
 | T-015 | SUNDIALS: add to `third_party/` (Copilot builds) and `backend/sundials/` NDSolve adapter (Claude) | backend | Claude | Copilot | todo | numeric plots of ODEs | | 2026-10-02 |
 | T-016 | App shell: Tauri desktop app with MathLive editor cell, text toggle, Plotly plot cell; talks to engine through `bridge/` | app | Codex | Claude | todo | | | 2026-10-02 |
+| T-020 | Parse multi-statement cells, newline/semicolon continuation, output suppression, and %/%%/%n history | convert | Jules | Copilot | review | | backup-ok | 2026-10-02 05:00 |

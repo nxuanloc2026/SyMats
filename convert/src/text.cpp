@@ -78,16 +78,48 @@ public:
     explicit Parser(std::string_view input) : input_(input) {}
 
     ExprPtr parse() {
-        ExprPtr result = relation();
-        space();
-        if (pos_ != input_.size()) error("unexpected character");
-        return result;
+        ExprList stmts;
+        skip_full_whitespace();
+        while (pos_ < input_.size()) {
+            if (take_exact(';')) {
+                stmts.push_back(make_symbol("Null"));
+                skip_full_whitespace();
+                continue;
+            }
+            ExprPtr stmt = relation();
+            stmts.push_back(stmt);
+
+            bool had_semicolon = false;
+            bool had_newline = false;
+            skip_inline_space();
+            while (pos_ < input_.size() && (input_[pos_] == ';' || input_[pos_] == '\n' || input_[pos_] == '\r')) {
+                if (input_[pos_] == ';') {
+                    had_semicolon = true;
+                } else if (input_[pos_] == '\n' || input_[pos_] == '\r') {
+                    had_newline = true;
+                }
+                ++pos_;
+                skip_inline_space();
+            }
+            if (pos_ < input_.size() && !had_semicolon && !had_newline) {
+                error("unexpected character");
+            }
+            skip_full_whitespace();
+            if (had_semicolon && pos_ == input_.size()) {
+                stmts.push_back(make_symbol("Null"));
+            }
+        }
+
+        if (stmts.empty()) error("expected expression");
+        if (stmts.size() == 1) return stmts.front();
+        return make_normal("CompoundExpression", std::move(stmts));
     }
 
 private:
     std::string_view input_;
     std::size_t pos_ = 0;
     std::size_t depth_ = 0;
+    std::size_t delimiter_depth_ = 0;
     static constexpr std::size_t kMaxDepth = 256;
 
     struct DepthGuard {
@@ -103,32 +135,79 @@ private:
         std::size_t& depth_;
     };
 
-    void space() {
+    void skip_full_whitespace() {
         while (pos_ < input_.size() && std::isspace(static_cast<unsigned char>(input_[pos_])))
             ++pos_;
     }
+
+    void skip_inline_space() {
+        while (pos_ < input_.size() && (input_[pos_] == ' ' || input_[pos_] == '\t'))
+            ++pos_;
+    }
+
+    void space() {
+        if (delimiter_depth_ > 0) {
+            skip_full_whitespace();
+        } else {
+            skip_inline_space();
+        }
+    }
+
     char peek() {
         space();
         return pos_ < input_.size() ? input_[pos_] : '\0';
     }
+
+    bool take_exact(char c) {
+        skip_full_whitespace();
+        if (pos_ < input_.size() && input_[pos_] == c) {
+            ++pos_;
+            skip_full_whitespace();
+            return true;
+        }
+        return false;
+    }
+
     bool take(char c) {
         if (peek() != c) return false;
         ++pos_;
+        skip_full_whitespace();
         return true;
     }
+
     [[noreturn]] void error(const char* what) const {
         throw std::invalid_argument(std::string("text expression at offset ") +
                                     std::to_string(pos_) + ": " + what);
     }
+
     void expect(char c) {
         if (!take(c)) error("missing delimiter");
     }
+
     bool take_token(std::string_view token) {
         space();
-        if (input_.substr(pos_, token.size()) != token) return false;
-        pos_ += token.size();
-        return true;
+        if (input_.substr(pos_, token.size()) == token) {
+            pos_ += token.size();
+            skip_full_whitespace();
+            return true;
+        }
+        // Look ahead across newlines if token is a binary operator
+        if (delimiter_depth_ == 0) {
+            skip_inline_space();
+            if (pos_ < input_.size() && (input_[pos_] == '\n' || input_[pos_] == '\r')) {
+                std::size_t saved = pos_;
+                skip_full_whitespace();
+                if (input_.substr(pos_, token.size()) == token) {
+                    pos_ += token.size();
+                    skip_full_whitespace();
+                    return true;
+                }
+                pos_ = saved;
+            }
+        }
+        return false;
     }
+
     ExprPtr relation() {
         DepthGuard guard(depth_);
         ExprPtr left = sum();
@@ -144,42 +223,97 @@ private:
         if (take_token("=")) return make_normal("Set", {left, relation()});
         return left;
     }
+
     ExprPtr sum() {
         ExprPtr left = product();
         while (true) {
-            if (take('+')) left = plus(left, product());
-            else if (peek() == '-' && input_.substr(pos_, 2) != "->" && take('-'))
+            if (take_token("+")) left = plus(left, product());
+            else if (peek_minus_op()) {
+                take_token("-");
                 left = subtract(left, product());
-            else return left;
+            } else return left;
         }
     }
+
+    bool peek_minus_op() {
+        space();
+        if (pos_ < input_.size() && input_[pos_] == '-' && input_.substr(pos_, 2) != "->")
+            return true;
+        if (delimiter_depth_ == 0) {
+            skip_inline_space();
+            if (pos_ < input_.size() && (input_[pos_] == '\n' || input_[pos_] == '\r')) {
+                std::size_t saved = pos_;
+                skip_full_whitespace();
+                if (pos_ < input_.size() && input_[pos_] == '-' && input_.substr(pos_, 2) != "->") {
+                    pos_ = saved;
+                    return true;
+                }
+                pos_ = saved;
+            }
+        }
+        return false;
+    }
+
     ExprPtr product() {
         ExprPtr left = unary();
         while (true) {
-            if (take('*')) left = times(left, unary());
-            else if (take('/')) left = divide(left, unary());
+            if (take_token("*")) left = times(left, unary());
+            else if (take_token("/")) left = divide(left, unary());
             else {
-                // Juxtaposition, such as 2x or a b, denotes multiplication.
-                char c = peek();
-                if (c == '(' || c == '[' || std::isalpha(static_cast<unsigned char>(c)))
-                    left = times(left, unary());
-                else return left;
+                // Juxtaposition, such as 2x or a b, denotes multiplication on the same line.
+                skip_inline_space();
+                if (pos_ < input_.size()) {
+                    char c = input_[pos_];
+                    if (c == '(' || c == '[' || c == '{' || std::isalpha(static_cast<unsigned char>(c)) || c == '%')
+                        left = times(left, unary());
+                    else return left;
+                } else return left;
             }
         }
     }
+
     ExprPtr unary() {
         DepthGuard guard(depth_);
         if (take('+')) return unary();
         if (take('-')) return negate(unary());
         return exponent();
     }
+
     ExprPtr exponent() {
         ExprPtr base = atom();
-        if (take('^')) return power(base, unary());  // right associative
+        if (take_token("^")) return power(base, unary());  // right associative
         return base;
     }
+
     ExprPtr atom() {
         char c = peek();
+        if (c == '%') {
+            std::size_t count = 0;
+            while (pos_ < input_.size() && input_[pos_] == '%') {
+                ++count;
+                ++pos_;
+            }
+            if (count == 1) {
+                if (pos_ < input_.size() && std::isdigit(static_cast<unsigned char>(input_[pos_]))) {
+                    std::size_t start = pos_;
+                    while (pos_ < input_.size() && std::isdigit(static_cast<unsigned char>(input_[pos_])))
+                        ++pos_;
+                    Integer n = Integer::from_string(std::string(input_.substr(start, pos_ - start)));
+                    return make_normal("Out", {make_integer(n)});
+                }
+                if (pos_ + 1 < input_.size() && input_[pos_] == '-' &&
+                    std::isdigit(static_cast<unsigned char>(input_[pos_ + 1]))) {
+                    ++pos_;
+                    std::size_t start = pos_;
+                    while (pos_ < input_.size() && std::isdigit(static_cast<unsigned char>(input_[pos_])))
+                        ++pos_;
+                    Integer n = Integer::from_string(std::string(input_.substr(start, pos_ - start)));
+                    return make_normal("Out", {make_integer(-n)});
+                }
+                return make_normal("Out", {});
+            }
+            return make_normal("Out", {make_integer(Integer(-static_cast<long long>(count)))});
+        }
         if (std::isdigit(static_cast<unsigned char>(c)) ||
             (c == '.' && pos_ + 1 < input_.size() &&
              std::isdigit(static_cast<unsigned char>(input_[pos_ + 1])))) {
@@ -200,6 +334,7 @@ private:
                 return make_rational(Integer::from_string(digits),
                                      Integer::from_string(denominator));
             }
+            if (pos_ < input_.size() && input_[pos_] == '.') error("invalid number format");
             return make_integer(Integer::from_string(input_.substr(start, pos_ - start)));
         }
         if (take('`')) {
@@ -233,26 +368,32 @@ private:
                 return make_symbol(std::move(name));
             }
             ++pos_;
+            ++delimiter_depth_;
             ExprList args;
             if (!take(')')) {
                 do { args.push_back(relation()); } while (take(','));
                 expect(')');
             }
+            --delimiter_depth_;
             return call(name, std::move(args));
         }
         if (take('(')) {
+            ++delimiter_depth_;
             ExprPtr inside = relation();
             expect(')');
+            --delimiter_depth_;
             return inside;
         }
         if (c == '[' || c == '{') {
             ++pos_;
+            ++delimiter_depth_;
             char close = c == '[' ? ']' : '}';
             ExprList items;
             if (!take(close)) {
                 do { items.push_back(relation()); } while (take(','));
                 expect(close);
             }
+            --delimiter_depth_;
             return make_normal("List", std::move(items));
         }
         error("expected expression");
@@ -279,6 +420,7 @@ bool negative_term(const ExprPtr& e) {
 }
 
 int precedence(const ExprPtr& e) {
+    if (e->has_head("CompoundExpression")) return 0;
     if (!infix_token(e).empty()) return 5;
     if (e->has_head("Plus")) return 10;
     if (e->has_head("Times")) return 20;
@@ -317,6 +459,33 @@ std::string write(const ExprPtr& e, int parent, std::size_t depth) {
                 }
                 out += "`";
             }
+        }
+    } else if (e->has_head("CompoundExpression")) {
+        for (std::size_t i = 0; i < e->size(); ++i) {
+            const bool is_last = (i == e->size() - 1);
+            if (is_last && e->arg(i)->is_symbol("Null")) {
+                out += ";";
+            } else {
+                if (i > 0) out += "; ";
+                out += write(e->arg(i), 0, depth + 1);
+            }
+        }
+    } else if (e->has_head("Out")) {
+        if (e->size() == 0) {
+            out = "%";
+        } else if (e->size() == 1 && e->arg(0)->is_integer()) {
+            const Integer& val = e->arg(0)->integer();
+            if (val == Integer(-1)) out = "%";
+            else if (val == Integer(-2)) out = "%%";
+            else if (val == Integer(-3)) out = "%%%";
+            else out = "%" + val.to_string();
+        } else {
+            out = "Out(";
+            for (std::size_t i = 0; i < e->size(); ++i) {
+                if (i) out += ", ";
+                out += write(e->arg(i), 0, depth + 1);
+            }
+            out += ")";
         }
     } else if (e->has_head("Plus") && e->size() > 0) {
         for (std::size_t i = 0; i < e->size(); ++i) {

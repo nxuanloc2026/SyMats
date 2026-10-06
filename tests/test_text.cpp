@@ -93,6 +93,42 @@ TEST_CASE("Text: space before parenthesis means multiplication") {
              std::string("x(Plus(1, y))"));
 }
 
+TEST_CASE("Text: multi-statement cells, output suppression, line continuation, and history") {
+    // Multi-statement cells separated by semicolons or newlines
+    CHECK_EQ(to_full_form(parse_text("x = 1; y = 2; x + y")),
+             std::string("CompoundExpression(Set(x, 1), Set(y, 2), Plus(x, y))"));
+    CHECK_EQ(to_full_form(parse_text("x = 1\ny = 2\nx + y")),
+             std::string("CompoundExpression(Set(x, 1), Set(y, 2), Plus(x, y))"));
+
+    // Trailing semicolon suppresses output by ending with Null
+    CHECK_EQ(to_full_form(parse_text("x = 1;")),
+             std::string("CompoundExpression(Set(x, 1), Null)"));
+    CHECK_EQ(to_full_form(parse_text("x = 1; y = 2;")),
+             std::string("CompoundExpression(Set(x, 1), Set(y, 2), Null)"));
+
+    // Line continuation over pending binary operators
+    CHECK_EQ(to_full_form(parse_text("x +\n y")),
+             std::string("Plus(x, y)"));
+    CHECK_EQ(to_full_form(parse_text("x -\n y")),
+             std::string("Plus(x, Times(-1, y))"));
+
+    // History references %, %%, %%%, %n, %-n
+    CHECK_EQ(to_full_form(parse_text("%")), std::string("Out()"));
+    CHECK_EQ(to_full_form(parse_text("%%")), std::string("Out(-2)"));
+    CHECK_EQ(to_full_form(parse_text("%%%")), std::string("Out(-3)"));
+    CHECK_EQ(to_full_form(parse_text("%1")), std::string("Out(1)"));
+    CHECK_EQ(to_full_form(parse_text("%12")), std::string("Out(12)"));
+    CHECK_EQ(to_full_form(parse_text("%-2")), std::string("Out(-2)"));
+
+    CHECK_EQ(to_text(parse_text("%-2")), std::string("%%"));
+    CHECK_EQ(to_text(parse_text("%%")), std::string("%%"));
+
+    // Round-trip tests for multi-statement, output suppression, and history
+    round_trip("a = 1; b = 2; a + b");
+    round_trip("a = 1; b = 2;");
+    round_trip("% + %1 + %%");
+}
+
 TEST_CASE("Text: nesting limit throws before stack exhaustion") {
     const std::string parens = std::string(400, '(') + "x" + std::string(400, ')');
     CHECK_THROWS(parse_text(parens));

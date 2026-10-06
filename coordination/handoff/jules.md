@@ -7,16 +7,16 @@ In order, one PR each:
 3. **T-030** Mathics3 semantics doc-tests (reference only, GPL).
 
 ## Current task
-T-009: Optional GMP backend for Integer behind CMake option SYMATS_USE_GMP.
-Branch: `jules/T-009-gmp-backend`
+T-020: `parse_cell(text)` in `convert/`.
+Branch: `jules/T-020-parse-cell`
 Status: review / PR ready.
 
-## Notes on T-009
-- Added `SYMATS_USE_GMP` option (default `OFF`) in `CMakeLists.txt`.
-- Added detection for `gmp.h`, `gmpxx.h`, `libgmp`, and `libgmpxx` in `core/CMakeLists.txt` when `SYMATS_USE_GMP` is `ON`.
-- Implemented `mpz_class` backend for `symats::Integer` in `core/include/symats/integer.h` and `core/src/integer.cpp`.
-- Forced base 10 in `Integer::from_string` (`mpz_set_str(..., 10)`) to avoid octal parsing of leading zeros.
-- Verified 100% of tests pass under both `SYMATS_USE_GMP=OFF` and `SYMATS_USE_GMP=ON`.
+## Notes on T-020
+- Declared `std::vector<Statement> parse_cell(std::string_view cell_text)` in `convert/include/symats/text.h`.
+- Implemented cell statement splitting in `convert/src/text.cpp`, handling top-level newlines, semicolons, bracket nesting, string literals, backticks, comments `(* ... *)`, and binary operator line continuations.
+- Added support in `parse_text` for `%`, `%%`, `%n`, `%-k` history shortcuts -> `Out(...)`.
+- Added support in `parse_text` for `;` operator -> `CompoundExpression(...)`.
+- Added unit tests in `tests/test_text.cpp`.
 
 ## Notes
 - Updated `tests/test_backend_comparison.cpp` with T-014 data fixes (Rational nodes, dropped +C, Rule output format for `Solve`) and added Maxima 5.46.0 test oracle suite.

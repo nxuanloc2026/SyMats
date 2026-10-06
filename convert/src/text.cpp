@@ -78,7 +78,7 @@ public:
     explicit Parser(std::string_view input) : input_(input) {}
 
     ExprPtr parse() {
-        ExprPtr result = relation();
+        ExprPtr result = compound();
         space();
         if (pos_ != input_.size()) error("unexpected character");
         return result;
@@ -104,8 +104,27 @@ private:
     };
 
     void space() {
-        while (pos_ < input_.size() && std::isspace(static_cast<unsigned char>(input_[pos_])))
-            ++pos_;
+        while (pos_ < input_.size()) {
+            if (std::isspace(static_cast<unsigned char>(input_[pos_]))) {
+                ++pos_;
+            } else if (input_[pos_] == '(' && pos_ + 1 < input_.size() && input_[pos_ + 1] == '*') {
+                pos_ += 2;
+                int depth = 1;
+                while (pos_ < input_.size() && depth > 0) {
+                    if (input_[pos_] == '(' && pos_ + 1 < input_.size() && input_[pos_ + 1] == '*') {
+                        ++depth;
+                        pos_ += 2;
+                    } else if (input_[pos_] == '*' && pos_ + 1 < input_.size() && input_[pos_ + 1] == ')') {
+                        --depth;
+                        pos_ += 2;
+                    } else {
+                        ++pos_;
+                    }
+                }
+            } else {
+                break;
+            }
+        }
     }
     char peek() {
         space();
@@ -128,6 +147,21 @@ private:
         if (input_.substr(pos_, token.size()) != token) return false;
         pos_ += token.size();
         return true;
+    }
+    ExprPtr compound() {
+        DepthGuard guard(depth_);
+        ExprPtr left = relation();
+        if (!take(';')) return left;
+        ExprList args{std::move(left)};
+        do {
+            space();
+            if (pos_ == input_.size() || peek() == ')' || peek() == ']' || peek() == '}') {
+                args.push_back(make_symbol("Null"));
+                break;
+            }
+            args.push_back(relation());
+        } while (take(';'));
+        return make_normal("CompoundExpression", std::move(args));
     }
     ExprPtr relation() {
         DepthGuard guard(depth_);
@@ -240,8 +274,32 @@ private:
             }
             return call(name, std::move(args));
         }
+        if (take('%')) {
+            if (take('%')) {
+                return make_normal("Out", {make_integer(-2)});
+            }
+            if (peek() == '-') {
+                std::size_t start = pos_;
+                ++pos_;
+                if (pos_ < input_.size() && std::isdigit(static_cast<unsigned char>(input_[pos_]))) {
+                    while (pos_ < input_.size() && std::isdigit(static_cast<unsigned char>(input_[pos_])))
+                        ++pos_;
+                    long long k = std::stoll(std::string(input_.substr(start + 1, pos_ - start - 1)));
+                    return make_normal("Out", {make_integer(-k)});
+                }
+                pos_ = start;
+            }
+            if (std::isdigit(static_cast<unsigned char>(peek()))) {
+                std::size_t start = pos_;
+                while (pos_ < input_.size() && std::isdigit(static_cast<unsigned char>(input_[pos_])))
+                    ++pos_;
+                long long n = std::stoll(std::string(input_.substr(start, pos_ - start)));
+                return make_normal("Out", {make_integer(n)});
+            }
+            return make_normal("Out", {});
+        }
         if (take('(')) {
-            ExprPtr inside = relation();
+            ExprPtr inside = compound();
             expect(')');
             return inside;
         }
@@ -386,6 +444,178 @@ ExprPtr parse_text(std::string_view input) { return Parser(input).parse(); }
 std::string to_text(const ExprPtr& expr) {
     if (!expr) throw std::invalid_argument("to_text: null expression");
     return write(expr, 0, 0);
+}
+
+namespace {
+
+bool is_continuation_op(std::string_view token) {
+    static constexpr std::string_view ops[] = {
+        ":=", "==", "!=", "<=", ">=", "->", "/.", "&&", "||",
+        "+", "-", "*", "/", "^", "=", ",", "<", ">"
+    };
+    for (std::string_view op : ops) {
+        if (token == op) return true;
+    }
+    return false;
+}
+
+bool is_continuation(std::string_view text, std::size_t pos) {
+    std::size_t prev = pos;
+    while (prev > 0 && (text[prev - 1] == ' ' || text[prev - 1] == '\t' || text[prev - 1] == '\r')) {
+        --prev;
+    }
+    if (prev > 0) {
+        if (prev >= 2 && is_continuation_op(text.substr(prev - 2, 2))) return true;
+        if (is_continuation_op(text.substr(prev - 1, 1))) return true;
+    }
+
+    std::size_t next = pos + 1;
+    while (next < text.size() && (text[next] == ' ' || text[next] == '\t' || text[next] == '\r' || text[next] == '\n')) {
+        ++next;
+    }
+    if (next < text.size()) {
+        if (next + 1 < text.size() && is_continuation_op(text.substr(next, 2))) return true;
+        if (is_continuation_op(text.substr(next, 1))) return true;
+    }
+
+    return false;
+}
+
+}  // namespace
+
+std::vector<Statement> parse_cell(std::string_view cell_text) {
+    std::vector<Statement> statements;
+    std::size_t start = 0;
+    std::size_t pos = 0;
+    std::size_t paren_depth = 0;
+    std::size_t bracket_depth = 0;
+    std::size_t brace_depth = 0;
+    int comment_depth = 0;
+    bool in_string = false;
+    bool in_backtick = false;
+
+    auto strip_comments_and_whitespace = [](std::string_view s) {
+        std::size_t p = 0;
+        while (p < s.size()) {
+            if (std::isspace(static_cast<unsigned char>(s[p]))) {
+                ++p;
+            } else if (s[p] == '(' && p + 1 < s.size() && s[p + 1] == '*') {
+                p += 2;
+                int depth = 1;
+                while (p < s.size() && depth > 0) {
+                    if (s[p] == '(' && p + 1 < s.size() && s[p + 1] == '*') {
+                        ++depth;
+                        p += 2;
+                    } else if (s[p] == '*' && p + 1 < s.size() && s[p + 1] == ')') {
+                        --depth;
+                        p += 2;
+                    } else {
+                        ++p;
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+        return s.substr(p);
+    };
+
+    auto emit_statement = [&](std::size_t end, bool suppressed) {
+        std::string_view chunk = cell_text.substr(start, end - start);
+        std::size_t c_start = 0;
+        while (c_start < chunk.size() && std::isspace(static_cast<unsigned char>(chunk[c_start]))) {
+            ++c_start;
+        }
+        std::size_t c_end = chunk.size();
+        while (c_end > c_start && std::isspace(static_cast<unsigned char>(chunk[c_end - 1]))) {
+            --c_end;
+        }
+        std::string_view trimmed = chunk.substr(c_start, c_end - c_start);
+        if (strip_comments_and_whitespace(trimmed).empty()) return;
+
+        ExprPtr expr = parse_text(trimmed);
+        statements.push_back(Statement{expr, suppressed});
+    };
+
+    while (pos < cell_text.size()) {
+        char c = cell_text[pos];
+
+        if (comment_depth > 0) {
+            if (c == '*' && pos + 1 < cell_text.size() && cell_text[pos + 1] == ')') {
+                --comment_depth;
+                pos += 2;
+                continue;
+            }
+            if (c == '(' && pos + 1 < cell_text.size() && cell_text[pos + 1] == '*') {
+                ++comment_depth;
+                pos += 2;
+                continue;
+            }
+            ++pos;
+            continue;
+        }
+
+        if (in_string) {
+            if (c == '\\' && pos + 1 < cell_text.size()) {
+                pos += 2;
+            } else {
+                if (c == '"') in_string = false;
+                ++pos;
+            }
+            continue;
+        }
+
+        if (in_backtick) {
+            if (c == '`') {
+                if (pos + 1 < cell_text.size() && cell_text[pos + 1] == '`') pos += 2;
+                else { in_backtick = false; ++pos; }
+            } else ++pos;
+            continue;
+        }
+
+        if (c == '(' && pos + 1 < cell_text.size() && cell_text[pos + 1] == '*') {
+            comment_depth = 1;
+            pos += 2;
+            continue;
+        }
+
+        if (c == '"') { in_string = true; ++pos; continue; }
+        if (c == '`') { in_backtick = true; ++pos; continue; }
+
+        if (c == '(') { ++paren_depth; ++pos; continue; }
+        if (c == ')') { if (paren_depth > 0) --paren_depth; ++pos; continue; }
+        if (c == '[') { ++bracket_depth; ++pos; continue; }
+        if (c == ']') { if (bracket_depth > 0) --bracket_depth; ++pos; continue; }
+        if (c == '{') { ++brace_depth; ++pos; continue; }
+        if (c == '}') { if (brace_depth > 0) --brace_depth; ++pos; continue; }
+
+        if (paren_depth == 0 && bracket_depth == 0 && brace_depth == 0) {
+            if (c == ';') {
+                emit_statement(pos, true);
+                ++pos;
+                start = pos;
+                continue;
+            }
+            if (c == '\n') {
+                if (is_continuation(cell_text, pos)) {
+                    ++pos;
+                    continue;
+                }
+                emit_statement(pos, false);
+                ++pos;
+                start = pos;
+                continue;
+            }
+        }
+
+        ++pos;
+    }
+
+    if (start < cell_text.size()) {
+        emit_statement(cell_text.size(), false);
+    }
+
+    return statements;
 }
 
 }  // namespace symats

@@ -101,3 +101,39 @@ TEST_CASE("Text: nesting limit throws before stack exhaustion") {
     for (int i = 0; i < 300; ++i) deep = make_normal("f", {deep});
     CHECK_THROWS(to_text(deep));
 }
+
+TEST_CASE("Text: history shortcuts") {
+    CHECK_EQ(to_full_form(parse_text("%")), std::string("Out()"));
+    CHECK_EQ(to_full_form(parse_text("%%")), std::string("Out(-2)"));
+    CHECK_EQ(to_full_form(parse_text("%5")), std::string("Out(5)"));
+    CHECK_EQ(to_full_form(parse_text("%-3")), std::string("Out(-3)"));
+    CHECK_EQ(to_full_form(parse_text("% + %1")), std::string("Plus(Out(), Out(1))"));
+}
+
+TEST_CASE("Text: compound expressions") {
+    CHECK_EQ(to_full_form(parse_text("a = 1; b = 2")),
+             std::string("CompoundExpression(Set(a, 1), Set(b, 2))"));
+    CHECK_EQ(to_full_form(parse_text("(x = 1; y = 2;)")),
+             std::string("CompoundExpression(Set(x, 1), Set(y, 2), Null)"));
+}
+
+TEST_CASE("Text: parse_cell multi-statement splitting") {
+    auto stmts1 = parse_cell("x = 5;\ny = 10");
+    CHECK_EQ(stmts1.size(), std::size_t(2));
+    CHECK_EQ(to_full_form(stmts1[0].expr), std::string("Set(x, 5)"));
+    CHECK(stmts1[0].suppressed);
+    CHECK_EQ(to_full_form(stmts1[1].expr), std::string("Set(y, 10)"));
+    CHECK(!stmts1[1].suppressed);
+
+    auto stmts2 = parse_cell("a = 1 +\n    2;\nb = a^2");
+    CHECK_EQ(stmts2.size(), std::size_t(2));
+    CHECK_EQ(to_full_form(stmts2[0].expr), std::string("Set(a, 3)"));
+    CHECK(stmts2[0].suppressed);
+    CHECK_EQ(to_full_form(stmts2[1].expr), std::string("Set(b, Power(a, 2))"));
+    CHECK(!stmts2[1].suppressed);
+
+    auto stmts3 = parse_cell("(* comment *)\na = 1; (* set a *)");
+    CHECK_EQ(stmts3.size(), std::size_t(1));
+    CHECK_EQ(to_full_form(stmts3[0].expr), std::string("Set(a, 1)"));
+    CHECK(stmts3[0].suppressed);
+}

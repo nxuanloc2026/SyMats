@@ -9,7 +9,7 @@ States: `active`, `idle`, `out — resets <time>`.
 | Claude  | out — usage limit reached (Loc to fill reset time) | All Claude tasks delegated: Codex = engine, Jules = tests/GMP/kernel. See handoff/claude.md | 2026-10-03 | |
 | Codex | idle | T-004 fixed in PR #10; Windows Debug and Release tests pass | 2026-10-05 00:05 | |
 | Copilot | out — resets when GitHub Student Developer Pack is approved | Codex covers T-004, T-006 (backup matrix) | — | needs Copilot Pro for coding agent |
-| Jules   | active | T-009 GMP backend ready for review | 2026-10-05 01:00 | |
+| Jules   | active | T-020 parse_cell ready for review | 2026-10-05 01:30 | |
 =======
 | Claude  | idle   | v0.1 core done; next T-001 | 2026-10-01 23:30 | |
 | Codex   | idle   | T-002 built and tested; next T-007 | 2026-10-02 03:38 | |

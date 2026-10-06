@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "symats/calculus.h"
 #include "symats/pattern.h"
 
 namespace symats {
@@ -373,6 +374,32 @@ void install_builtins(Context& ctx) {
         return acc;
     });
     ctx.set_attributes("Dot", Protected);
+
+    // Native calculus: D and Expand
+    ctx.set_builtin("D", [](const ExprPtr& e, Context&) -> ExprPtr {
+        if (e->size() < 2) return nullptr;
+        ExprPtr res = e->arg(0);
+        for (std::size_t i = 1; i < e->size(); ++i) {
+            const auto& var_spec = e->arg(i);
+            if (var_spec->has_head("List") && var_spec->size() == 2 && var_spec->arg(1)->is_integer()) {
+                ExprPtr x = var_spec->arg(0);
+                auto n = var_spec->arg(1)->integer().to_int64();
+                if (n && *n > 0) {
+                    for (long long k = 0; k < *n; ++k) res = diff(res, x);
+                }
+            } else {
+                res = diff(res, var_spec);
+            }
+        }
+        return res;
+    });
+    ctx.set_attributes("D", Protected);
+
+    ctx.set_builtin("Expand", [](const ExprPtr& e, Context&) -> ExprPtr {
+        if (e->size() != 1) return nullptr;
+        return expand(e->arg(0));
+    });
+    ctx.set_attributes("Expand", Protected);
 
     // Elementary functions thread over lists; their math comes later (T-010/T-012).
     for (const char* f : {"Sin", "Cos", "Tan", "Cot", "Sec", "Csc", "ArcSin", "ArcCos", "ArcTan",

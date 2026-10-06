@@ -38,9 +38,9 @@ const HeadMap heads[] = {
     GIAC_HEAD("Factor", factor), GIAC_HEAD("Simplify", simplify),
     GIAC_HEAD("DSolve", desolve), GIAC_HEAD("Det", det),
     GIAC_HEAD("Inverse", inverse), GIAC_HEAD("Rank", rank),
-    GIAC_HEAD("Trace", trace), GIAC_HEAD("RREF", rref),
+    GIAC_HEAD("Trace", trace), GIAC_HEAD("RowReduce", rref),
     GIAC_HEAD("Eigenvalues", eigenvalues), GIAC_HEAD("Eigenvectors", eigenvectors),
-    GIAC_HEAD("CharacteristicPolynomial", charpoly),
+    GIAC_HEAD("CharPoly", charpoly),
 };
 #undef GIAC_HEAD
 
@@ -113,9 +113,17 @@ std::optional<ExprPtr> from_giac(const giac::gen& value) {
         }
         return make_normal("List", std::move(args));
     }
-    if (value.type != giac::_SYMB) return std::nullopt;
+    if (value.type != giac::_SYMB) {
+        std::cerr << "unconverted type=" << static_cast<int>(value.type) << '\n';
+        return std::nullopt;
+    }
 
     const auto& sym = *value.ref_SYMBptr();
+    if (sym.sommet == giac::at_inv) {
+        auto denominator = from_giac(sym.feuille);
+        if (!denominator) return std::nullopt;
+        return power(*denominator, make_integer(-1));
+    }
     if (sym.sommet == giac::at_of) {
         if (sym.feuille.type != giac::_VECT || sym.feuille.ref_VECTptr()->size() != 2)
             return std::nullopt;
@@ -138,7 +146,10 @@ std::optional<ExprPtr> from_giac(const giac::gen& value) {
     }
 
     const std::string_view name = find_name(sym.sommet);
-    if (name.empty()) return std::nullopt;
+    if (name.empty()) {
+        std::cerr << "unconverted head=" << sym.sommet.dbgprint() << '\n';
+        return std::nullopt;
+    }
     ExprList args;
     if (sym.feuille.type == giac::_VECT && sym.feuille.subtype == giac::_SEQ__VECT) {
         for (const auto& item : *sym.feuille.ref_VECTptr()) {
@@ -157,6 +168,44 @@ std::optional<ExprPtr> from_giac(const giac::gen& value) {
     return make_normal(name, std::move(args));
 }
 
+giac::gen sequence(const ExprList& args) {
+    giac::vecteur values;
+    values.reserve(args.size());
+    for (const auto& arg : args) values.push_back(to_giac(arg));
+    return giac::gen(values, giac::_SEQ__VECT);
+}
+
+giac::gen invoke(const ExprPtr& expr, giac::context* context) {
+    const std::string& head = expr->head()->name();
+    ExprList args = expr->args();
+    if (head == "Integrate" && args.size() >= 2) {
+        // Giac accepts integrate(f, x, a, b), while Symats stores the bounds
+        // together as Integrate[f, {x, a, b}].
+        if (args[1]->has_head("List") && args[1]->size() == 3) {
+            args = {args[0], args[1]->arg(0), args[1]->arg(1), args[1]->arg(2)};
+        }
+        return giac::_integrate(sequence(args), context);
+    }
+    if (head == "Limit" && args.size() == 2 &&
+        args[1]->has_head("Rule") && args[1]->size() == 2)
+        return giac::_limit(sequence({args[0], args[1]->arg(0), args[1]->arg(1)}), context);
+    if (head == "Series" && args.size() == 2 &&
+        args[1]->has_head("List") && args[1]->size() == 3)
+        return giac::_series(sequence({args[0], args[1]->arg(0),
+                                       args[1]->arg(1), args[1]->arg(2)}), context);
+    const giac::gen giac_args = args.size() == 1 ? to_giac(args[0]) : sequence(args);
+    if (head == "Factor") return giac::_factor(giac_args, context);
+    if (head == "Simplify") return giac::_simplify(giac_args, context);
+    if (head == "Solve") return giac::_solve(giac_args, context);
+    if (head == "DSolve") return giac::_desolve(giac_args, context);
+    if (head == "Det") return giac::_det(giac_args, context);
+    if (head == "Inverse") return giac::_inverse(giac_args, context);
+    if (head == "Rank") return giac::_rank(giac_args, context);
+    if (head == "RowReduce") return giac::_rref(giac_args, context);
+    if (head == "CharPoly") return giac::_charpoly(giac_args, context);
+    return to_giac(expr).eval(1, context);
+}
+
 }  // namespace
 
 std::optional<ExprPtr> giac_roundtrip(const ExprPtr& expr) {
@@ -167,8 +216,8 @@ std::optional<ExprPtr> giac_roundtrip(const ExprPtr& expr) {
 bool GiacBackend::supports(std::string_view head) const {
     constexpr std::string_view operations[] = {
         "Integrate", "Limit", "Series", "Solve", "Factor", "Simplify", "DSolve",
-        "Det", "Inverse", "Rank", "Trace", "RREF", "Eigenvalues",
-        "Eigenvectors", "CharacteristicPolynomial"
+        "Det", "Inverse", "Rank", "Trace", "RowReduce", "Eigenvalues",
+        "Eigenvectors", "CharPoly"
     };
     for (const auto& operation : operations)
         if (head == operation) return true;
@@ -179,20 +228,13 @@ std::optional<BackendResult> GiacBackend::evaluate(const ExprPtr& expr) {
     if (!expr || !expr->is_normal() || !expr->head()->is_symbol() ||
         !supports(expr->head()->name())) return std::nullopt;
     try {
-        std::cerr << "eval before to\n";
         const giac::gen input = to_giac(expr);
-        std::cerr << "eval after to\n";
         giac::context context;
-        std::cerr << "eval after context\n";
-        std::cerr << "input: " << input.print(&context) << "\n";
-        std::cerr << "arg: " << to_giac(expr->arg(0)).print(&context) << "\n";
-        const giac::gen output = expr->has_head("Factor")
-            ? giac::_factor(to_giac(expr->arg(0)), &context)
-            : input.eval(1, &context);
-        std::cerr << "eval after eval\n";
+        const giac::gen output = invoke(expr, &context);
+        std::cerr << expr->head()->name() << " raw: " << output.print(&context)
+                  << " type=" << output.type << '\n';
         if (output == input) return std::nullopt;
         auto converted = from_giac(output);
-        std::cerr << "eval after from\n";
         if (!converted) return std::nullopt;
         return BackendResult{*converted, ResultStatus::Unverified, "giac"};
     } catch (const std::exception&) {

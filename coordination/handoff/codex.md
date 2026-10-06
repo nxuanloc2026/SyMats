@@ -9,6 +9,16 @@ T-011 until that PR lands, then rebase on main. No existing public core API or
 EXPR_SPEC change is planned; any unavoidable change will be explained in
 `coordination/handoff/claude.md`.
 
+Checkpoint 2026-10-06 04:35 UTC: the bridge now converts exact atoms,
+mapped/generic heads, and Giac inverse nodes. Factor, indefinite Integrate,
+Limit, Solve, and Det execute under MSVC AddressSanitizer Debug after fixing
+upstream alias and cross-container iterator bugs. The bridge is still WIP:
+Solve needs rule-shaped output, Series needs an explicit remainder contract,
+DSolve and the remaining matrix operations need conversion/tests, and temporary
+assertion tracing must be removed. The pending Giac fork changes are in
+`src/gausspol.cc` and `src/vecteur.cc`. T-011 Windows CI is green; Linux needs
+`HAVE_PWD_H` enabled before rerunning. No T-012 PR is ready yet.
+
 ## T-011 Giac build (2026-10-05)
 
 Claimed `codex/T-011-giac-build` from current main `6c41bda` after PR #21 merged.

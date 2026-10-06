@@ -1,11 +1,10 @@
-# Handoff — GitHub Copilot
+# Handoff — Copilot
 
 ## Current task
-Not started (waiting for T-008: repo pushed to GitHub). Next: T-004, then T-006.
+T-004: Verify MSVC build + GitHub Actions CI green on Windows and Linux; fix warnings. Status: review / PR ready.
 
-## Notes
-- Instructions: `.github/copilot-instructions.md` → `AGENTS.md` → `docs/COORDINATION.md`.
-- CI workflow: `.github/workflows/ci.yml`; environment: `.github/workflows/copilot-setup-steps.yml`.
-
-## Open questions
-_(Copilot: keep this file updated at every checkpoint.)_
+## Takeover by Jules (2026-10-02 06:00 UTC)
+- Completed T-004 takeover:
+  - Verified multi-OS matrix workflow in `.github/workflows/ci.yml`.
+  - Added strict compiler warning flags (`-Werror` for GCC/Clang and `/WX` for MSVC) in top-level `CMakeLists.txt`.
+  - Verified clean warning-free build and passing test suite execution via `ctest`.

@@ -7,16 +7,14 @@ In order, one PR each:
 3. **T-030** Mathics3 semantics doc-tests (reference only, GPL).
 
 ## Current task
-T-020: `parse_cell(text)` in `convert/`.
-Branch: `jules/T-020-parse-cell`
+T-006: `symats-cli` REPL and script runner.
+Branch: `jules/T-006-cli-repl`
 Status: review / PR ready.
 
-## Notes on T-020
-- Declared `std::vector<Statement> parse_cell(std::string_view cell_text)` in `convert/include/symats/text.h`.
-- Implemented cell statement splitting in `convert/src/text.cpp`, handling top-level newlines, semicolons, bracket nesting, string literals, backticks, comments `(* ... *)`, and binary operator line continuations.
-- Added support in `parse_text` for `%`, `%%`, `%n`, `%-k` history shortcuts -> `Out(...)`.
-- Added support in `parse_text` for `;` operator -> `CompoundExpression(...)`.
-- Added unit tests in `tests/test_text.cpp`.
+## Notes on T-006
+- Updated `cli/CMakeLists.txt` to link `symats::convert` with `symats::core`.
+- Updated `cli/main.cpp` to implement an interactive REPL with `Session`, `parse_cell`, and `to_text` (with `In[n]:=` prompts and `Out[n] = ...` output lines).
+- Added script file execution mode (`symats-cli file.sym`) executing statement by statement.
 
 ## Notes
 - Updated `tests/test_backend_comparison.cpp` with T-014 data fixes (Rational nodes, dropped +C, Rule output format for `Solve`) and added Maxima 5.46.0 test oracle suite.

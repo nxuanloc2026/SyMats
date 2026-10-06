@@ -1,33 +1,61 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Loc Ngo and Symats contributors
 //
-// symats-cli: v0.1 demo of the expression core. A real read-eval-print loop
-// arrives once the text parser (convert/) exists.
+// symats-cli: command-line REPL and script runner.
+#include <fstream>
 #include <iostream>
+#include <sstream>
+#include <string>
 
-#include "symats/expr.h"
+#include "symats/session.h"
+#include "symats/text.h"
 
-int main() {
-    using namespace symats;
-    const Ex x = sym("x"), y = sym("y");
+namespace {
 
-    struct Demo {
-        const char* input;
-        Ex result;
-    };
-    const Demo demos[] = {
-        {"x + x", x + x},
-        {"2 + x + 3", Ex(2) + x + 3},
-        {"x * x * y / x", x * x * y / x},
-        {"(x + 1) - (x + 1)", (x + 1) - (x + 1)},
-        {"(2x)^2", pow(2 * x, 2)},
-        {"8^(2/3)", pow(8, frac(2, 3))},
-        {"sqrt(2) * sqrt(2)", pow(2, frac(1, 2)) * pow(2, frac(1, 2))},
-        {"2^100", pow(Ex(2), 100)},
-        {"integral of x^2 dx", make_normal("Integrate", {pow(x, 2).ptr(), x.ptr()})},
-    };
+void run_script(symats::Session& session, std::istream& in, bool interactive) {
+    std::string line;
+    while (true) {
+        if (interactive) {
+            std::cout << "In[" << session.next_line() << "]:= " << std::flush;
+        }
+        if (!std::getline(in, line)) break;
+        if (line == "exit" || line == "quit") break;
 
-    std::cout << "Symats 0.1 - expression core demo\n\n";
-    for (const auto& d : demos) std::cout << "  " << d.input << "\n    => " << d.result.str() << "\n";
+        std::vector<symats::Statement> statements;
+        try {
+            statements = symats::parse_cell(line);
+        } catch (const std::exception& ex) {
+            std::cout << "Syntax error: " << ex.what() << "\n";
+            continue;
+        }
+
+        auto results = session.run_cell(statements);
+        for (const auto& r : results) {
+            if (!r.ok()) {
+                std::cout << "Error: " << r.error << "\n";
+            } else if (r.visible()) {
+                std::cout << "Out[" << r.line << "] = " << symats::to_text(r.output) << "\n";
+            }
+        }
+    }
+}
+
+}  // namespace
+
+int main(int argc, char* argv[]) {
+    symats::Session session;
+
+    if (argc > 1) {
+        std::ifstream file(argv[1]);
+        if (!file.is_open()) {
+            std::cerr << "Error: could not open file '" << argv[1] << "'\n";
+            return 1;
+        }
+        run_script(session, file, false);
+        return 0;
+    }
+
+    std::cout << "Symats 0.1 REPL\nType 'exit' or 'quit' or press Ctrl+D to exit.\n\n";
+    run_script(session, std::cin, true);
     return 0;
 }

@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "symats/calculus.h"
 #include "symats/pattern.h"
 
 namespace symats {
@@ -373,6 +374,45 @@ void install_builtins(Context& ctx) {
         return acc;
     });
     ctx.set_attributes("Dot", Protected);
+
+    // Native calculus: D and Expand
+    ctx.set_builtin("D", [](const ExprPtr& e, Context&) -> ExprPtr {
+        if (e->size() == 2) {
+            if (e->arg(1)->is_symbol()) {
+                return d_derivative(e->arg(0), e->arg(1));
+            }
+            if (e->arg(1)->has_head("List") && e->arg(1)->size() == 2 &&
+                e->arg(1)->arg(0)->is_symbol() && e->arg(1)->arg(1)->is_integer()) {
+                ExprPtr res = e->arg(0);
+                const ExprPtr& var = e->arg(1)->arg(0);
+                auto n_opt = e->arg(1)->arg(1)->integer().to_int64();
+                if (n_opt && *n_opt > 0 && *n_opt <= 50) {
+                    int64_t n = *n_opt;
+                    for (int64_t i = 0; i < n; ++i) {
+                        res = d_derivative(res, var);
+                    }
+                    return res;
+                }
+            }
+        } else if (e->size() > 2) {
+            ExprPtr res = e->arg(0);
+            for (std::size_t i = 1; i < e->size(); ++i) {
+                if (e->arg(i)->is_symbol()) {
+                    res = d_derivative(res, e->arg(i));
+                }
+            }
+            return res;
+        }
+        return nullptr;
+    });
+
+    ctx.set_builtin("Expand", [](const ExprPtr& e, Context&) -> ExprPtr {
+        if (e->size() != 1) return nullptr;
+        return expand_expr(e->arg(0));
+    });
+
+    ctx.set_attributes("D", Protected);
+    ctx.set_attributes("Expand", Protected);
 
     // Elementary functions thread over lists; their math comes later (T-010/T-012).
     for (const char* f : {"Sin", "Cos", "Tan", "Cot", "Sec", "Csc", "ArcSin", "ArcCos", "ArcTan",

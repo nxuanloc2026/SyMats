@@ -15,6 +15,7 @@ add_executable(symats_tests
   test_operators.cpp
   test_mathics_semantics.cpp
   test_cell.cpp
+  test_calculus.cpp
 )
 target_link_libraries(symats_tests PRIVATE symats::core symats::convert)
 add_test(NAME symats_tests COMMAND symats_tests)

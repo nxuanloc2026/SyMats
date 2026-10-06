@@ -1,245 +1,190 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Loc Ngo and Symats contributors
 #include "giac_backend.h"
+#include "conversion.h"
 
-#include <climits>
-#include <iostream>
+#include <mutex>
 #include <stdexcept>
-#include <string>
-#include <string_view>
-#include <vector>
-
-#include "giac.h"
 #include "static_extern.h"
 
 namespace symats {
 namespace {
+using namespace giac_detail;
+std::mutex giac_mutex;  // Giac also uses process-wide caches outside its context.
 
-using GiacHead = const giac::unary_function_ptr* const*;
-struct HeadMap { std::string_view name; GiacHead pointer; };
-
-// Explicit names keep Symats' Tier 1 vocabulary independent of Giac's parser.
-// Other heads use Giac's unevaluated function application (at_of).
-#define GIAC_HEAD(symats_name, giac_name) {symats_name, &giac::at_##giac_name}
-const HeadMap heads[] = {
-    GIAC_HEAD("Plus", plus), GIAC_HEAD("Times", prod), GIAC_HEAD("Power", pow),
-    GIAC_HEAD("Sin", sin), GIAC_HEAD("Cos", cos), GIAC_HEAD("Tan", tan),
-    GIAC_HEAD("Cot", cot), GIAC_HEAD("Sec", sec), GIAC_HEAD("Csc", csc),
-    GIAC_HEAD("ArcSin", asin), GIAC_HEAD("ArcCos", acos), GIAC_HEAD("ArcTan", atan),
-    GIAC_HEAD("Sinh", sinh), GIAC_HEAD("Cosh", cosh), GIAC_HEAD("Tanh", tanh),
-    GIAC_HEAD("Exp", exp), GIAC_HEAD("Log", ln), GIAC_HEAD("Abs", abs),
-    GIAC_HEAD("Sqrt", sqrt), GIAC_HEAD("Factorial", factorial),
-    GIAC_HEAD("Equal", equal), GIAC_HEAD("Unequal", different),
-    GIAC_HEAD("Less", inferieur_strict), GIAC_HEAD("LessEqual", inferieur_egal),
-    GIAC_HEAD("Greater", superieur_strict), GIAC_HEAD("GreaterEqual", superieur_egal),
-    GIAC_HEAD("And", and), GIAC_HEAD("Or", ou), GIAC_HEAD("Not", not),
-    GIAC_HEAD("Integrate", integrate), GIAC_HEAD("Limit", limit),
-    GIAC_HEAD("Series", series), GIAC_HEAD("Solve", solve),
-    GIAC_HEAD("Factor", factor), GIAC_HEAD("Simplify", simplify),
-    GIAC_HEAD("DSolve", desolve), GIAC_HEAD("Det", det),
-    GIAC_HEAD("Inverse", inverse), GIAC_HEAD("Rank", rank),
-    GIAC_HEAD("Trace", trace), GIAC_HEAD("RowReduce", rref),
-    GIAC_HEAD("Eigenvalues", eigenvalues), GIAC_HEAD("Eigenvectors", eigenvectors),
-    GIAC_HEAD("CharPoly", charpoly),
+struct Operation { std::string_view name; std::size_t minimum, maximum; };
+constexpr Operation operations[] = {
+    {"Integrate", 2, 32}, {"Limit", 2, 2}, {"Series", 2, 2},
+    {"Solve", 2, 2}, {"DSolve", 3, 3}, {"Factor", 1, 1}, {"Simplify", 1, 1},
+    {"Together", 1, 1}, {"Apart", 1, 2}, {"Det", 1, 1}, {"Inverse", 1, 1},
+    {"Rank", 1, 1}, {"Trace", 1, 1}, {"RowReduce", 1, 1},
+    {"Eigenvalues", 1, 1}, {"Eigenvectors", 1, 1}, {"CharPoly", 2, 2},
+    {"Transpose", 1, 1}, {"LinearSolve", 2, 2}, {"MatrixExp", 1, 1}, {"Dot", 2, 2},
 };
-#undef GIAC_HEAD
 
-GiacHead find_head(std::string_view name) {
-    for (const auto& entry : heads)
-        if (entry.name == name) return entry.pointer;
+const Operation* operation(std::string_view head) {
+    for (const auto& item : operations) if (item.name == head) return &item;
     return nullptr;
 }
 
-std::string_view find_name(const giac::unary_function_ptr& head) {
-    for (const auto& entry : heads)
-        if (head == *entry.pointer) return entry.name;
-    return {};
+void require(bool condition) {
+    if (!condition) throw std::invalid_argument("unsupported Giac argument shape");
 }
 
-giac::gen to_giac(const ExprPtr& expr) {
-    if (!expr) throw std::invalid_argument("null Expr");
-    if (expr->is_integer()) {
-        const auto small = expr->integer().to_int64();
-        if (small && *small >= INT_MIN && *small <= INT_MAX)
-            return giac::gen(static_cast<int>(*small));
-        return giac::gen(mpz_class(expr->integer().to_string()));
-    }
-    if (expr->is_rational()) {
-        const auto& r = expr->rational();
-        return giac::gen(giac::fraction(to_giac(make_integer(r.num())),
-                                         to_giac(make_integer(r.den()))));
-    }
-    if (expr->is_symbol()) {
-        return giac::gen(giac::identificateur(expr->name()));
-    }
-    giac::vecteur args;
-    args.reserve(expr->size());
-    for (const auto& arg : expr->args()) args.push_back(to_giac(arg));
-    if (expr->has_head("List")) return giac::gen(args);
-    if (expr->head()->is_symbol()) {
-        if (GiacHead head = find_head(expr->head()->name())) {
-            const giac::gen leaf = args.size() == 1 ? args.front()
-                : giac::gen(args, giac::_SEQ__VECT);
-            return giac::gen(giac::symbolic(**head, leaf));
-        }
-    }
-    const giac::gen arg = args.size() == 1 ? args.front()
-        : giac::gen(args, giac::_SEQ__VECT);
-    return giac::gen(giac::symbolic(*giac::at_of,
-        giac::makesequence(to_giac(expr->head()), arg)));
+bool is_matrix(const ExprPtr& expr, bool square = false) {
+    if (!expr->has_head("List") || expr->size() == 0) return false;
+    const auto columns = expr->arg(0)->size();
+    if (columns == 0 || (square && columns != expr->size())) return false;
+    for (const auto& row : expr->args())
+        if (!row->has_head("List") || row->size() != columns) return false;
+    return true;
 }
 
-std::optional<ExprPtr> from_giac(const giac::gen& value) {
-    if (value.type == giac::_INT_)
-        return make_integer(value.val);
-    if (value.type == giac::_ZINT)
-        return make_integer(Integer::from_string(value.print(giac::context0)));
-    if (value.type == giac::_IDNT) {
-        const std::string name = value.ref_IDNTptr()->name();
-        return make_symbol(name);
+ExprList variables(const ExprPtr& expr) {
+    const ExprList result = expr->has_head("List") ? expr->args() : ExprList{expr};
+    require(!result.empty());
+    for (std::size_t i = 0; i < result.size(); ++i) {
+        require(result[i]->is_symbol());
+        for (std::size_t j = 0; j < i; ++j) require(!equal(result[i], result[j]));
     }
-    if (value.type == giac::_FRAC) {
-        const auto& f = *value.ref_FRACptr();
-        auto n = from_giac(f.num), d = from_giac(f.den);
-        if (!n || !d || !(*n)->is_integer() || !(*d)->is_integer()) return std::nullopt;
-        return make_rational((*n)->integer(), (*d)->integer());
-    }
-    if (value.type == giac::_VECT) {
-        ExprList args;
-        for (const auto& item : *value.ref_VECTptr()) {
-            auto converted = from_giac(item);
-            if (!converted) return std::nullopt;
-            args.push_back(*converted);
-        }
-        return make_normal("List", std::move(args));
-    }
-    if (value.type != giac::_SYMB) {
-        std::cerr << "unconverted type=" << static_cast<int>(value.type) << '\n';
-        return std::nullopt;
-    }
-
-    const auto& sym = *value.ref_SYMBptr();
-    if (sym.sommet == giac::at_inv) {
-        auto denominator = from_giac(sym.feuille);
-        if (!denominator) return std::nullopt;
-        return power(*denominator, make_integer(-1));
-    }
-    if (sym.sommet == giac::at_of) {
-        if (sym.feuille.type != giac::_VECT || sym.feuille.ref_VECTptr()->size() != 2)
-            return std::nullopt;
-        const auto& pair = *sym.feuille.ref_VECTptr();
-        auto head = from_giac(pair[0]);
-        if (!head) return std::nullopt;
-        ExprList args;
-        if (pair[1].type == giac::_VECT && pair[1].subtype == giac::_SEQ__VECT) {
-            for (const auto& item : *pair[1].ref_VECTptr()) {
-                auto converted = from_giac(item);
-                if (!converted) return std::nullopt;
-                args.push_back(*converted);
-            }
-        } else {
-            auto converted = from_giac(pair[1]);
-            if (!converted) return std::nullopt;
-            args.push_back(*converted);
-        }
-        return make_normal(*head, std::move(args));
-    }
-
-    const std::string_view name = find_name(sym.sommet);
-    if (name.empty()) {
-        std::cerr << "unconverted head=" << sym.sommet.dbgprint() << '\n';
-        return std::nullopt;
-    }
-    ExprList args;
-    if (sym.feuille.type == giac::_VECT && sym.feuille.subtype == giac::_SEQ__VECT) {
-        for (const auto& item : *sym.feuille.ref_VECTptr()) {
-            auto converted = from_giac(item);
-            if (!converted) return std::nullopt;
-            args.push_back(*converted);
-        }
-    } else {
-        auto converted = from_giac(sym.feuille);
-        if (!converted) return std::nullopt;
-        args.push_back(*converted);
-    }
-    if (name == "Plus") return plus(std::move(args));
-    if (name == "Times") return times(std::move(args));
-    if (name == "Power" && args.size() == 2) return power(args[0], args[1]);
-    return make_normal(name, std::move(args));
+    return result;
 }
 
-giac::gen sequence(const ExprList& args) {
-    giac::vecteur values;
-    values.reserve(args.size());
-    for (const auto& arg : args) values.push_back(to_giac(arg));
-    return giac::gen(values, giac::_SEQ__VECT);
+ExprPtr function_symbol(const ExprPtr& expr, const ExprPtr& variable) {
+    if (expr->is_symbol()) return expr;
+    require(expr->is_normal() && expr->head()->is_symbol() && expr->size() == 1 &&
+            equal(expr->arg(0), variable));
+    return expr->head();
 }
 
 giac::gen invoke(const ExprPtr& expr, giac::context* context) {
-    const std::string& head = expr->head()->name();
-    ExprList args = expr->args();
-    if (head == "Integrate" && args.size() >= 2) {
-        // Giac accepts integrate(f, x, a, b), while Symats stores the bounds
-        // together as Integrate[f, {x, a, b}].
-        if (args[1]->has_head("List") && args[1]->size() == 3) {
-            args = {args[0], args[1]->arg(0), args[1]->arg(1), args[1]->arg(2)};
+    const auto& name = expr->head()->name();
+    const auto& args = expr->args();
+    if (name == "Integrate") {
+        giac::gen value = to_giac(args[0]);
+        // Bounds are ordered inner integral first, as in EXPR_SPEC.
+        for (std::size_t i = 1; i < args.size(); ++i) {
+            const auto& bound = args[i];
+            giac::vecteur call = giac::makevecteur(value);
+            if (bound->is_symbol()) call.push_back(to_giac(bound));
+            else {
+                require(bound->has_head("List") && bound->size() == 3 && bound->arg(0)->is_symbol());
+                for (const auto& item : bound->args()) call.push_back(to_giac(item));
+            }
+            value = giac::_integrate(giac::gen(call, giac::_SEQ__VECT), context);
         }
-        return giac::_integrate(sequence(args), context);
+        return value;
     }
-    if (head == "Limit" && args.size() == 2 &&
-        args[1]->has_head("Rule") && args[1]->size() == 2)
+    if (name == "Limit") {
+        require(args[1]->has_head("Rule") && args[1]->size() == 2 && args[1]->arg(0)->is_symbol());
         return giac::_limit(sequence({args[0], args[1]->arg(0), args[1]->arg(1)}), context);
-    if (head == "Series" && args.size() == 2 &&
-        args[1]->has_head("List") && args[1]->size() == 3)
-        return giac::_series(sequence({args[0], args[1]->arg(0),
-                                       args[1]->arg(1), args[1]->arg(2)}), context);
-    const giac::gen giac_args = args.size() == 1 ? to_giac(args[0]) : sequence(args);
-    if (head == "Factor") return giac::_factor(giac_args, context);
-    if (head == "Simplify") return giac::_simplify(giac_args, context);
-    if (head == "Solve") return giac::_solve(giac_args, context);
-    if (head == "DSolve") return giac::_desolve(giac_args, context);
-    if (head == "Det") return giac::_det(giac_args, context);
-    if (head == "Inverse") return giac::_inverse(giac_args, context);
-    if (head == "Rank") return giac::_rank(giac_args, context);
-    if (head == "RowReduce") return giac::_rref(giac_args, context);
-    if (head == "CharPoly") return giac::_charpoly(giac_args, context);
-    return to_giac(expr).eval(1, context);
+    }
+    if (name == "Series") {
+        require(args[1]->has_head("List") && args[1]->size() == 3 && args[1]->arg(0)->is_symbol());
+        const auto& order = args[1]->arg(2);
+        require(order->is_integer() && order->integer().sign() >= 0 && order->integer().to_int64().has_value());
+        giac::vecteur call = *sequence({args[0], args[1]->arg(0), args[1]->arg(1), order}).ref_VECTptr();
+        giac::gen polynomial_option(giac::_POLY1__VECT);
+        polynomial_option.subtype = giac::_INT_MAPLECONVERSION;
+        call.push_back(polynomial_option);
+        return giac::_series(giac::gen(call, giac::_SEQ__VECT), context);
+    }
+    if (name == "Solve") {
+        variables(args[1]);
+        return giac::_solve(sequence(args), context);
+    }
+    if (name == "DSolve") {
+        require(args[2]->is_symbol());
+        const ExprList dependents = args[1]->has_head("List") ? args[1]->args() : ExprList{args[1]};
+        require(!dependents.empty());
+        ExprList names;
+        for (const auto& dependent : dependents) names.push_back(function_symbol(dependent, args[2]));
+        const auto funcs = args[1]->has_head("List") ? make_normal("List", names) : names[0];
+        return giac::_desolve(sequence({args[0], args[2], funcs}, args[2]), context);
+    }
+    const bool square = name == "Det" || name == "Inverse" || name == "Trace" ||
+        name == "Eigenvalues" || name == "Eigenvectors" || name == "CharPoly" || name == "MatrixExp";
+    if (square || name == "Rank" || name == "RowReduce" || name == "Transpose" || name == "LinearSolve")
+        require(is_matrix(args[0], square));
+    if (name == "CharPoly") require(args[1]->is_symbol());
+    if (name == "LinearSolve")
+        require(args[1]->has_head("List") && args[1]->size() == args[0]->size());
+    if (name == "MatrixExp")
+        return giac::gen(giac::analytic_apply(giac::at_exp, *to_giac(args[0]).ref_VECTptr(), context));
+    if (name == "Dot") {
+        require(args[0]->has_head("List") && args[1]->has_head("List"));
+        return to_giac(args[0]) * to_giac(args[1]);
+    }
+    const auto head = find_head(name);
+    require(head != nullptr);
+    const giac::gen call = args.size() == 1 ? to_giac(args[0]) : sequence(args);
+    giac::gen result = (**head)(call, context);
+    // Giac supplies eigenvectors as columns; Symats returns a list of vectors.
+    if (name == "Eigenvectors" && giac::ckmatrix(result)) result = giac::_tran(result, context);
+    return result;
 }
 
+std::optional<ExprPtr> solution_rules(const ExprPtr& output, const ExprList& targets, bool system) {
+    ExprList branches;
+    if (!output->has_head("List")) return std::nullopt;
+    if (!system) {
+        for (const auto& root : output->args()) {
+            if (root->has_head("Equal")) return std::nullopt;
+            branches.push_back(make_normal("List", {make_normal("Rule", {targets[0], root})}));
+        }
+    } else {
+        for (const auto& values : output->args()) {
+            if (!values->has_head("List") || values->size() != targets.size()) return std::nullopt;
+            ExprList rules;
+            for (std::size_t i = 0; i < targets.size(); ++i) {
+                if (values->arg(i)->has_head("Equal")) return std::nullopt;
+                rules.push_back(make_normal("Rule", {targets[i], values->arg(i)}));
+            }
+            branches.push_back(make_normal("List", std::move(rules)));
+        }
+    }
+    return make_normal("List", std::move(branches));
+}
 }  // namespace
 
 std::optional<ExprPtr> giac_roundtrip(const ExprPtr& expr) {
-    try { return from_giac(to_giac(expr)); }
+    const std::lock_guard lock(giac_mutex);
+    try { return from_giac(to_giac(expr, false)); }
     catch (const std::exception&) { return std::nullopt; }
 }
 
-bool GiacBackend::supports(std::string_view head) const {
-    constexpr std::string_view operations[] = {
-        "Integrate", "Limit", "Series", "Solve", "Factor", "Simplify", "DSolve",
-        "Det", "Inverse", "Rank", "Trace", "RowReduce", "Eigenvalues",
-        "Eigenvectors", "CharPoly"
-    };
-    for (const auto& operation : operations)
-        if (head == operation) return true;
-    return false;
-}
+bool GiacBackend::supports(std::string_view head) const { return operation(head) != nullptr; }
 
 std::optional<BackendResult> GiacBackend::evaluate(const ExprPtr& expr) {
-    if (!expr || !expr->is_normal() || !expr->head()->is_symbol() ||
-        !supports(expr->head()->name())) return std::nullopt;
+    if (!expr || !expr->is_normal() || !expr->head()->is_symbol()) return std::nullopt;
+    const auto op = operation(expr->head()->name());
+    if (!op || expr->size() < op->minimum || expr->size() > op->maximum) return std::nullopt;
+    const std::lock_guard lock(giac_mutex);
     try {
-        const giac::gen input = to_giac(expr);
         giac::context context;
+        giac::approx_mode(false, &context);
+        giac::angle_radian(true, &context);
         const giac::gen output = invoke(expr, &context);
-        std::cerr << expr->head()->name() << " raw: " << output.print(&context)
-                  << " type=" << output.type << '\n';
-        if (output == input) return std::nullopt;
+        if (output == to_giac(expr, true, expr->has_head("DSolve") ? expr->arg(2) : ExprPtr{})) return std::nullopt;
         auto converted = from_giac(output);
+        if (!converted) return std::nullopt;
+        if (expr->has_head("Series"))
+            converted = make_normal("SeriesData", {*converted, expr->arg(1)});
+        if (expr->has_head("Solve"))
+            converted = solution_rules(*converted, variables(expr->arg(1)), expr->arg(1)->has_head("List"));
+        if (expr->has_head("DSolve")) {
+            const bool system = expr->arg(1)->has_head("List");
+            ExprList targets = system ? expr->arg(1)->args() : ExprList{expr->arg(1)};
+            for (auto& target : targets)
+                if (target->is_symbol()) target = make_normal(target, {expr->arg(2)});
+            ExprPtr values = *converted;
+            if (system || !values->has_head("List")) values = make_normal("List", {values});
+            converted = solution_rules(values, targets, system);
+        }
         if (!converted) return std::nullopt;
         return BackendResult{*converted, ResultStatus::Unverified, "giac"};
     } catch (const std::exception&) {
         return std::nullopt;
     }
 }
-
 }  // namespace symats

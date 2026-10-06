@@ -9,3 +9,4 @@ States: `active`, `idle`, `out — resets <time>`.
 | Codex   | active | T-011 Linux and local MSVC passed; fixing Windows CI dependency downloads. T-012 bridge tests pass under AddressSanitizer | 2026-10-06 13:28 | |
 | Copilot | out — resets when GitHub Student Developer Pack is approved | Codex covers T-004, T-006 (backup matrix) | — | needs Copilot Pro for coding agent |
 | Jules   | active | T-030 Mathics3 semantics audit tests ready for review | 2026-10-05 02:00 | |
+| princearwan-code | idle | Assigned combined task T-032 (Jupyter kernel, tests/oracles, and Mathics3 semantics audit) | 2026-10-05 | |

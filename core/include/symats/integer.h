@@ -18,10 +18,6 @@
 #include <utility>
 #include <vector>
 
-#ifdef SYMATS_USE_GMP
-#include <gmpxx.h>
-#endif
-
 namespace symats {
 
 class Integer {
@@ -32,11 +28,11 @@ public:
     // Parses an optional sign followed by decimal digits. Throws std::invalid_argument.
     static Integer from_string(std::string_view s);
 
-    bool is_zero() const;
-    bool is_one() const;
-    bool is_negative() const;
-    int sign() const { return is_zero() ? 0 : (is_negative() ? -1 : 1); }
-    bool is_even() const;
+    bool is_zero() const { return limbs_.empty(); }
+    bool is_one() const { return !neg_ && limbs_.size() == 1 && limbs_[0] == 1; }
+    bool is_negative() const { return neg_; }
+    int sign() const { return is_zero() ? 0 : (neg_ ? -1 : 1); }
+    bool is_even() const { return is_zero() || (limbs_[0] % 2 == 0); }
 
     Integer abs() const;
     Integer operator-() const;
@@ -68,28 +64,10 @@ public:
     std::string to_string() const;
     std::size_t hash() const;
 
-#ifdef SYMATS_USE_GMP
-    friend bool operator==(const Integer& a, const Integer& b) { return a.value_ == b.value_; }
-    friend std::strong_ordering operator<=>(const Integer& a, const Integer& b) {
-        int cmp = mpz_cmp(a.value_.get_mpz_t(), b.value_.get_mpz_t());
-        return cmp < 0 ? std::strong_ordering::less
-                       : (cmp > 0 ? std::strong_ordering::greater : std::strong_ordering::equal);
-    }
-#else
     friend bool operator==(const Integer& a, const Integer& b) = default;
-    friend std::strong_ordering operator<=>(const Integer& a, const Integer& b) {
-        if (a.neg_ != b.neg_) return a.neg_ ? std::strong_ordering::less : std::strong_ordering::greater;
-        int c = Integer::cmp_abs(a.limbs_, b.limbs_);
-        if (a.neg_) c = -c;
-        return c < 0 ? std::strong_ordering::less
-                     : (c > 0 ? std::strong_ordering::greater : std::strong_ordering::equal);
-    }
-#endif
+    friend std::strong_ordering operator<=>(const Integer& a, const Integer& b);
 
 private:
-#ifdef SYMATS_USE_GMP
-    mpz_class value_{0};
-#else
     using Limb = std::uint32_t;
     static constexpr Limb kBase = 1000000000u;  // 10^9
     static constexpr int kBaseDigits = 9;
@@ -105,7 +83,6 @@ private:
     static std::vector<Limb> mul_small(const std::vector<Limb>& a, Limb m);
     static std::pair<std::vector<Limb>, std::vector<Limb>>
     divmod_abs(const std::vector<Limb>& a, const std::vector<Limb>& b);
-#endif
 };
 
 }  // namespace symats

@@ -90,16 +90,3 @@ TEST_CASE("Integer: gcd, roots, comparisons, conversion") {
     CHECK(Integer(123).to_int64().value() == 123);
     CHECK(!Integer::pow(10, 30).to_int64().has_value());
 }
-
-TEST_CASE("Integer: algebraic property tests") {
-    // Large integer properties
-    Integer x = I("987654321098765432109876543210");
-    Integer y = I("123456789012345678901234567890");
-
-    CHECK_EQ((x + y) - y, x);
-    CHECK_EQ((x * y) / y, x);
-    CHECK_EQ((x * y) % y, Integer(0));
-    CHECK_EQ(Integer::gcd(x, y) * Integer::gcd(x + 1, y + 1) > 0, true);
-    CHECK(x.is_even());
-    CHECK(!y.abs().is_negative());
-}

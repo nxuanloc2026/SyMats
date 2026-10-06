@@ -1,5 +1,16 @@
 # Handoff — Codex
 
+## Build and bridge crash fixes (2026-10-06)
+
+T-011 Linux CI passed at f58c29b; its Windows run stopped at a GMP download
+timeout (the preceding Windows Debug run passed). The fork pin c9e056c fixes
+additional checked-iterator errors exercised by ODEs, small matrix products,
+characteristic polynomials, and eigenvalues. The new smoke regressions cover
+those operations. T-012 is checkpointed at dd89a98; scalar ODEs, integration,
+algebraic solves, and matrix operations now run under MSVC AddressSanitizer
+Debug without a crash. Remaining bridge work: linear ODE system adaptation,
+fresh generated constant names, remove temporary tracing, full suite and PR.
+
 ## T-011 Giac build (2026-10-05)
 
 Claimed `codex/T-011-giac-build` from current main `6c41bda` after PR #21 merged.

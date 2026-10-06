@@ -16,5 +16,23 @@ int main() {
       roots.ref_VECTptr()->front() != giac::gen(2)) return 2;
   const giac::gen matrix(giac::makevecteur(
       giac::gen(giac::makevecteur(1, 2)), giac::gen(giac::makevecteur(3, 4))));
-  return giac::_det(matrix, &context) == giac::gen(-2) ? 0 : 3;
+  if (giac::_det(matrix, &context) != giac::gen(-2)) return 3;
+  if (giac::normal(giac::_charpoly(giac::makesequence(matrix,x), &context)-(x*x-5*x-2),
+                   &context) != giac::gen(0)) return 4;
+  const giac::gen nilpotent(giac::makevecteur(
+      giac::gen(giac::makevecteur(0,1)),giac::gen(giac::makevecteur(0,0))));
+  const giac::gen exponential(giac::analytic_apply(giac::at_exp,*nilpotent.ref_VECTptr(),&context));
+  const giac::gen expected(giac::makevecteur(
+      giac::gen(giac::makevecteur(1,1)),giac::gen(giac::makevecteur(0,1))));
+  if (exponential != expected) return 5;
+  const giac::gen diagonal(giac::makevecteur(
+      giac::gen(giac::makevecteur(1,0)),giac::gen(giac::makevecteur(0,2))));
+  const auto eigenvalues = (*giac::at_eigenvalues)(diagonal,&context);
+  if (eigenvalues.type != giac::_VECT || eigenvalues.ref_VECTptr()->size()!=2 ||
+      (*eigenvalues.ref_VECTptr())[0]+(*eigenvalues.ref_VECTptr())[1]!=giac::gen(3)) return 6;
+  const giac::gen y(giac::identificateur("y"));
+  const giac::gen yx(giac::symbolic(*giac::at_of,giac::makesequence(y,x)));
+  const giac::gen derivative(giac::symbolic(*giac::at_derive,giac::makesequence(yx,x,2)));
+  const auto solution = giac::_desolve(giac::makesequence(derivative+yx,x,y),&context);
+  return giac::is_undef(solution) ? 7 : 0;
 }

@@ -12,6 +12,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-binaries
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,13 +25,40 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgmp-dev libmpfr-dev flex bison
 
-      - name: Install Windows GMP and MPFR
+      - name: Prepare Windows dependency manager
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           git clone https://github.com/microsoft/vcpkg.git vcpkg
           git -C vcpkg checkout 5508584fd90f2cb4bb441c8c77860a418e50194b
           ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
+
+      - name: Cache Windows dependency downloads and binaries
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg/downloads
+            .vcpkg-binaries
+          key: windows-giac-vcpkg-5508584fd90f2cb4bb441c8c77860a418e50194b-v1
+
+      - name: Install Windows GMP and MPFR
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force vcpkg/downloads, .vcpkg-binaries | Out-Null
+          foreach ($port in @('gmp', 'mpfr')) {
+            $version = (Get-Content "vcpkg/ports/$port/vcpkg.json" -Raw | ConvertFrom-Json).version
+            $portfile = Get-Content "vcpkg/ports/$port/portfile.cmake" -Raw
+            $expected = [regex]::Match($portfile, 'SHA512\s+([a-f0-9]{128})').Groups[1].Value
+            $archive = "vcpkg/downloads/$port-$version.tar.xz"
+            if (!(Test-Path $archive)) {
+              Invoke-WebRequest "https://mirrors.kernel.org/gnu/$port/$port-$version.tar.xz" -OutFile $archive
+            }
+            if ((Get-FileHash $archive -Algorithm SHA512).Hash -ne $expected) {
+              throw "$port download checksum mismatch"
+            }
+          }
           ./vcpkg/vcpkg.exe install gmp:x64-windows mpfr:x64-windows
 
       - name: Install Windows parser generators

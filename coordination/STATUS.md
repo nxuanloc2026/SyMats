@@ -6,6 +6,6 @@ States: `active`, `idle`, `out — resets <time>`.
 | Agent   | Status | Note | Last seen (UTC) | Usage resets (fill in when known) |
 |---------|--------|------|-----------------|-----------------------------------|
 | Claude  | out — usage limit reached (Loc to fill reset time) | All Claude tasks delegated: Codex = engine, Jules = tests/GMP/kernel. See handoff/claude.md | 2026-10-03 | |
-| Codex   | active | T-012 Giac bridge on codex/T-012-giac-bridge; T-011 CI pending in PR #22 | 2026-10-05 23:02 | |
+| Codex   | active | Reconciling Jules completion report; T-011 merged; tested T-012 implementation preserved locally | 2026-10-06 18:34 | |
 | Copilot | out — resets when GitHub Student Developer Pack is approved | Codex covers T-004, T-006 (backup matrix) | — | needs Copilot Pro for coding agent |
 | Jules   | active | T-030 Mathics3 semantics audit tests ready for review | 2026-10-05 02:00 | |

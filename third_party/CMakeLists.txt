@@ -62,7 +62,7 @@ target_compile_definitions(symats_giac PUBLIC
   HAVE_GMPXX_H HAVE_LIBMPFR VERSION="1.9.0.57")
 target_compile_definitions(symats_giac PRIVATE IN_GIAC)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_compile_definitions(symats_giac PRIVATE HAVE_GETTEXT)
+  target_compile_definitions(symats_giac PRIVATE HAVE_GETTEXT HAVE_PWD_H HAVE_SYS_TYPES_H)
 endif()
 if(MSVC)
   target_compile_definitions(symats_giac PUBLIC

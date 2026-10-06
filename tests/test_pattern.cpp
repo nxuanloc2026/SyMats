@@ -104,3 +104,52 @@ TEST_CASE("Pattern: has_pattern") {
     CHECK(has_pattern(blank()));
     CHECK(!has_pattern(f({x, Ex(1)})));
 }
+
+TEST_CASE("Pattern: Flat and Orderless matching on Plus and Times") {
+    // Plus(a_, b_) against 1 + x + y
+    ExprPtr sum3 = plus({make_integer(1), sym("x"), sym("y")});
+    ExprPtr sum_pat = plus({pat("a"), pat("b")});
+    Bindings b1;
+    CHECK(match(sum_pat, sum3, b1));
+    CHECK_EQ(F(b1.at("a")), std::string("1"));
+    CHECK_EQ(F(b1.at("b")), std::string("Plus(x, y)"));
+
+    // Times(a_, b_) against 2 * x * y
+    ExprPtr prod3 = times({make_integer(2), sym("x"), sym("y")});
+    ExprPtr prod_pat = times({pat("a"), pat("b")});
+    Bindings b2;
+    CHECK(match(prod_pat, prod3, b2));
+    CHECK_EQ(F(b2.at("a")), std::string("2"));
+    CHECK_EQ(F(b2.at("b")), std::string("Times(x, y)"));
+
+    // a_ + x against 1 + x + y -> a matches 1 + y
+    ExprPtr pat_a_plus_x = plus({pat("a"), sym("x")});
+    Bindings b3;
+    CHECK(match(pat_a_plus_x, sum3, b3));
+    CHECK_EQ(F(b3.at("a")), std::string("Plus(1, y)"));
+
+    // Repeated name: a_ + a_ against x + y fails
+    ExprPtr sum_aa = plus({pat("a"), pat("a")});
+    ExprPtr sum_xy = plus({sym("x"), sym("y")});
+    Bindings b4;
+    CHECK(!match(sum_aa, sum_xy, b4));
+
+    // Custom Orderless head: f(a_, a_) against f(x, x)
+    enum : unsigned { Orderless = 1u << 4 };
+    ExprPtr f_aa = make_normal("f", {pat("a"), pat("a")});
+    ExprPtr f_xx = make_normal("f", {sym("x"), sym("x")});
+    Bindings b5;
+    CHECK(match(f_aa, f_xx, b5, Orderless));
+    CHECK_EQ(F(b5.at("a")), std::string("x"));
+}
+
+TEST_CASE("Pattern: Flat and Orderless rule replacement (replace_all)") {
+    // f(x + y + z) /. f(a_ + b_) -> g(a, b)
+    ExprPtr expr = make_normal("f", {plus({sym("x"), sym("y"), sym("z")})});
+    ExprPtr rule = make_normal("Rule", {make_normal("f", {plus({pat("a"), pat("b")})}),
+                                        g({sym("a"), sym("b")}).ptr()});
+    bool changed = false;
+    ExprPtr result = replace_all(expr, {rule}, &changed);
+    CHECK(changed);
+    CHECK_EQ(F(result), std::string("g(x, Plus(y, z))"));
+}

@@ -42,9 +42,9 @@ std::string head_name(const Expr& e);
 bool has_pattern(const ExprPtr& e);
 
 // Try to match `expr` against `pattern`, extending `bindings`.
-// On failure `bindings` is left unchanged. A name that is already bound must match
-// a structurally equal value.
-bool match(const ExprPtr& pattern, const ExprPtr& expr, Bindings& bindings);
+// Attributes (Flat, Orderless) on head symbols control associative and commutative matching.
+// When attributes == 0, head symbols "Plus" and "Times" default to Flat | Orderless.
+bool match(const ExprPtr& pattern, const ExprPtr& expr, Bindings& bindings, unsigned attributes = 0);
 
 // Replace every bound symbol in `e` by its value (Sequence values are spliced into
 // argument lists). The result is rebuilt raw; evaluate it to canonicalize.

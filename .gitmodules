@@ -1,0 +1,3 @@
+[submodule "third_party/giac"]
+	path = third_party/giac
+	url = https://github.com/nxuanloc2026/giac.git

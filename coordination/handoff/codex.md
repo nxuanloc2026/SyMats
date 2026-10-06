@@ -1,5 +1,64 @@
 # Handoff — Codex
 
+## T-011 checkpoint (2026-10-06 13:28 UTC)
+
+The fork pin 6ba6b31 also fixes the inverse-Laplace temporary-identifier
+use-after-free found by the T-012 system tests under AddressSanitizer. The
+smoke test now calls inverse Laplace twice in the same context. Linux CI is
+green at a015f6b. Windows failed before compilation twice because GNU/GMP
+downloads timed out; CI now seeds the archives from kernel.org with the exact
+SHA512 hashes from the pinned vcpkg portfiles, and caches downloads/binaries.
+
+## Build and bridge crash fixes (2026-10-06)
+
+T-011 Linux CI passed at f58c29b; its Windows run stopped at a GMP download
+timeout (the preceding Windows Debug run passed). The fork pin c9e056c fixes
+additional checked-iterator errors exercised by ODEs, small matrix products,
+characteristic polynomials, and eigenvalues. The new smoke regressions cover
+those operations. T-012 is checkpointed at dd89a98; scalar ODEs, integration,
+algebraic solves, and matrix operations now run under MSVC AddressSanitizer
+Debug without a crash. Remaining bridge work: linear ODE system adaptation,
+fresh generated constant names, remove temporary tracing, full suite and PR.
+
+## T-011 Giac build (2026-10-05)
+
+Claimed `codex/T-011-giac-build` from current main `6c41bda` after PR #21 merged.
+The user requested T-011, T-012, T-013, T-015, and T-026, one branch and PR
+per task. T-011 blocks T-012, which blocks the full T-013 verification path.
+Plan: pin a GPL-3+ Giac release in a fork and submodule, provide
+`third_party::giac`, and prove MSVC and Linux builds with GMP. The source
+currently uses Autotools and old Visual C++ build files; assess this before
+choosing the integration. No public core API or expression-spec change is
+planned for T-011.
+Checkpoint at 22:56 UTC: forked GPL-3+ `sagemath/giac` release
+`upstream/1.9.0.57+dfsg2` (`3c8f0cb3`), and pushed C++20/MSVC fixes to the
+Symats fork at `2d4c1c9e` on `symats/msvc-cxx20-release`. The submodule pin is
+updated to that fork commit, then to `5867af33` for GCC template constructor
+syntax and `e514be56` for Linux POSIX file headers after CI failures. Added an
+opt-in `third_party::giac` CMake target,
+generated parser/lexer, GMP/MPFR linkage, a linked arithmetic smoke test, and
+Windows/Linux CI job. VS 2026 MSVC Debug built the entire repository, and both
+`giac-smoke` and `symats_tests` passed locally. The GitHub CI run still needs
+Linux and hosted Windows validation. No core public header or EXPR_SPEC change
+was made. Do not mark T-011 done until CI is green and the PR is ready.
+
+Follow-up checkpoint: CI exposed Linux's gettext declaration path and an
+outdated hard-coded Visual Studio generator on the Windows runner. The build
+now enables Giac's gettext path on Linux and selects the installed Visual
+Studio via `vswhere` for a Ninja build. A bridge test also exposed an upstream
+Giac 64-bit Windows alias-size bug; the fork fixes it at `4ad344ce` by enabling
+`DOUBLEVAL` for `_WIN64`. The sanitizer build passes the conversion and factor
+tests. Normal Debug behavior and both hosted jobs still require validation.
+The follow-up Giac fork fixes signed `DOUBLEVAL` alias payloads for GCC and
+replaces comparisons of unrelated `std::vector` iterators in polynomial
+operations. That iterator bug caused the MSVC Debug assertion while factoring.
+The sanitizer Debug bridge test and the regular Debug Giac factor smoke test
+now pass locally. Hosted CI is rerunning with a Debug Windows build.
+2026-10-06: Windows hosted Debug CI passed. Linux reached `global.cc` and
+requires `HAVE_PWD_H`/`HAVE_SYS_TYPES_H`; these are now enabled. The fork pin
+also includes checked-iterator fixes for Solve and determinant row operations,
+covered by the expanded smoke test. Hosted Linux validation remains pending.
+
 ## T-010 native calculus takeover (2026-10-05)
 
 Completed T-010 on `takeover/T-010-native-calculus` from main `4db3660`.

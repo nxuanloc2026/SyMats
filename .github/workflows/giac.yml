@@ -1,0 +1,108 @@
+name: Giac backend build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  giac-build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-binaries
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgmp-dev libmpfr-dev flex bison
+
+      - name: Prepare Windows dependency manager
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git vcpkg
+          git -C vcpkg checkout 5508584fd90f2cb4bb441c8c77860a418e50194b
+          ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
+
+      - name: Cache Windows dependency downloads and binaries
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg/downloads
+            .vcpkg-binaries
+          key: windows-giac-vcpkg-5508584fd90f2cb4bb441c8c77860a418e50194b-v1
+
+      - name: Install Windows GMP and MPFR
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force vcpkg/downloads, .vcpkg-binaries | Out-Null
+          foreach ($port in @('gmp', 'mpfr')) {
+            $version = (Get-Content "vcpkg/ports/$port/vcpkg.json" -Raw | ConvertFrom-Json).version
+            $portfile = Get-Content "vcpkg/ports/$port/portfile.cmake" -Raw
+            $expected = [regex]::Match($portfile, 'SHA512\s+([a-f0-9]{128})').Groups[1].Value
+            $archive = "vcpkg/downloads/$port-$version.tar.xz"
+            if (!(Test-Path $archive)) {
+              Invoke-WebRequest "https://mirrors.kernel.org/gnu/$port/$port-$version.tar.xz" -OutFile $archive
+            }
+            if ((Get-FileHash $archive -Algorithm SHA512).Hash -ne $expected) {
+              throw "$port download checksum mismatch"
+            }
+          }
+          ./vcpkg/vcpkg.exe install gmp:x64-windows mpfr:x64-windows
+
+      - name: Install Windows parser generators
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'win_flex_bison-2.5.25.zip'
+          Invoke-WebRequest 'https://github.com/lexxmark/winflexbison/releases/download/v2.5.25/win_flex_bison-2.5.25.zip' -OutFile $zip
+          $actual = (Get-FileHash $zip -Algorithm SHA256).Hash
+          if ($actual -ne '8D324B62BE33604B2C45AD1DD34AB93D722534448F55A16CA7292DE32B6AC135') {
+            throw 'WinFlexBison archive checksum mismatch'
+          }
+          Expand-Archive $zip -DestinationPath tools/winflexbison
+
+      - name: Configure on Linux
+        if: runner.os == 'Linux'
+        run: cmake -S . -B build-giac -DCMAKE_BUILD_TYPE=Release -DSYMATS_USE_GIAC=ON
+
+      - name: Configure, build, and test on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -Scope Process Bypass -Force
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $vsPath = & $vswhere -latest -property installationPath
+          & "$vsPath/Common7/Tools/Launch-VsDevShell.ps1" -Arch amd64 -HostArch amd64
+          $ninja = "$vsPath/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe"
+          cmake -S . -B build-giac -G Ninja `
+            -DSYMATS_USE_GIAC=ON `
+            -DCMAKE_BUILD_TYPE=Debug `
+            "-DCMAKE_MAKE_PROGRAM=$ninja" `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            "-DGIAC_FLEX=$env:GITHUB_WORKSPACE/tools/winflexbison/win_flex.exe" `
+            "-DGIAC_BISON=$env:GITHUB_WORKSPACE/tools/winflexbison/win_bison.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build-giac --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build-giac --output-on-failure
+          exit $LASTEXITCODE
+
+      - name: Build on Linux
+        if: runner.os == 'Linux'
+        run: cmake --build build-giac --config Release --parallel 2
+
+      - name: Test on Linux
+        if: runner.os == 'Linux'
+        run: ctest --test-dir build-giac -C Release --output-on-failure

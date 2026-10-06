@@ -1,5 +1,14 @@
 # Handoff — Codex
 
+## T-011 checkpoint (2026-10-06 13:28 UTC)
+
+The fork pin 6ba6b31 also fixes the inverse-Laplace temporary-identifier
+use-after-free found by the T-012 system tests under AddressSanitizer. The
+smoke test now calls inverse Laplace twice in the same context. Linux CI is
+green at a015f6b. Windows failed before compilation twice because GNU/GMP
+downloads timed out; CI now seeds the archives from kernel.org with the exact
+SHA512 hashes from the pinned vcpkg portfiles, and caches downloads/binaries.
+
 ## Build and bridge crash fixes (2026-10-06)
 
 T-011 Linux CI passed at f58c29b; its Windows run stopped at a GMP download

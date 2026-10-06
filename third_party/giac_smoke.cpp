@@ -34,5 +34,9 @@ int main() {
   const giac::gen yx(giac::symbolic(*giac::at_of,giac::makesequence(y,x)));
   const giac::gen derivative(giac::symbolic(*giac::at_derive,giac::makesequence(yx,x,2)));
   const auto solution = giac::_desolve(giac::makesequence(derivative+yx,x,y),&context);
-  return giac::is_undef(solution) ? 7 : 0;
+  if (giac::is_undef(solution)) return 7;
+  const giac::gen t(giac::identificateur("t"));
+  const auto sine = giac::_ilaplace(giac::makesequence(giac::gen(1)/(1+x*x),x,t),&context);
+  const auto cosine = giac::_ilaplace(giac::makesequence(x/(1+x*x),x,t),&context);
+  return sine==giac::sin(t,&context) && cosine==giac::cos(t,&context) ? 0 : 8;
 }

@@ -213,3 +213,34 @@ TEST_CASE("Eval: native expansion Expand") {
     CHECK_EQ(run(c, "Expand((x + y)*(x - y))"), std::string("Plus(Power(x, 2), Times(-1, Power(y, 2)))"));
     CHECK_EQ(run(c, "Expand((a + b)^3)"), std::string("Plus(Power(a, 3), Power(b, 3), Times(3, a, Power(b, 2)), Times(3, Power(a, 2), b))"));
 }
+
+TEST_CASE("Eval: symbolic inputs and pipeline scenario") {
+    Session session;
+
+    // 1. Implicit symbolic inputs without declaration
+    auto r1 = session.run(P("f = x^2 + y^2"));
+    CHECK(r1.ok());
+    CHECK_EQ(to_text(r1.output), std::string("x^2 + y^2"));
+
+    // 2. Symbolic differentiation
+    auto r2 = session.run(P("df = D(f, x)"));
+    CHECK(r2.ok());
+    CHECK_EQ(to_text(r2.output), std::string("2*x"));
+
+    // 3. Symbolic matrix multiplication
+    auto r3 = session.run(P("M = {{a, b}, {c, d}}"));
+    auto r4 = session.run(P("v = {x, y}"));
+    auto r5 = session.run(P("M . v"));
+    CHECK(r5.ok());
+    CHECK_EQ(to_text(r5.output), std::string("{a*x + b*y, c*x + d*y}"));
+
+    // 4. Assigning values and evaluating symbolic expressions
+    session.run(P("x = 10"));
+    auto r6 = session.run(P("df"));
+    CHECK_EQ(to_text(r6.output), std::string("20"));
+
+    // 5. Clearing symbols restores pure symbolic representation
+    session.run(P("clear(x)"));
+    auto r7 = session.run(P("df"));
+    CHECK_EQ(to_text(r7.output), std::string("2*x"));
+}

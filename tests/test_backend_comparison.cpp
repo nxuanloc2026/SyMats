@@ -27,11 +27,11 @@ struct ComparisonReport {
     std::vector<std::string> mismatch_details;
 };
 
-// Evaluate an expression string (currently parses text into Expr; when backend/evaluator is present, evaluates).
+// Evaluate an expression string.
 symats::ExprPtr evaluate_expression(const std::string& input_text) {
+    static symats::Context ctx;
     symats::ExprPtr expr = symats::parse_text(input_text);
-    // Future expansion: pass `expr` to evaluator / MathBackend once T-001/T-012 are completed.
-    return expr;
+    return symats::evaluate_top(expr, ctx).value;
 }
 
 ComparisonReport run_comparison_suite(const std::vector<ComparisonTestCase>& cases, bool strict_eval = false) {

@@ -24,7 +24,7 @@ constexpr std::pair<std::string_view, std::string_view> aliases[] = {
         {"eigenvectors", "Eigenvectors"}, {"rref", "RowReduce"},
         {"charpoly", "CharPoly"}, {"matrixexp", "MatrixExp"},
         {"linsolve", "LinearSolve"}, {"expand", "Expand"}, {"factor", "Factor"},
-        {"simplify", "Simplify"}, {"solve", "Solve"}, {"subs", "Substitute"},
+        {"simplify", "Simplify"}, {"solve", "Solve"}, {"subs", "Substitute"}, {"clear", "Clear"},
         {"plot", "Plot"}, {"paramplot", "ParametricPlot"},
         {"polarplot", "PolarPlot"}, {"implicitplot", "ImplicitPlot"},
         {"plot3d", "Plot3D"}, {"contourplot", "ContourPlot"},
@@ -188,18 +188,35 @@ private:
         }
     }
     ExprPtr product() {
-        ExprPtr left = unary();
+        ExprPtr left = dot();
         while (true) {
-            if (take('*')) left = times(left, unary());
-            else if (take('/')) left = divide(left, unary());
+            if (take('*')) left = times(left, dot());
+            else if (take('/')) left = divide(left, dot());
             else {
                 // Juxtaposition, such as 2x or a b, denotes multiplication.
                 char c = peek();
                 if (c == '(' || c == '[' || std::isalpha(static_cast<unsigned char>(c)))
-                    left = times(left, unary());
+                    left = times(left, dot());
                 else return left;
             }
         }
+    }
+    bool take_dot() {
+        space();
+        if (pos_ < input_.size() && input_[pos_] == '.') {
+            if (pos_ + 1 < input_.size() && (std::isdigit(static_cast<unsigned char>(input_[pos_ + 1])) || input_[pos_ + 1] == '.'))
+                return false;
+            ++pos_;
+            return true;
+        }
+        return false;
+    }
+    ExprPtr dot() {
+        ExprPtr left = unary();
+        while (take_dot()) {
+            left = make_normal("Dot", {left, unary()});
+        }
+        return left;
     }
     ExprPtr unary() {
         DepthGuard guard(depth_);

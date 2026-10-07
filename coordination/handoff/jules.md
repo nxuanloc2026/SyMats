@@ -1,39 +1,18 @@
 # Handoff — Jules
 
-## NEXT TASKS (2026-10-03, Claude out of usage) — read first
-In order, one PR each:
-1. **T-027** xeus Jupyter kernel (priority: usable notebook in JupyterLab/VS Code early),
-2. **T-009** optional GMP backend,
-3. **T-030** Mathics3 semantics doc-tests (reference only, GPL).
+## TAKEOVER & REASSIGNMENT NOTICE (2026-10-05)
+All remaining tasks on the task board have been reassigned to **Jules**.
 
-## Current task
-T-010: Native `D` (differentiation) and `Expand` in `core/`.
-Branch: `jules/T-010-native-d-expand`
-Status: review / PR ready.
+## Tasks completed recently:
+- **T-009**: Optional GMP backend for `Integer` behind CMake option `SYMATS_USE_GMP`.
+- **T-020**: `parse_cell(text)` in `convert/` for statement splitting, `;` suppression, and history shortcuts (`%`, `%%`, `%n`).
+- **T-006**: Interactive REPL and `.sym` script file execution in `symats-cli`.
+- **T-010**: Native symbolic differentiation (`D`) and polynomial expansion (`Expand`) in `core/`.
 
-## Notes on T-010
-- Created `core/include/symats/calculus.h` and `core/src/calculus.cpp` implementing native `differentiate` and `expand`.
-- Implemented sum linearity, n-factor product rule, general power rule, chain rule for all elementary functions (`Sin`, `Cos`, `Tan`, `Cot`, `Sec`, `Csc`, `ArcSin`, `ArcCos`, `ArcTan`, `Sinh`, `Cosh`, `Tanh`, `Exp`, `Log`, `Abs`), unknown functions (`Derivative(1, f)(u)`), and higher-order derivatives.
-- Implemented `expand` distributing `Times` over `Plus` and expanding integer powers of sums.
-- Registered built-in heads `D`, `Expand`, and `Derivative` in `core/src/eval.cpp`.
-- Added unit tests in `tests/test_eval.cpp`.
-
-## Notes
-- Updated `tests/test_backend_comparison.cpp` with T-014 data fixes (Rational nodes, dropped +C, Rule output format for `Solve`) and added Maxima 5.46.0 test oracle suite.
-- Added session multi-cell, symbol clearing, line numbering, and workspace symbol tracking test cases to `tests/test_session.cpp`.
-- Added test cases in `tests/test_operators.cpp` for Tier 1 operators (Derivative, Patterns, Logic, ReplaceAll, Dot) and calculus expected value full forms (`D`, `Expand`, `Integrate`, `Solve`).
-- All tests build and pass cleanly under CMake and `ctest`.
-T-028: Tests: Session (multi-cell, %, errors), Tier 1 operators, and D/Expand expected values from mathematics, SymPy, Maxima; fix T-014 data; Maxima as second oracle.
-Branch: `jules/T-028-tests-maxima-oracle`
-Status: review / PR ready
-
-## Notes
-- Fixed T-014 dataset issues in `tests/test_backend_comparison.cpp` (`1/3` representation, dropped `+C` from antiderivatives, updated `Solve` output format to `{{x -> a}}`).
-- Added Maxima 5.47.0 oracle dataset (`maxima_cases` with 8 test cases across Integration, Differentiation, Expansion, Factorization, Limit, Solving, LinearAlgebra, DSolve with GPL source noted) and added `maxima_comparison_suite` test case.
-- Added test cases in `test_session.cpp` for multi-cell pipeline error recovery and history shortcut (`%`, `Out(-1)`, `%1`).
-- Added test cases in `test_operators.cpp` for rule lists with `ReplaceAll` and relational operators.
-- Added test cases in `test_eval.cpp` for `D` and `Expand` expected structural representations.
-- Verified all tests pass cleanly via `ctest`.
-
-## Open questions
-None.
+## Next Open Tasks:
+1. **T-024**: Parser: all Tier 1 operators per EXPR_SPEC §3.12 (`/.`, `y'(t)`, `&&`, `||`, prefix/postfix `!`, patterns `x_`, `x_h`, `x__`).
+2. **T-030**: Evaluator semantics audit vs Mathics3: doc-tests in `tests/test_mathics_semantics.cpp`.
+3. **T-018**: Flat / Orderless-aware pattern matching in `core/pattern.cpp`.
+4. **T-025**: Tier 2 operators (`:>`, `//.`, `===`, `=.`, `/;`, `[[i]]`, `;;`, `++`, `+=`, `-=`).
+5. **T-029**: Quick `NDSolve` with Boost.Odeint & Boost.Math in `backend/odeint/`.
+6. **T-026**: Port Vegas Monte Carlo integration from Numerica (MIT) for `NIntegrate`.

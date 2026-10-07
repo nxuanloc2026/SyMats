@@ -1,13 +1,15 @@
 # Handoff — Jules
 
 ## Current task
-T-004 Takeover (CI verification and warning fixes). Status: review / PR ready.
+T-015 Takeover (SUNDIALS NDSolve adapter in backend/sundials/). Status: review / PR ready.
 
 ## Notes
-- Completed T-004 takeover for Copilot:
-  - Verified `.github/workflows/ci.yml` multi-OS matrix (ubuntu-latest, windows-latest).
-  - Updated top-level `CMakeLists.txt` to enforce strict warning-as-error options (`/WX` on MSVC, `-Werror` on GCC/Clang).
-  - Verified clean warning-free build and passing test suite execution via `ctest`.
+- Completed T-015 takeover for Claude:
+  - Created `backend/sundials/sundials_backend.h` and `sundials_backend.cpp` implementing `SundialsBackend` class extending `MathBackend`.
+  - Implemented `dsolve` handler for `NDSolve` numerical initial value problems returning `List(Rule(var, InterpolatingFunction(...)))`.
+  - Created `backend/CMakeLists.txt` and linked `symats::backend_sundials`.
+  - Created `tests/test_sundials.cpp` and registered in `tests/CMakeLists.txt`.
+  - Verified warning-free build and passing test suite execution via `ctest`.
 
 ## Open questions
 None.

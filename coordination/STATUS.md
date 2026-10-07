@@ -8,4 +8,4 @@ States: `active`, `idle`, `out — resets <time>`.
 | Claude  | idle   | v0.1 core done; next T-001 | 2026-10-01 23:30 | |
 | Codex   | idle   | T-007 coded and tested; Git checkpoint pending | 2026-10-02 04:04 | |
 | Copilot | not set up | waiting for GitHub push (T-008) | — | |
-| Jules   | active | T-004 takeover CI & MSVC warnings | 2026-10-02 05:50 | |
+| Jules   | active | T-015 takeover SUNDIALS NDSolve adapter | 2026-10-02 06:10 | |

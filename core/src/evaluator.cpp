@@ -91,6 +91,7 @@ ExprPtr Session::eval(const ExprPtr& expr, std::size_t depth) {
             if (evaluated_normal->has_head("Integrate") || evaluated_normal->has_head("integrate")) return backend->integrate(evaluated_normal);
             if (evaluated_normal->has_head("Solve") || evaluated_normal->has_head("solve")) return backend->solve(evaluated_normal);
             if (evaluated_normal->has_head("DSolve") || evaluated_normal->has_head("dsolve")) return backend->dsolve(evaluated_normal);
+            if (evaluated_normal->has_head("NDSolve") || evaluated_normal->has_head("ndsolve")) return backend->dsolve(evaluated_normal);
             if (evaluated_normal->has_head("Limit") || evaluated_normal->has_head("limit")) return backend->limit(evaluated_normal);
             if (evaluated_normal->has_head("Series") || evaluated_normal->has_head("series")) return backend->series(evaluated_normal);
             if (evaluated_normal->has_head("Factor") || evaluated_normal->has_head("factor")) return backend->factor(evaluated_normal);

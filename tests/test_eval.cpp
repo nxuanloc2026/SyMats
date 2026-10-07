@@ -185,19 +185,31 @@ TEST_CASE("Eval: dispatch to MathBackend with status") {
     CHECK_EQ(mock->calls, before);
 }
 
-TEST_CASE("Eval: D and Expand structure parsing and verification") {
-    // D cases from calculus, SymPy diff(), Maxima diff()
-    ExprPtr d1 = P("D(x^4 + 3*x^2, x)");
-    CHECK(d1 != nullptr);
-    CHECK(d1->has_head("D"));
-    CHECK_EQ(d1->size(), std::size_t(2));
+TEST_CASE("Eval: native differentiation D") {
+    Context c;
+    CHECK_EQ(run(c, "D(x^3, x)"), std::string("Times(3, Power(x, 2))"));
+    CHECK_EQ(run(c, "D(x^4 + 3*x^2, x)"), std::string("Plus(Times(6, x), Times(4, Power(x, 3)))"));
+    CHECK_EQ(run(c, "D(sin(x), x)"), std::string("Cos(x)"));
+    CHECK_EQ(run(c, "D(sin(x^2), x)"), std::string("Times(2, x, Cos(Power(x, 2)))"));
+    CHECK_EQ(run(c, "D(exp(x^2), x)"), std::string("Times(2, x, Exp(Power(x, 2)))"));
+    CHECK_EQ(run(c, "D(log(x), x)"), std::string("Power(x, -1)"));
+    CHECK_EQ(run(c, "D(x * sin(x), x)"), std::string("Plus(Sin(x), Times(x, Cos(x)))"));
+    CHECK_EQ(run(c, "D(y, x)"), std::string("0"));
+    CHECK_EQ(run(c, "D(sin(x), {x, 2})"), std::string("Times(-1, Sin(x))"));
+    CHECK_EQ(run(c, "Derivative(1, Sin)(x)"), std::string("Cos(x)"));
 
-    // Expand cases from algebra, SymPy expand(), Maxima expand()
-    ExprPtr exp1 = P("Expand((x + 1)^2)");
-    CHECK(exp1 != nullptr);
-    CHECK(exp1->has_head("Expand"));
+    // User function differentiation via Derivative
+    evaluate(call("SetDelayed", {call("f", {pat("t")}), P("t^3")}), c);
+    CHECK_EQ(run(c, "Derivative(1, f)(x)"), std::string("Times(3, Power(x, 2))"));
 
-    ExprPtr exp2 = P("Expand((a + b)^3)");
-    CHECK(exp2 != nullptr);
-    CHECK(exp2->has_head("Expand"));
+    // Undefined function differentiation stays Derivative(1, g)(x) without looping
+    CHECK_EQ(run(c, "D(g(x), x)"), std::string("Derivative(1, g)(x)"));
+    CHECK_EQ(run(c, "Derivative(1, g)(x)"), std::string("Derivative(1, g)(x)"));
+}
+
+TEST_CASE("Eval: native expansion Expand") {
+    Context c;
+    CHECK_EQ(run(c, "Expand((x + 1)^2)"), std::string("Plus(1, Times(2, x), Power(x, 2))"));
+    CHECK_EQ(run(c, "Expand((x + y)*(x - y))"), std::string("Plus(Power(x, 2), Times(-1, Power(y, 2)))"));
+    CHECK_EQ(run(c, "Expand((a + b)^3)"), std::string("Plus(Power(a, 3), Power(b, 3), Times(3, a, Power(b, 2)), Times(3, Power(a, 2), b))"));
 }

@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "symats/calculus.h"
 #include "symats/pattern.h"
 
 namespace symats {
@@ -383,6 +384,39 @@ void install_builtins(Context& ctx) {
     for (const char* s : {"Pi", "E", "I", "Infinity", "ComplexInfinity", "Indeterminate", "True",
                           "False", "Null", "List", "Sequence"})
         ctx.set_attributes(s, ctx.attributes(s) | Protected);
+
+    // Calculus: D, Expand
+    ctx.set_builtin("D", [](const ExprPtr& e, Context& c) -> ExprPtr {
+        if (e->size() < 2) return nullptr;
+        ExprPtr res = e->arg(0);
+        for (std::size_t i = 1; i < e->size(); ++i) {
+            const ExprPtr& spec = e->arg(i);
+            if (spec->is_symbol()) {
+                res = differentiate(res, spec);
+            } else if (spec->has_head("List")) {
+                if (spec->size() == 2 && spec->arg(0)->is_symbol() && spec->arg(1)->is_integer()) {
+                    auto n = spec->arg(1)->integer().to_int64();
+                    if (n && *n >= 0) {
+                        res = differentiate(res, spec->arg(0), static_cast<unsigned long long>(*n));
+                    } else return nullptr;
+                } else {
+                    for (const auto& item : spec->args()) {
+                        if (!item->is_symbol()) return nullptr;
+                        res = differentiate(res, item);
+                    }
+                }
+            } else return nullptr;
+        }
+        return evaluate(res, c);
+    });
+    ctx.set_attributes("D", Protected);
+
+    ctx.set_builtin("Expand", [](const ExprPtr& e, Context& c) -> ExprPtr {
+        if (e->size() != 1) return nullptr;
+        return evaluate(expand(e->arg(0)), c);
+    });
+    ctx.set_attributes("Expand", Protected);
+    ctx.set_attributes("Derivative", Protected);
 }
 
 }  // namespace
@@ -452,6 +486,24 @@ struct EvalStep {
         }
 
         const ExprPtr cur = args_changed ? make_normal(head, std::move(args)) : e;
+
+        // Derivative head evaluation: Derivative(n, f)(x)
+        if (head->has_head("Derivative") && head->size() == 2 && args.size() == 1) {
+            const ExprPtr& n_expr = head->arg(0);
+            const ExprPtr& f = head->arg(1);
+            if (n_expr->is_integer() && f->is_symbol()) {
+                auto n = n_expr->integer().to_int64();
+                if (n && *n >= 0) {
+                    ExprPtr fx = evaluate(make_normal(f, args), ctx);
+                    if (fx->has_head(f->name()) && !(ctx.attributes(f->name()) & attr::Listable)) {
+                        return {cur, false};
+                    }
+                    ExprPtr df = differentiate(fx, args[0], static_cast<unsigned long long>(*n));
+                    if (!equal(df, cur)) return {df, true};
+                }
+            }
+        }
+
         if (!hname) return {cur, false};  // no rules attach to non-symbol heads (yet)
 
         // 1. Built-in.

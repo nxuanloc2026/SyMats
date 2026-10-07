@@ -7,14 +7,16 @@ In order, one PR each:
 3. **T-030** Mathics3 semantics doc-tests (reference only, GPL).
 
 ## Current task
-T-006: `symats-cli` REPL and script runner.
-Branch: `jules/T-006-cli-repl`
+T-010: Native `D` (differentiation) and `Expand` in `core/`.
+Branch: `jules/T-010-native-d-expand`
 Status: review / PR ready.
 
-## Notes on T-006
-- Updated `cli/CMakeLists.txt` to link `symats::convert` with `symats::core`.
-- Updated `cli/main.cpp` to implement an interactive REPL with `Session`, `parse_cell`, and `to_text` (with `In[n]:=` prompts and `Out[n] = ...` output lines).
-- Added script file execution mode (`symats-cli file.sym`) executing statement by statement.
+## Notes on T-010
+- Created `core/include/symats/calculus.h` and `core/src/calculus.cpp` implementing native `differentiate` and `expand`.
+- Implemented sum linearity, n-factor product rule, general power rule, chain rule for all elementary functions (`Sin`, `Cos`, `Tan`, `Cot`, `Sec`, `Csc`, `ArcSin`, `ArcCos`, `ArcTan`, `Sinh`, `Cosh`, `Tanh`, `Exp`, `Log`, `Abs`), unknown functions (`Derivative(1, f)(u)`), and higher-order derivatives.
+- Implemented `expand` distributing `Times` over `Plus` and expanding integer powers of sums.
+- Registered built-in heads `D`, `Expand`, and `Derivative` in `core/src/eval.cpp`.
+- Added unit tests in `tests/test_eval.cpp`.
 
 ## Notes
 - Updated `tests/test_backend_comparison.cpp` with T-014 data fixes (Rational nodes, dropped +C, Rule output format for `Solve`) and added Maxima 5.46.0 test oracle suite.

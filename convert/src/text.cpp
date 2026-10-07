@@ -212,7 +212,7 @@ private:
         if (take('^')) return power(base, unary());  // right associative
         return base;
     }
-    ExprPtr atom() {
+    ExprPtr atom_primary() {
         char c = peek();
         if (std::isdigit(static_cast<unsigned char>(c)) ||
             (c == '.' && pos_ + 1 < input_.size() &&
@@ -258,21 +258,11 @@ private:
                    (std::isalnum(static_cast<unsigned char>(input_[pos_])) ||
                     input_[pos_] == '_')) ++pos_;
             std::string name(input_.substr(start, pos_ - start));
-            // Calls require no whitespace before '('. A space means multiplication.
-            if (pos_ >= input_.size() || input_[pos_] != '(') {
-                if (name == "pi") name = "Pi";
-                else if (name == "e") name = "E";
-                else if (name == "i") name = "I";
-                else if (name == "inf" || name == "infinity") name = "Infinity";
-                return make_symbol(std::move(name));
-            }
-            ++pos_;
-            ExprList args;
-            if (!take(')')) {
-                do { args.push_back(relation()); } while (take(','));
-                expect(')');
-            }
-            return call(name, std::move(args));
+            if (name == "pi") name = "Pi";
+            else if (name == "e") name = "E";
+            else if (name == "i") name = "I";
+            else if (name == "inf" || name == "infinity") name = "Infinity";
+            return make_symbol(std::move(name));
         }
         if (take('%')) {
             if (take('%')) {
@@ -314,6 +304,24 @@ private:
             return make_normal("List", std::move(items));
         }
         error("expected expression");
+    }
+
+    ExprPtr atom() {
+        ExprPtr base = atom_primary();
+        while (pos_ < input_.size() && input_[pos_] == '(') {
+            ++pos_;
+            ExprList args;
+            if (!take(')')) {
+                do { args.push_back(relation()); } while (take(','));
+                expect(')');
+            }
+            if (base->is_symbol()) {
+                base = call(base->name(), std::move(args));
+            } else {
+                base = make_normal(base, std::move(args));
+            }
+        }
+        return base;
     }
 };
 

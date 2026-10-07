@@ -13,6 +13,7 @@ add_executable(symats_tests
   test_eval.cpp
   test_session.cpp
   test_operators.cpp
+  test_giac_backend.cpp
 )
-target_link_libraries(symats_tests PRIVATE symats::core symats::convert)
+target_link_libraries(symats_tests PRIVATE symats::core symats::convert symats::backend)
 add_test(NAME symats_tests COMMAND symats_tests)

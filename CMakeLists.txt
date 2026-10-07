@@ -16,7 +16,9 @@ else()
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+add_subdirectory(third_party)
 add_subdirectory(core)
+add_subdirectory(backend)
 add_subdirectory(convert)
 
 if(SYMATS_BUILD_CLI)

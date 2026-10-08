@@ -17,7 +17,8 @@ ExprPtr run(std::string_view text) {
         symats_test::report(__FILE__, __LINE__, "backend declined " + std::string(text));
         return nullptr;
     }
-    CHECK(result->status == ResultStatus::Unverified);
+    CHECK(result->status == ResultStatus::Verified ||
+          result->status == ResultStatus::Unverified);
     CHECK_EQ(result->backend, "giac");
     return result->value;
 }
@@ -104,6 +105,16 @@ TEST_CASE("Giac bridge performs exact linear algebra") {
             CHECK(equal(times(make_integer(2), vector->arg(1)),
                         times(eigenvalues->arg(i), vector->arg(1))));
         }
+
+        TEST_CASE("Giac bridge marks natively checked results verified") {
+            GiacBackend backend;
+            const auto integral = backend.evaluate(parse_text("Integrate[x^2,x]"));
+            const auto solve = backend.evaluate(parse_text("Solve[x^2==4,x]"));
+            const auto inverse = backend.evaluate(parse_text("Inverse[{{1,2},{3,4}}]"));
+            CHECK(integral && integral->status == ResultStatus::Verified);
+            CHECK(solve && solve->status == ResultStatus::Verified);
+            CHECK(inverse && inverse->status == ResultStatus::Verified);
+        }
     }
 }
 
@@ -127,5 +138,5 @@ TEST_CASE("Giac registers with the evaluator and keeps backend status") {
     context.backends().add(std::make_shared<GiacBackend>());
     const auto result = evaluate_top(parse_text("Integrate[x^2,{x,0,1}]"),context);
     CHECK(equal(result.value,parse_text("1/3")));
-    CHECK(result.status == ResultStatus::Unverified);
+    CHECK(result.status == ResultStatus::Verified);
 }

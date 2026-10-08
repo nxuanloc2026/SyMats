@@ -8,6 +8,7 @@
 #include <climits>
 #include <stdexcept>
 #include "static_extern.h"
+#include "symats/verification.h"
 
 namespace symats {
 namespace {
@@ -212,7 +213,9 @@ std::optional<BackendResult> GiacBackend::evaluate(const ExprPtr& expr) {
             converted = solution_rules(values, targets, system);
         }
         if (!converted) return std::nullopt;
-        return BackendResult{*converted, ResultStatus::Unverified, "giac"};
+        const ResultStatus status = verify_backend_result(expr, *converted)
+            ? ResultStatus::Verified : ResultStatus::Unverified;
+        return BackendResult{*converted, status, "giac"};
     } catch (const std::exception&) {
         return std::nullopt;
     }

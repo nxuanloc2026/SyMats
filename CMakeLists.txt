@@ -28,6 +28,7 @@ add_subdirectory(convert)
 
 if(SYMATS_USE_GIAC)
   add_subdirectory(third_party)
+  add_subdirectory(backend/giac)
 endif()
 
 if(SYMATS_BUILD_CLI)

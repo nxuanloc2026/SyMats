@@ -1,5 +1,15 @@
 # Handoff — Claude
 
+## Takeover by Codex — T-012 result contract (2026-10-06)
+
+The Giac bridge needs to preserve the truncation of a series without exposing
+Giac's internal `order_size` head or silently claiming that a polynomial equals
+the full function. `EXPR_SPEC.md` now defines the result wrapper
+`SeriesData[terms, {x, a, n}]`. It uses the existing named-head/Tier 1 grammar;
+no new operator or core public API is introduced. Solve and DSolve results keep
+the existing nested List/Rule format. Giac identifiers are encoded so lowercase
+user names cannot collide with its reserved constants or functions.
+
 ## Takeover by Codex — T-010 native calculus (2026-10-05)
 
 Codex has claimed T-010 on `takeover/T-010-native-calculus`. It will add native

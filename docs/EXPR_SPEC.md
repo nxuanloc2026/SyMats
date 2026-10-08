@@ -100,6 +100,11 @@ Text: `Sin[x]`, `ArcTan[x]`, `Log[x]` = natural log, `Log[b, x]` = base b.
 | `Product` | f, {k, a, b} | `Product[f, {k, a, b}]` | Π |
 | `Series` | f, {x, a, n} | `Series[f, {x, a, n}]` | Taylor series |
 
+`Series` results use `SeriesData[terms, {x, a, n}]`: a formal expansion about
+`x = a`, truncated through the requested order `n`. The wrapper retains the
+truncation metadata; `terms` alone must not be presented as equal to the original
+function. This is a named head using the existing Tier 1 call syntax.
+
 ### 3.6 Differential equations
 
 | Head | Meaning | Text example |

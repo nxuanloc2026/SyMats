@@ -4,6 +4,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -21,12 +22,16 @@ struct RuleDefinition {
 
 class Session {
 public:
-    Session() = default;
+    Session();
 
     // Define a rule/assignment (Set = or SetDelayed :=)
     void define_rule(const ExprPtr& lhs, const ExprPtr& rhs, bool is_delayed);
 
-    // Evaluate an expression using current session rules and registered backend.
+    // Set attributes for a head symbol (e.g., HoldAll, Listable)
+    void set_attribute(const std::string& head, const std::string& attr);
+    bool has_attribute(const std::string& head, const std::string& attr) const;
+
+    // Evaluate an expression using current session rules, attributes, and registered backend.
     ExprPtr eval(const ExprPtr& expr, std::size_t depth = 0);
 
     // Get current rules
@@ -34,6 +39,7 @@ public:
 
 private:
     std::vector<RuleDefinition> rules_;
+    std::map<std::string, std::set<std::string>> attributes_;
 };
 
 // Evaluate an expression directly with a default Session instance.

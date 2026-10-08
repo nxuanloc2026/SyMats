@@ -1,15 +1,15 @@
 # Handoff — Jules
 
 ## Current task
-T-015 Takeover (SUNDIALS NDSolve adapter in backend/sundials/). Status: review / PR ready.
+T-030: Evaluator Semantics Audit & Mathics3 Doc-Tests for attributes (HoldAll, Listable), rule replacements, and edge cases. Status: review / PR ready.
 
 ## Notes
-- Completed T-015 takeover for Claude:
-  - Created `backend/sundials/sundials_backend.h` and `sundials_backend.cpp` implementing `SundialsBackend` class extending `MathBackend`.
-  - Implemented `dsolve` handler for `NDSolve` numerical initial value problems returning `List(Rule(var, InterpolatingFunction(...)))`.
-  - Created `backend/CMakeLists.txt` and linked `symats::backend_sundials`.
-  - Created `tests/test_sundials.cpp` and registered in `tests/CMakeLists.txt`.
-  - Verified warning-free build and passing test suite execution via `ctest`.
+- Completed T-030:
+  - Audited evaluator semantics against standard Mathematica/Mathics3 behaviors.
+  - Extended `Session` evaluator in `core/include/symats/evaluator.h` and `core/src/evaluator.cpp` to support attribute registration and handling (`HoldAll`, `Listable`).
+  - Added `tests/test_mathics_semantics.cpp` with doc-tests verifying `HoldAll` argument evaluation prevention, `Listable` attribute threading over lists, and rule substitution semantics.
+  - Registered `test_mathics_semantics.cpp` in `tests/CMakeLists.txt`.
+  - Verified warning-free build and passing tests via `ctest`.
 
 ## Open questions
 None.

@@ -6,6 +6,24 @@
 
 namespace symats {
 
+Session::Session() {
+    set_attribute("SetDelayed", "HoldAll");
+    set_attribute("Set", "HoldFirst");
+    set_attribute("Hold", "HoldAll");
+}
+
+void Session::set_attribute(const std::string& head, const std::string& attr) {
+    attributes_[head].insert(attr);
+}
+
+bool Session::has_attribute(const std::string& head, const std::string& attr) const {
+    auto it = attributes_.find(head);
+    if (it != attributes_.end()) {
+        return it->second.find(attr) != it->second.end();
+    }
+    return false;
+}
+
 void Session::define_rule(const ExprPtr& lhs, const ExprPtr& rhs, bool is_delayed) {
     if (!lhs) return;
     // Overwrite existing rule if identical lhs pattern exists
@@ -56,13 +74,37 @@ ExprPtr Session::eval(const ExprPtr& expr, std::size_t depth) {
         }
     }
 
-    // Normal expressions: recursively evaluate arguments
+    // Normal expressions: recursively evaluate arguments (handling HoldAll / Listable)
     if (expr->is_normal()) {
         ExprPtr new_head = eval(expr->head(), depth + 1);
+        std::string head_name = new_head->is_symbol() ? new_head->name() : "";
+        const bool is_hold_all = !head_name.empty() && has_attribute(head_name, "HoldAll");
+        const bool is_listable = !head_name.empty() && has_attribute(head_name, "Listable");
+
         ExprList new_args;
         new_args.reserve(expr->size());
         for (std::size_t i = 0; i < expr->size(); ++i) {
-            new_args.push_back(eval(expr->arg(i), depth + 1));
+            if (is_hold_all) {
+                new_args.push_back(expr->arg(i));
+            } else {
+                new_args.push_back(eval(expr->arg(i), depth + 1));
+            }
+        }
+
+        // Thread Listable functions over List arguments
+        if (is_listable && !new_args.empty()) {
+            for (std::size_t i = 0; i < new_args.size(); ++i) {
+                if (new_args[i]->has_head("List")) {
+                    ExprList threaded_items;
+                    for (std::size_t j = 0; j < new_args[i]->size(); ++j) {
+                        ExprList sub_args = new_args;
+                        sub_args[i] = new_args[i]->arg(j);
+                        ExprPtr sub_call = make_normal(new_head, std::move(sub_args));
+                        threaded_items.push_back(eval(sub_call, depth + 1));
+                    }
+                    return make_normal("List", std::move(threaded_items));
+                }
+            }
         }
 
         ExprPtr evaluated_normal;

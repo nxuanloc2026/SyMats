@@ -24,3 +24,4 @@ Statuses: `todo` → `in-progress` → `review` (PR open) → `done`; also `bloc
 | T-015 | SUNDIALS: add to `third_party/` (Copilot builds) and `backend/sundials/` NDSolve adapter (Claude) | backend | Jules (for Claude) | Copilot | review | numeric plots of ODEs | | 2026-10-02 06:20 |
 | T-016 | App shell: Tauri desktop app with MathLive editor cell, text toggle, Plotly plot cell; talks to engine through `bridge/` | app | Codex | Claude | todo | | | 2026-10-02 |
 | T-020 | Parse multi-statement cells, newline/semicolon continuation, output suppression, and %/%%/%n history | convert | Jules | Copilot | review | | backup-ok | 2026-10-02 05:00 |
+| T-030 | Evaluator Semantics Audit & Mathics3 Doc-Tests for attributes (HoldAll, Listable), rule replacements, and edge cases | core/tests | Jules | Copilot | review | | backup-ok | 2026-10-02 06:35 |

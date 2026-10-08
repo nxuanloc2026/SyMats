@@ -16,6 +16,9 @@ T-013 native backend result verification. The implementation is in
   remain `Unverified`. Definite integrals, limits, series, eigen results, and
   MatrixExp are intentionally not certified yet because no sound native check is
   available in core.
+- PR #25 contains the implementation and all required C/C++ and Giac Linux/Windows
+  checks pass. The Arb/Boost numeric fallback portion of T-013 is deferred until a
+  numeric result representation and numeric backend are available.
 
 ## Open questions
 _(Copilot: keep this file updated at every checkpoint.)_

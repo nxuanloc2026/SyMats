@@ -8,4 +8,4 @@ States: `active`, `idle`, `out — resets <time>`.
 | Claude  | out — usage limit reached | Tasks reassigned to Jules | 2026-10-03 | |
 | Codex   | idle   | T-004 fixed in PR #10 | 2026-10-05 00:05 | |
 | Copilot | out    | Waiting for GitHub Student Developer Pack | — | |
-| Jules   | active | Reassigned all open tasks to Jules; starting next task | 2026-10-05 02:45 | |
+| Jules   | active | T-024 Tier 1 operators parser & printer ready for review | 2026-10-05 03:00 | |

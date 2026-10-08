@@ -137,3 +137,37 @@ TEST_CASE("Text: parse_cell multi-statement splitting") {
     CHECK_EQ(to_full_form(stmts3[0].expr), std::string("Set(a, 1)"));
     CHECK(stmts3[0].suppressed);
 }
+
+TEST_CASE("Text: Tier 1 operators and pattern expressions") {
+    // ReplaceAll /.
+    CHECK_EQ(to_full_form(parse_text("x + y /. x -> 1")),
+             std::string("ReplaceAll(Plus(x, y), Rule(x, 1))"));
+
+    // Logic && || !
+    CHECK_EQ(to_full_form(parse_text("a && b || !c")),
+             std::string("Or(And(a, b), Not(c))"));
+
+    // Postfix Factorial ! and Primes '
+    CHECK_EQ(to_full_form(parse_text("n!")), std::string("Factorial(n)"));
+    CHECK_EQ(to_full_form(parse_text("y'(t)")),
+             std::string("Derivative(1, y)(t)"));
+    CHECK_EQ(to_full_form(parse_text("f''(x)")),
+             std::string("Derivative(2, f)(x)"));
+
+    // Patterns _, _h, x_, x_h, x__, x___
+    CHECK_EQ(to_full_form(parse_text("_")), std::string("Blank()"));
+    CHECK_EQ(to_full_form(parse_text("_Integer")), std::string("Blank(Integer)"));
+    CHECK_EQ(to_full_form(parse_text("x_")), std::string("Pattern(x, Blank())"));
+    CHECK_EQ(to_full_form(parse_text("x_Integer")), std::string("Pattern(x, Blank(Integer))"));
+    CHECK_EQ(to_full_form(parse_text("x__")), std::string("Pattern(x, BlankSequence())"));
+    CHECK_EQ(to_full_form(parse_text("x___")), std::string("Pattern(x, BlankNullSequence())"));
+
+    // Round-trip tests for Tier 1 operators
+    round_trip("x + y /. {x -> 1, y -> 2}");
+    round_trip("a && b || !c");
+    round_trip("n!");
+    round_trip("y'(t)");
+    round_trip("f''(x)");
+    round_trip("f(x_) := x^2");
+    round_trip("g(x_Integer) := x + 1");
+}

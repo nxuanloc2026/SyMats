@@ -1,11 +1,16 @@
 # Handoff — GitHub Copilot
 
 ## Current task
-Not started (waiting for T-008: repo pushed to GitHub). Next: T-004, then T-006.
+T-012 Giac bridge is complete. The implementation landed in merged PR #23 and this
+branch contains it plus the follow-up Giac compile fix in
+`backend/giac/ode_system.cpp`.
 
 ## Notes
-- Instructions: `.github/copilot-instructions.md` → `AGENTS.md` → `docs/COORDINATION.md`.
-- CI workflow: `.github/workflows/ci.yml`; environment: `.github/workflows/copilot-setup-steps.yml`.
+- Bridge sources are in `backend/giac/`: conversion, backend dispatch, and ODE
+  system handling.
+- The Giac-enabled workflow passed on PR #24 (run 37841664183) and on `main`
+  (run 37842722557), including the `giac-backend` regression test.
+- T-013 verification can now start.
 
 ## Open questions
 _(Copilot: keep this file updated at every checkpoint.)_

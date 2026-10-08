@@ -37,10 +37,10 @@ giac::gen solve_system(const ExprPtr& expr, giac::context* context) {
         originals.push_back(to_giac(make_normal("D",{function,make_normal("List",{variable,make_integer(1)})})));
         replacements.push_back(rates.back());
     }
-    originals.insert(originals.end(),functions.begin(),functions.end());
-    replacements.insert(replacements.end(),states.begin(),states.end());
+    for (const auto& function : functions) originals.push_back(function);
+    for (const auto& state : states) replacements.push_back(state);
     giac::vecteur unknowns = rates;
-    unknowns.insert(unknowns.end(),states.begin(),states.end());
+    for (const auto& state : states) unknowns.push_back(state);
     const giac::vecteur zeros(unknowns.size(),giac::gen(0));
     giac::vecteur equations;
     std::vector<bool> prescribed(n,false);

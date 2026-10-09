@@ -88,7 +88,9 @@ endif()
     find_library(SUNDIALS_NVECSERIAL_LIBRARY NAMES sundials_nvecserial REQUIRED)
     find_library(SUNDIALS_SUNMATRIXDENSE_LIBRARY NAMES sundials_sunmatrixdense REQUIRED)
     find_library(SUNDIALS_SUNLINSOLDENSE_LIBRARY NAMES sundials_sunlinsoldense REQUIRED)
-    find_library(SUNDIALS_CORE_LIBRARY NAMES sundials_sundials_core sundials_core REQUIRED)
+    find_library(SUNDIALS_CORE_LIBRARY
+      NAMES sundials_sundials sundials_sundials_core sundials_core sundials_generic
+      REQUIRED)
 
     add_library(symats_sundials INTERFACE)
     add_library(third_party::sundials ALIAS symats_sundials)

@@ -162,3 +162,35 @@ TEST_CASE("LaTeX: formatting expressions into LaTeX math strings") {
     CHECK_EQ(to_latex(parse_text("Integrate[x^2, x]")),
              std::string("\\int x^{2} \\, dx"));
 }
+
+TEST_CASE("Text: Tier 1 operators parsing and printing") {
+    // ReplaceAll (/.)
+    CHECK_EQ(to_full_form(parse_text("x^2 + y /. x -> 3")), std::string("ReplaceAll[Plus[Power[x, 2], y], Rule[x, 3]]"));
+    CHECK_EQ(to_text(parse_text("x^2 /. x -> 3")), std::string("x^2 /. x -> 3"));
+    round_trip("x^2 /. x -> 3");
+
+    // Logic: &&, ||, !
+    CHECK_EQ(to_full_form(parse_text("a && b || c")), std::string("Or[And[a, b], c]"));
+    CHECK_EQ(to_full_form(parse_text("!a && !b")), std::string("And[Not[a], Not[b]]"));
+    CHECK_EQ(to_text(parse_text("a && b || c")), std::string("a && b || c"));
+    round_trip("a && b || c");
+    round_trip("!a && !b");
+
+    // Dot (.)
+    CHECK_EQ(to_full_form(parse_text("A . B . C")), std::string("Dot[A, B, C]"));
+    CHECK_EQ(to_text(parse_text("A . B")), std::string("A . B"));
+    round_trip("A . B");
+
+    // Factorial (!)
+    CHECK_EQ(to_full_form(parse_text("n!")), std::string("Factorial[n]"));
+    CHECK_EQ(to_text(parse_text("n!")), std::string("n!"));
+    round_trip("n!");
+
+    // Derivatives (primes)
+    CHECK_EQ(to_full_form(parse_text("y'[t]")), std::string("Derivative[1][y][t]"));
+    CHECK_EQ(to_full_form(parse_text("f''[x]")), std::string("Derivative[2][f][x]"));
+    CHECK_EQ(to_text(parse_text("y'[t]")), std::string("y'[t]"));
+    CHECK_EQ(to_text(parse_text("f''[x]")), std::string("f''[x]"));
+    round_trip("y'[t]");
+    round_trip("f''[x]");
+}

@@ -14,7 +14,9 @@ target_link_libraries(symats_sundials_backend PUBLIC
 target_compile_features(symats_sundials_backend PUBLIC cxx_std_20)
 
 if(SYMATS_BUILD_TESTS)
-  add_executable(sundials_backend_test test_sundials_backend.cpp)
+  add_executable(sundials_backend_test
+    "${PROJECT_SOURCE_DIR}/tests/test_main.cpp" test_sundials_backend.cpp)
+  target_include_directories(sundials_backend_test PRIVATE "${PROJECT_SOURCE_DIR}/tests")
   target_link_libraries(sundials_backend_test PRIVATE
     symats::sundials_backend
     symats::convert

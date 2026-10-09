@@ -158,18 +158,26 @@ bool all_head_ok(const Expr& blank_node, const ExprList& terms) {
     return true;
 }
 
-bool choose_flat_terms(const ExprList& es, std::size_t start, std::size_t count,
-                       std::vector<bool>& used, ExprList& selected) {
-    if (selected.size() == count) return true;
+struct FlatChoice {
+    ExprList terms;
+    std::vector<bool> used;
+};
+
+void collect_flat_terms(const ExprList& es, std::size_t start, std::size_t count,
+                        const std::vector<bool>& used, ExprList& selected,
+                        std::vector<FlatChoice>& choices) {
+    if (selected.size() == count) {
+        choices.push_back({selected, used});
+        return;
+    }
     for (std::size_t i = start; i < es.size(); ++i) {
         if (used[i]) continue;
-        used[i] = true;
+        std::vector<bool> next_used = used;
+        next_used[i] = true;
         selected.push_back(es[i]);
-        if (choose_flat_terms(es, i + 1, count, used, selected)) return true;
+        collect_flat_terms(es, i + 1, count, next_used, selected, choices);
         selected.pop_back();
-        used[i] = false;
     }
-    return false;
 }
 
 bool match_flat_orderless(const ExprList& ps, std::size_t i, const ExprList& es,
@@ -188,28 +196,30 @@ bool match_flat_orderless(const ExprList& ps, std::size_t i, const ExprList& es,
     const std::size_t max_len = remaining;
 
     for (std::size_t len = min_len; len <= max_len; ++len) {
+        std::vector<FlatChoice> choices;
         ExprList selected;
-        std::vector<bool> candidate_used = used;
-        if (!choose_flat_terms(es, 0, len, candidate_used, selected)) continue;
-        if (info.is_sequence && !all_head_ok(*info.blank, selected)) continue;
+        collect_flat_terms(es, 0, len, used, selected, choices);
+        for (auto& choice : choices) {
+            if (info.is_sequence && !all_head_ok(*info.blank, choice.terms)) continue;
 
-        ExprPtr value = grouped(head, selected);
-        Bindings trial = b;
-        bool matched = false;
-        if (info.is_sequence) {
-            if (!info.name.empty())
-                matched = bind(info.name, make_normal(sym_sequence(), selected), trial);
-            else
-                matched = true;
-        } else {
-            matched = match(ps[i], value, trial);
-        }
-        if (!matched) continue;
+            ExprPtr value = grouped(head, choice.terms);
+            Bindings trial = b;
+            bool matched = false;
+            if (info.is_sequence) {
+                if (!info.name.empty())
+                    matched = bind(info.name, make_normal(sym_sequence(), choice.terms), trial);
+                else
+                    matched = true;
+            } else {
+                matched = match(ps[i], value, trial);
+            }
+            if (!matched) continue;
 
-        if (match_flat_orderless(ps, i + 1, es, candidate_used, head, trial)) {
-            used = std::move(candidate_used);
-            b = std::move(trial);
-            return true;
+            if (match_flat_orderless(ps, i + 1, es, choice.used, head, trial)) {
+                used = std::move(choice.used);
+                b = std::move(trial);
+                return true;
+            }
         }
     }
     return false;

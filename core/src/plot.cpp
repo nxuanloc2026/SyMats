@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <map>
 #include <cmath>
 #include <memory>
 #include <optional>
@@ -169,7 +170,7 @@ struct Iterator {
     double a = 0.0, b = 0.0;
 };
 
-std::optional<Iterator> iterator(const ExprPtr& range, Context& ctx) {
+std::optional<Iterator> iterator(const ExprPtr& range, Context& ctx, const char* base = "$SymatsPlotVariable") {
     if (!range->has_head("List") || range->size() != 3 || !range->arg(0)->is_symbol()) return std::nullopt;
     Iterator it;
     try {
@@ -179,7 +180,7 @@ std::optional<Iterator> iterator(const ExprPtr& range, Context& ctx) {
         return std::nullopt;
     }
     if (!std::isfinite(it.a) || !std::isfinite(it.b) || !(it.b > it.a)) return std::nullopt;
-    it.variable = "$SymatsPlotVariable";
+    it.variable = base;
     while (ctx.value(it.variable)) it.variable += "$";
     return it;
 }
@@ -294,6 +295,219 @@ ExprPtr polar_plot(const ExprPtr& expr, Context& ctx) {
         curves.push_back(curve(s));
     }
     return graphics(std::move(curves), bounds, true);
+}
+
+// ------------------------------------------------------------------ two variables
+
+namespace {
+
+using Fn2 = std::function<double(double, double)>;
+
+struct Grid2 {
+    Iterator x, y;
+    ExprPtr body;
+};
+
+std::optional<Grid2> grid_problem(const ExprPtr& expr, Context& ctx) {
+    if (expr->size() != 3) return std::nullopt;
+    auto x = iterator(expr->arg(1), ctx, "$SymatsPlotX");
+    auto y = iterator(expr->arg(2), ctx, "$SymatsPlotY");
+    if (!x || !y || expr->arg(1)->arg(0)->name() == expr->arg(2)->arg(0)->name()) return std::nullopt;
+    const ExprPtr body = evaluate(substitute(expr->arg(0), {{expr->arg(1)->arg(0)->name(), make_symbol(x->variable)},
+                                                           {expr->arg(2)->arg(0)->name(), make_symbol(y->variable)}}),
+                                  ctx);
+    return Grid2{*x, *y, body};
+}
+
+Fn2 numeric_function2(const ExprPtr& fn, const Grid2& g, Context& ctx) {
+    try {
+        auto compiled = std::make_shared<numeric::Compiled>(
+            numeric::compile(fn, {{g.x.variable, 0}, {g.y.variable, 1}}));
+        return [compiled](double x, double y) {
+            const double slots[2] = {x, y};
+            return compiled->eval(slots);
+        };
+    } catch (const numeric::Unsupported&) {
+        return [&ctx, fn, g](double x, double y) {
+            try {
+                return numeric::constant(evaluate(
+                    substitute(fn, {{g.x.variable, numeric::decimal(x)}, {g.y.variable, numeric::decimal(y)}}), ctx));
+            } catch (const std::exception&) {
+                return std::nan("");
+            }
+        };
+    }
+}
+
+std::vector<double> axis(const Iterator& it, std::size_t n) {
+    std::vector<double> v(n + 1);
+    for (std::size_t i = 0; i <= n; ++i) v[i] = it.a + (it.b - it.a) * static_cast<double>(i) / static_cast<double>(n);
+    v[n] = it.b;
+    return v;
+}
+
+// z[j][i] = f(xs[i], ys[j]) (rows follow y, as Plotly expects).
+std::vector<std::vector<double>> sample_grid(const Fn2& f, const std::vector<double>& xs,
+                                             const std::vector<double>& ys) {
+    std::vector<std::vector<double>> z(ys.size(), std::vector<double>(xs.size()));
+    for (std::size_t j = 0; j < ys.size(); ++j)
+        for (std::size_t i = 0; i < xs.size(); ++i) z[j][i] = f(xs[i], ys[j]);
+    return z;
+}
+
+ExprPtr numbers(const std::vector<double>& v) {
+    ExprList out;
+    out.reserve(v.size());
+    for (double d : v) out.push_back(std::isfinite(d) ? numeric::decimal(d) : make_symbol("Indeterminate"));
+    return make_normal("List", std::move(out));
+}
+
+ExprPtr grid_graphics(const ExprPtr& expr, Context& ctx, bool three_d) {
+    const auto g = grid_problem(expr, ctx);
+    if (!g) return nullptr;
+    constexpr std::size_t n = 50;
+    const auto xs = axis(g->x, n), ys = axis(g->y, n);
+    ExprList items;
+    std::vector<double> all;
+    for (const auto& fn : g->body->has_head("List") ? g->body->args() : ExprList{g->body}) {
+        const auto z = sample_grid(numeric_function2(fn, *g, ctx), xs, ys);
+        ExprList rows;
+        for (const auto& row : z) {
+            rows.push_back(numbers(row));
+            for (double v : row)
+                if (std::isfinite(v)) all.push_back(v);
+        }
+        items.push_back(make_normal(three_d ? "SurfaceGrid" : "ContourGrid",
+                                    {numbers(xs), numbers(ys), make_normal("List", std::move(rows))}));
+    }
+    double zmin = -1.0, zmax = 1.0;
+    if (!all.empty()) {
+        zmin = *std::min_element(all.begin(), all.end());
+        zmax = *std::max_element(all.begin(), all.end());
+        const Scale s = robust_scale(all);
+        if (zmax - zmin > 10 * s.size) {
+            zmin = std::max(zmin, s.lo - 0.5 * s.size);
+            zmax = std::min(zmax, s.hi + 0.5 * s.size);
+        }
+        if (!(zmax > zmin)) {
+            zmin -= 1.0;
+            zmax += 1.0;
+        }
+    }
+    ExprList range{pair(g->x.a, g->x.b), pair(g->y.a, g->y.b)};
+    if (three_d) range.push_back(pair(zmin, zmax));
+    return make_normal(three_d ? "Graphics3D" : "Graphics",
+                       {make_normal("List", std::move(items)),
+                        make_normal("Rule", {make_symbol("PlotRange"), make_normal("List", std::move(range))})});
+}
+
+}  // namespace
+
+std::vector<Polyline> implicit_curve(const std::function<double(double, double)>& g, double x0, double x1,
+                                     double y0, double y1, std::size_t n) {
+    const std::vector<double> xs = axis({"", x0, x1}, n), ys = axis({"", y0, y1}, n);
+    const auto z = sample_grid(g, xs, ys);
+    // Grid edges carry the crossing points. Edge id: horizontal (i, j)-(i+1, j) is
+    // 2 * (j * (n + 1) + i), vertical (i, j)-(i, j+1) is that + 1.
+    const auto hid = [n](std::size_t i, std::size_t j) { return 2 * (j * (n + 1) + i); };
+    const auto vid = [n](std::size_t i, std::size_t j) { return 2 * (j * (n + 1) + i) + 1; };
+    std::map<std::size_t, std::pair<double, double>> point;
+    std::map<std::size_t, std::vector<std::size_t>> links;  // edge -> segment indices
+    std::vector<std::pair<std::size_t, std::size_t>> segments;
+    const auto crossing = [&](std::size_t id, double xa, double ya, double za, double xb, double yb, double zb) {
+        if (!point.count(id)) {
+            const double t = za / (za - zb);
+            point[id] = {xa + t * (xb - xa), ya + t * (yb - ya)};
+        }
+        return id;
+    };
+    for (std::size_t j = 0; j < n; ++j)
+        for (std::size_t i = 0; i < n; ++i) {
+            const double c[4] = {z[j][i], z[j][i + 1], z[j + 1][i + 1], z[j + 1][i]};  // counterclockwise
+            if (!(std::isfinite(c[0]) && std::isfinite(c[1]) && std::isfinite(c[2]) && std::isfinite(c[3])))
+                continue;
+            const double px[4] = {xs[i], xs[i + 1], xs[i + 1], xs[i]}, py[4] = {ys[j], ys[j], ys[j + 1], ys[j + 1]};
+            const std::size_t ids[4] = {hid(i, j), vid(i + 1, j), hid(i, j + 1), vid(i, j)};  // edge k: corner k..k+1
+            std::vector<std::size_t> cut;
+            for (int k = 0; k < 4; ++k) {
+                const int l = (k + 1) % 4;
+                if ((c[k] < 0) != (c[l] < 0)) cut.push_back(crossing(ids[k], px[k], py[k], c[k], px[l], py[l], c[l]));
+            }
+            if (cut.size() == 2) {
+                segments.emplace_back(cut[0], cut[1]);
+            } else if (cut.size() == 4) {
+                // Saddle: decide the pairing from the value at the centre.
+                const bool centre = (c[0] + c[1] + c[2] + c[3]) / 4 < 0;
+                if (centre == (c[0] < 0)) {
+                    segments.emplace_back(cut[0], cut[1]);
+                    segments.emplace_back(cut[2], cut[3]);
+                } else {
+                    segments.emplace_back(cut[1], cut[2]);
+                    segments.emplace_back(cut[3], cut[0]);
+                }
+            }
+        }
+    for (std::size_t s = 0; s < segments.size(); ++s) {
+        links[segments[s].first].push_back(s);
+        links[segments[s].second].push_back(s);
+    }
+    // Join segments into polylines by walking shared edges.
+    std::vector<bool> used(segments.size(), false);
+    std::vector<Polyline> lines;
+    const auto walk = [&](std::size_t edge, std::size_t from, std::vector<std::size_t>& chain) {
+        while (true) {
+            std::size_t next = segments.size();
+            for (std::size_t s : links[edge])
+                if (!used[s] && s != from) next = s;
+            if (next == segments.size()) return;
+            used[next] = true;
+            edge = segments[next].first == edge ? segments[next].second : segments[next].first;
+            chain.push_back(edge);
+            from = next;
+        }
+    };
+    // Open chains start at edges with a single segment; closed loops are handled after.
+    for (int pass = 0; pass < 2; ++pass)
+        for (std::size_t s = 0; s < segments.size(); ++s) {
+            if (used[s]) continue;
+            const auto [a, b] = segments[s];
+            if (pass == 0 && links[a].size() != 1 && links[b].size() != 1) continue;
+            const std::size_t start = links[a].size() == 1 ? a : b, other = start == a ? b : a;
+            used[s] = true;
+            std::vector<std::size_t> chain{start, other};
+            walk(other, s, chain);
+            Polyline line;
+            for (std::size_t e : chain) line.push_back(point[e]);
+            lines.push_back(std::move(line));
+        }
+    return lines;
+}
+
+ExprPtr plot3d(const ExprPtr& expr, Context& ctx) { return grid_graphics(expr, ctx, true); }
+
+ExprPtr implicit_plot(const ExprPtr& expr, Context& ctx) {
+    const auto g = grid_problem(expr, ctx);
+    if (!g) return nullptr;
+    ExprList curves;
+    for (const auto& eq : g->body->has_head("List") ? g->body->args() : ExprList{g->body}) {
+        if (!eq->has_head("Equal") || eq->size() != 2) return nullptr;
+        const Fn2 f = numeric_function2(subtract(eq->arg(0), eq->arg(1)), *g, ctx);
+        CurveSamples s;
+        s.pieces = implicit_curve(f, g->x.a, g->x.b, g->y.a, g->y.b);
+        curves.push_back(curve(s));
+    }
+    Bounds bounds;
+    bounds.x = {g->x.a, g->x.b};
+    bounds.y = {g->y.a, g->y.b};
+    return graphics(std::move(curves), bounds, true);
+}
+
+ExprPtr contour_plot(const ExprPtr& expr, Context& ctx) {
+    if (expr->size() == 3 && (expr->arg(0)->has_head("Equal") ||
+                              (expr->arg(0)->has_head("List") && expr->arg(0)->size() > 0 &&
+                               expr->arg(0)->arg(0)->has_head("Equal"))))
+        return implicit_plot(expr, ctx);
+    return grid_graphics(expr, ctx, false);
 }
 
 }  // namespace symats

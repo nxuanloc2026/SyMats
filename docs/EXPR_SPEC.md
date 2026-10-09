@@ -173,6 +173,15 @@ is local (a global `x = 5` does not affect `Plot[f[x], {x, 0, 1}]`).
 return the same `Graphics` shape with `PlotRange -> {{xmin, xmax}, {ymin, ymax}}` and
 `AspectRatio -> Automatic` (equal axis scales).
 
+Two-variable plots sample a 51 × 51 grid; values that are not real are `Indeterminate`.
+`Plot3D[f, {x, a, b}, {y, c, d}]` →
+`Graphics3D[{SurfaceGrid[xs, ys, zs], …}, PlotRange -> {{a, b}, {c, d}, {zmin, zmax}}]` and
+`ContourPlot[f, …]` → `Graphics[{ContourGrid[xs, ys, zs], …}, PlotRange -> {{a, b}, {c, d}}]`,
+where `zs` holds one row per y value (`zs[[j, i]] = f` at `xs[[i]]`, `ys[[j]]`; Plotly's
+surface/contour layout). `ImplicitPlot[lhs == rhs, {x, a, b}, {y, c, d}]`, also
+`ContourPlot` given an equation, traces the curve by marching squares and returns
+`Line`s in the `Plot` shape with `AspectRatio -> Automatic`.
+
 ### 3.10 Assignment
 
 | Head | Text | Meaning |

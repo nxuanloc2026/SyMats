@@ -101,6 +101,46 @@ TEST_CASE("ParametricPlot and PolarPlot") {
     CHECK(!run(ctx, "ParametricPlot[Sin[t], {t, 0, 1}]")->has_head("Graphics"));  // not a pair
 }
 
+TEST_CASE("Plot3D and ContourPlot sample a grid") {
+    Context ctx;
+    auto g = run(ctx, "Plot3D[Sin[x]*Cos[y], {x, -3, 3}, {y, 0, 2}]");
+    CHECK(g->has_head("Graphics3D"));
+    const auto& s = g->arg(0)->arg(0);
+    CHECK(s->has_head("SurfaceGrid"));
+    CHECK(s->arg(0)->size() == 51 && s->arg(1)->size() == 51 && s->arg(2)->size() == 51);
+    const double x = num(s->arg(0)->arg(10)), y = num(s->arg(1)->arg(30));
+    CHECK(std::abs(num(s->arg(2)->arg(30)->arg(10)) - std::sin(x) * std::cos(y)) < 1e-11);  // rows follow y
+    CHECK(g->arg(1)->arg(1)->size() == 3);  // x, y and z ranges
+    g = run(ctx, "Plot3D[Sqrt[x], {x, -1, 1}, {y, 0, 1}]");
+    CHECK(g->arg(0)->arg(0)->arg(2)->arg(0)->arg(0)->is_symbol("Indeterminate"));
+    g = run(ctx, "ContourPlot[x^2 - y^2, {x, -2, 2}, {y, -2, 2}]");
+    CHECK(g->has_head("Graphics"));
+    CHECK(g->arg(0)->arg(0)->has_head("ContourGrid"));
+    CHECK(!run(ctx, "Plot3D[x*y, {x, 0, 1}, {x, 0, 1}]")->has_head("Graphics3D"));  // same variable
+}
+
+TEST_CASE("ImplicitPlot: marching squares joined into curves") {
+    Context ctx;
+    auto g = run(ctx, "ImplicitPlot[x^2 + y^2 == 1, {x, -2, 2}, {y, -2, 2}]");
+    CHECK(g->has_head("Graphics"));
+    CHECK(lines(g).size() == 1);
+    const auto& pts = lines(g)[0]->arg(0)->args();
+    CHECK(pts.size() > 100);
+    CHECK(equal(pts.front(), pts.back()));  // closed
+    bool on_circle = true;
+    for (const auto& p : pts) on_circle = on_circle && std::abs(std::hypot(num(p->arg(0)), num(p->arg(1))) - 1) < 1e-3;
+    CHECK(on_circle);
+    // Two closed curves, and the two open branches of a hyperbola.
+    g = run(ctx, "ImplicitPlot[(x^2 + y^2 - 1)*(x^2 + y^2 - 4) == 0, {x, -3, 3}, {y, -3, 3}]");
+    CHECK(lines(g).size() == 2);
+    g = run(ctx, "ContourPlot[x*y == 1, {x, -2, 2}, {y, -2, 2}]");
+    CHECK(lines(g).size() == 2);
+    CHECK(!equal(lines(g)[0]->arg(0)->args().front(), lines(g)[0]->arg(0)->args().back()));
+    // Several equations: one curve list each.
+    g = run(ctx, "ImplicitPlot[{x == y^2, y == 0}, {x, -1, 1}, {y, -1, 1}]");
+    CHECK(g->arg(0)->size() == 2);
+}
+
 TEST_CASE("Plot sampler: direct use") {
     const auto [pieces, range] = sample_curve([](double x) { return x < 0.5 ? 0.0 : 1.0; }, 0.0, 1.0);
     CHECK(pieces.size() == 2);  // step discontinuity

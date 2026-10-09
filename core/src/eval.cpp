@@ -283,6 +283,12 @@ void install_builtins(Context& ctx) {
     ctx.set_attributes("ParametricPlot", HoldAll | Protected);
     ctx.set_builtin("PolarPlot", [](const ExprPtr& e, Context& c) { return polar_plot(e, c); });
     ctx.set_attributes("PolarPlot", HoldAll | Protected);
+    ctx.set_builtin("Plot3D", [](const ExprPtr& e, Context& c) { return plot3d(e, c); });
+    ctx.set_attributes("Plot3D", HoldAll | Protected);
+    ctx.set_builtin("ContourPlot", [](const ExprPtr& e, Context& c) { return contour_plot(e, c); });
+    ctx.set_attributes("ContourPlot", HoldAll | Protected);
+    ctx.set_builtin("ImplicitPlot", [](const ExprPtr& e, Context& c) { return implicit_plot(e, c); });
+    ctx.set_attributes("ImplicitPlot", HoldAll | Protected);
     ctx.set_builtin("Expand", [](const ExprPtr& e, Context&) -> ExprPtr {
         return e->size() == 1 ? expand(e->arg(0)) : nullptr;
     });

@@ -50,4 +50,20 @@ ExprPtr plot(const ExprPtr& expr, Context& ctx);
 ExprPtr parametric_plot(const ExprPtr& expr, Context& ctx);
 ExprPtr polar_plot(const ExprPtr& expr, Context& ctx);
 
+// Two variables, on a 51 x 51 grid; values that are not real are Indeterminate.
+//   Plot3D[f, {x, a, b}, {y, c, d}] -> Graphics3D[{SurfaceGrid[xs, ys, zs], ...},
+//                                                PlotRange -> {{a, b}, {c, d}, {zmin, zmax}}]
+//   ContourPlot[f, ...]             -> Graphics[{ContourGrid[xs, ys, zs], ...}, PlotRange -> ...]
+// zs is a List of rows, one per y value (zs[[j, i]] = f[xs[[i]], ys[[j]]]).
+//   ImplicitPlot[lhs == rhs, {x, a, b}, {y, c, d}] (also ContourPlot with an equation):
+//   the curve by marching squares, as Graphics[{{Line[...], ...}}, ..., AspectRatio -> Automatic].
+ExprPtr plot3d(const ExprPtr& expr, Context& ctx);
+ExprPtr contour_plot(const ExprPtr& expr, Context& ctx);
+ExprPtr implicit_plot(const ExprPtr& expr, Context& ctx);
+
+// Zero set of g on [x0, x1] x [y0, y1] by marching squares on an n x n grid, joined
+// into polylines (closed curves end where they start).
+std::vector<Polyline> implicit_curve(const std::function<double(double, double)>& g, double x0, double x1,
+                                     double y0, double y1, std::size_t n = 100);
+
 }  // namespace symats

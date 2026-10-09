@@ -84,8 +84,10 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
 - Output shape documented in EXPR_SPEC §3.9 — Codex: this is what app/ Plotly should render.
 - `numeric.h`: `Samples` (cubic interpolation), `register_functions` / `default_functions`;
   install_default_backends registers the Boost.Math table so Plot[Gamma[x], ...] works.
-- Next in this lane: ParametricPlot, PolarPlot, Plot3D (mesh), ContourPlot / ImplicitPlot
-  (marching squares), Animate frames.
+- Also ParametricPlot, PolarPlot (shared 2-D adaptive sampler), Plot3D / ContourPlot
+  (51x51 grid -> SurfaceGrid / ContourGrid for Plotly), ImplicitPlot and
+  ContourPlot[eqn] (marching squares, segments joined via shared grid edges).
+- Next in this lane: Animate / Slider frames (needs a frame format agreed with Codex).
 
 ### T-033 default backends
 - `backend/registry`: `install_default_backends(registry)` adds whatever was built: Giac,

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (c) 2026 Loc Ngo and Symats contributors
 
+if(SYMATS_USE_GIAC)
 set(GIAC_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/giac/src")
 if(NOT EXISTS "${GIAC_SOURCE_DIR}/gen.cc")
   message(FATAL_ERROR "Giac submodule is missing; run git submodule update --init")
@@ -79,3 +80,25 @@ if(SYMATS_BUILD_TESTS)
   target_link_libraries(giac_smoke PRIVATE third_party::giac)
   add_test(NAME giac-smoke COMMAND giac_smoke)
 endif()
+  endif()
+
+  if(SYMATS_USE_SUNDIALS)
+    find_path(SUNDIALS_INCLUDE_DIR cvode/cvode.h REQUIRED)
+    find_library(SUNDIALS_CVODE_LIBRARY NAMES sundials_cvode REQUIRED)
+    find_library(SUNDIALS_NVECSERIAL_LIBRARY NAMES sundials_nvecserial REQUIRED)
+    find_library(SUNDIALS_SUNMATRIXDENSE_LIBRARY NAMES sundials_sunmatrixdense REQUIRED)
+    find_library(SUNDIALS_SUNLINSOLDENSE_LIBRARY NAMES sundials_sunlinsoldense REQUIRED)
+    find_library(SUNDIALS_CORE_LIBRARY
+      NAMES sundials_sundials sundials_sundials_core sundials_core sundials_generic
+      REQUIRED)
+
+    add_library(symats_sundials INTERFACE)
+    add_library(third_party::sundials ALIAS symats_sundials)
+    target_include_directories(symats_sundials INTERFACE "${SUNDIALS_INCLUDE_DIR}")
+    target_link_libraries(symats_sundials INTERFACE
+      "${SUNDIALS_CVODE_LIBRARY}"
+      "${SUNDIALS_NVECSERIAL_LIBRARY}"
+      "${SUNDIALS_SUNMATRIXDENSE_LIBRARY}"
+      "${SUNDIALS_SUNLINSOLDENSE_LIBRARY}"
+      "${SUNDIALS_CORE_LIBRARY}")
+  endif()

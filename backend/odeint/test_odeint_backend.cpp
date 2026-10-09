@@ -56,7 +56,7 @@ TEST_CASE("Odeint backend solves scalar first-order NDSolve") {
 
 TEST_CASE("Odeint backend: second order, time dependence and swapped sides") {
     OdeintBackend backend;
-    // y'' = -y, y(0) = 0, y'(0) = 1  ->  Sin[t] on {t, 0, Pi}.
+    // y''[t] == -y[t], y[0] == 0, y'[0] == 1 gives Sin[t] on {t, 0, Pi}.
     auto r = solve(backend, "NDSolve[{y''[t]==-y[t],y[0]==0,y'[0]==1},y,{t,0,Pi}]");
     CHECK(r.has_value());
     if (r) {
@@ -64,7 +64,7 @@ TEST_CASE("Odeint backend: second order, time dependence and swapped sides") {
         CHECK(near(last(r->value), 0.0, 1e-8));
         CHECK(near(sample(r->value, 100, 0), 3.14159265359, 1e-11));
     }
-    // 2*t == y'[t] with the derivative on the right: y = t^2 + 1.
+    // 2*t == y'[t] with the derivative on the right: y[t] == t^2 + 1.
     r = solve(backend, "NDSolve[{2*t==y'[t],1==y[0]},y[t],{t,0,2}]");
     CHECK(r.has_value());
     if (r) CHECK(near(last(r->value), 5.0, 1e-9));
@@ -117,15 +117,15 @@ TEST_CASE("Odeint backend switches to Rosenbrock for stiff problems") {
 
 TEST_CASE("Odeint backend evaluates Boost.Math special functions") {
     OdeintBackend backend;
-    // y' = Erf[t], y(0) = 0  ->  y(1) = Erf[1] - (1 - E^-1)/Sqrt[Pi].
+    // y'[t] == Erf[t], y[0] == 0 gives y[1] == Erf[1] - (1 - E^-1)/Sqrt[Pi].
     auto r = solve(backend, "NDSolve[{y'[t]==Erf[t],y[0]==0},y,{t,0,1}]");
     CHECK(r.has_value());
     if (r) CHECK(near(last(r->value), 0.842700792949715 - (1 - std::exp(-1.0)) / std::sqrt(std::acos(-1.0)), 1e-9));
-    // BesselJ[0, t]' = -BesselJ[1, t], so y(5) = BesselJ[0, 5].
+    // D[BesselJ[0, t], t] == -BesselJ[1, t], so y[5] == BesselJ[0, 5].
     r = solve(backend, "NDSolve[{y'[t]==-BesselJ[1,t],y[0]==1},y,{t,0,5}]");
     CHECK(r.has_value());
     if (r) CHECK(near(last(r->value), -0.177596771314338, 1e-9));  // BesselJ[0, 5]
-    // Gamma in the right-hand side (it cancels): y' = y, so y(2) = E.
+    // Gamma in the right-hand side (it cancels): y'[t] == y[t], so y[2] == E.
     r = solve(backend, "NDSolve[{y'[t]==Gamma[t]*y[t]/Gamma[t],y[1]==1},y,{t,1,2}]");
     CHECK(r.has_value());
     if (r) CHECK(near(last(r->value), std::exp(1.0), 1e-8));
@@ -141,7 +141,7 @@ TEST_CASE("Odeint backend through the evaluator") {
 }
 
 namespace {
-// u at (x, t) from a PDE result, through the evaluator.
+// u[x, t] from a PDE result, through the evaluator.
 double at(const ExprPtr& fn, const char* x, const char* t) {
     Context ctx;
     const auto v = evaluate(make_normal(fn, {parse_text(x), parse_text(t)}), ctx);
@@ -166,7 +166,7 @@ TEST_CASE("Odeint backend: heat equation by the method of lines") {
     CHECK(r->status == ResultStatus::Numeric);
     CHECK(r->value->has_head("InterpolatingFunction") && r->value->size() == 4);
     CHECK(backend.last_method().rfind("MethodOfLines/", 0) == 0);
-    const double exact = std::exp(-kPi * kPi / 2);  // at x = 1/2, t = 1/2
+    const double exact = std::exp(-kPi * kPi / 2);  // u[1/2, 1/2]
     CHECK(std::abs(at(r->value, "1/2", "1/2") / exact - 1) < 5e-3);
     CHECK(std::abs(at(r->value, "1/4", "1/10") - std::exp(-kPi * kPi / 10) * std::sin(kPi / 4)) < 1e-3);
     CHECK(std::abs(at(r->value, "0", "1/3")) < 1e-9);  // boundary value
@@ -179,7 +179,7 @@ TEST_CASE("Odeint backend: wave equation and Neumann boundaries") {
         " Derivative[{0, 1}][u][x, 0] == 0, u[0, t] == 0, u[1, t] == 0}, u, {x, 0, 1}, {t, 0, 1}]");
     CHECK(r.has_value());
     if (r) CHECK(std::abs(at(r->value, "1/2", "1") + 1) < 5e-3);  // Cos[Pi t] Sin[Pi x]
-    // Insulated ends: u = Exp[-Pi^2 t] Cos[Pi x]; argument order u[t, x] also works.
+    // Insulated ends: u[t, x] == Exp[-Pi^2 t] Cos[Pi x]; argument order u[t, x] also works.
     r = solve_evaluated(backend,
         "NDSolve[{D[u[t, x], t] == D[u[t, x], {x, 2}], u[0, x] == Cos[Pi*x],"
         " Derivative[{0, 1}][u][t, 0] == 0, Derivative[{0, 1}][u][t, 1] == 0}, u, {t, 0, 1/10}, {x, 0, 1}]");

@@ -36,7 +36,7 @@ TEST_CASE("Abort: Session stops a long cell from another thread and keeps runnin
     });
     const auto results = session.run_cell(cell);
     stopper.join();
-    CHECK(results.size() == 3);  // b = 2 did not run
+    CHECK(results.size() == 3);  // the statement b = 2 did not run
     CHECK(results.back().aborted);
     CHECK(!results.back().ok());
     CHECK(equal(session.run(parse_text("a")).output, parse_text("1")));  // definitions kept

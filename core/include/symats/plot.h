@@ -29,7 +29,7 @@ struct SampleOptions {
 
 using Polyline = std::vector<std::pair<double, double>>;
 
-// Adaptive samples of y = f(x) on [a, b] as continuous pieces. f may return NaN or inf
+// Adaptive samples of f on [a, b] as continuous pieces. f may return NaN or inf
 // where it is undefined. The second result is the suggested y range (outliers near
 // asymptotes clipped).
 std::pair<std::vector<Polyline>, std::pair<double, double>> sample_curve(
@@ -40,7 +40,7 @@ struct CurveSamples {
     std::pair<double, double> x_range, y_range;  // outliers near asymptotes clipped
 };
 
-// Adaptive samples of the parametric curve (fx(t), fy(t)) for t in [a, b].
+// Adaptive samples of the parametric curve {fx[t], fy[t]} for t in [a, b].
 CurveSamples sample_parametric(const std::function<double(double)>& fx,
                                const std::function<double(double)>& fy, double a, double b,
                                const SampleOptions& options = {});
@@ -54,7 +54,7 @@ ExprPtr polar_plot(const ExprPtr& expr, Context& ctx);
 //   Plot3D[f, {x, a, b}, {y, c, d}] -> Graphics3D[{SurfaceGrid[xs, ys, zs], ...},
 //                                                PlotRange -> {{a, b}, {c, d}, {zmin, zmax}}]
 //   ContourPlot[f, ...]             -> Graphics[{ContourGrid[xs, ys, zs], ...}, PlotRange -> ...]
-// zs is a List of rows, one per y value (zs[[j, i]] = f[xs[[i]], ys[[j]]]).
+// zs is a List of rows, one per y value: row j, entry i is f at the i-th x and j-th y.
 //   ImplicitPlot[lhs == rhs, {x, a, b}, {y, c, d}] (also ContourPlot with an equation):
 //   the curve by marching squares, as Graphics[{{Line[...], ...}}, ..., AspectRatio -> Automatic].
 ExprPtr plot3d(const ExprPtr& expr, Context& ctx);

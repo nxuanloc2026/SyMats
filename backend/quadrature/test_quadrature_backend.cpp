@@ -58,7 +58,7 @@ TEST_CASE("Quadrature backend: one-dimensional integrals") {
 
 TEST_CASE("Quadrature backend: iterated integrals with variable limits") {
     QuadratureBackend b;
-    // Integrate[x*y, {x, 0, 1}, {y, 0, x}] = 1/8.
+    // Integrate[x*y, {x, 0, 1}, {y, 0, x}] == 1/8.
     CHECK(near(integral(b, "NIntegrate[x*y, {x, 0, 1}, {y, 0, x}]"), 0.125, 1e-9));
     // Area of the unit disk.
     CHECK(near(integral(b, "NIntegrate[1, {x, -1, 1}, {y, -Sqrt[1 - x^2], Sqrt[1 - x^2]}]"), kPi, 1e-7));
@@ -76,11 +76,11 @@ TEST_CASE("Quadrature backend: VEGAS Monte Carlo in four and more dimensions") {
     CHECK(b.last_method() == "Vegas");
     CHECK(near(v, std::pow(g, 4), 1e-3));
     CHECK(b.last_error() < 1e-3);
-    // A sharp peak: the adaptive grid must find it. Exact value Pi^2/10^4 (erf(5) ~ 1).
+    // A sharp peak: the adaptive grid must find it. Exact value Pi^2/10^4 (Erf[5] is about 1).
     v = integral(b, "NIntegrate[Exp[-100*((x - 1/2)^2 + (y - 1/2)^2 + (z - 1/2)^2 + (w - 1/2)^2)],"
                     " {x, 0, 1}, {y, 0, 1}, {z, 0, 1}, {w, 0, 1}]");
     CHECK(v && std::abs(*v / (kPi * kPi / 1e4) - 1.0) < 1e-2);
-    // Variable limits: volume of the 4-simplex = 1/24.
+    // Variable limits: the volume of the 4-simplex is 1/24.
     v = integral(b, "NIntegrate[1, {x, 0, 1}, {y, 0, 1 - x}, {z, 0, 1 - x - y}, {w, 0, 1 - x - y - z}]");
     CHECK(near(v, 1.0 / 24, 2e-3));
     // Deterministic: the same input gives the same output.

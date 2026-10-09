@@ -203,12 +203,12 @@ If a change outside your lane is unavoidable, keep it minimal and explain it in 
 
 ## Plotting requirements
 
-- Plot types: `y = f[x]`; parametric `(x[t], y[t])`; polar `r[θ]`;
-  implicit `F[x, y] == 0`; 3-D surfaces `z = f[x, y]`; contour plots.
+- Plot types: `y == f[x]`; parametric `{x[t], y[t]}`; polar `r[θ]`;
+  implicit `F[x, y] == 0`; 3-D surfaces `z == f[x, y]`; contour plots.
   Multiple curves per plot.
 - The engine compiles a symbolic expression into a fast numeric function, then samples
   adaptively: more points where curvature is high; detect discontinuities and asymptotes
-  (e.g. tan x, 1/x) and break the curve instead of drawing vertical lines.
+  (e.g. `Tan[x]`, `1/x`) and break the curve instead of drawing vertical lines.
 - Implicit curves: marching squares. Surfaces: triangle mesh.
 - The front end renders interactively (zoom, pan, hover values) and supports parameter
   sliders (e.g. `Plot[Sin[a*x], {x, 0, 2*Pi}]` with a slider for `a`).
@@ -218,8 +218,8 @@ If a change outside your lane is unavoidable, keep it minimal and explain it in 
 
 - Any plot whose expression contains a time parameter (default `t`, user-selectable)
   can be animated: play / pause / step / loop, speed control, and a time slider.
-- Examples: traveling wave `y = Sin[x - t]`; rotating parametric curve; heat-equation
-  solution `u[x, t]`; 3-D surface `z = Sin[Sqrt[x^2+y^2] - t]`; trajectories of ODE systems
+- Examples: traveling wave `y == Sin[x - t]`; rotating parametric curve; heat-equation
+  solution `u[x, t]`; 3-D surface `z == Sin[Sqrt[x^2 + y^2] - t]`; trajectories of ODE systems
   traced over time; vector/phase fields with moving points.
 - The engine pre-samples frames (or samples on demand) using the compiled numeric
   function; the front end renders frames smoothly (target 30–60 fps).

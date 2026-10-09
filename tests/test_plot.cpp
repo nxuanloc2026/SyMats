@@ -62,7 +62,7 @@ TEST_CASE("Plot: several functions, definitions, and a global x") {
     CHECK(g->has_head("Graphics"));
     CHECK(g->arg(0)->size() == 2);
     const auto& p = lines(g, 0)[0]->arg(0)->args().back();
-    CHECK(std::abs(num(p->arg(1)) - 1.0) < 1e-12);  // f[1] = 1, not f[5]
+    CHECK(std::abs(num(p->arg(1)) - 1.0) < 1e-12);  // f[1] == 1, not f[5]
     CHECK(!run(ctx, "Plot[Sin[x], {x, 1, 0}]")->has_head("Graphics"));  // empty range stays
 }
 
@@ -94,7 +94,7 @@ TEST_CASE("ParametricPlot and PolarPlot") {
     // Two curves.
     g = run(ctx, "ParametricPlot[{{t, t^2}, {t^2, t}}, {t, 0, 1}]");
     CHECK(g->arg(0)->size() == 2);
-    // Cardioid r = 1 + Cos[th]: x reaches 2 at th = 0.
+    // Cardioid 1 + Cos[th]: x reaches 2 at th == 0.
     g = run(ctx, "PolarPlot[1 + Cos[th], {th, 0, 2*Pi}]");
     CHECK(g->has_head("Graphics"));
     CHECK(std::abs(num(g->arg(1)->arg(1)->arg(0)->arg(1)) - 2) < 1e-9);
@@ -149,7 +149,7 @@ TEST_CASE("Animate and Slider pre-sample frames with one PlotRange") {
     CHECK(a->arg(1)->arg(0)->is_symbol("t"));
     CHECK(a->arg(1)->arg(1)->size() == 31);
     CHECK(equal(a->arg(1)->arg(1)->arg(30), parse_text("10")));
-    // Frame 0 is Sin[x]: at x = Pi/2 the curve passes through 1.
+    // Frame 0 is Sin[x]: at x == Pi/2 the curve passes through 1.
     const auto& frame = a->arg(0)->arg(0);
     CHECK(frame->has_head("Graphics"));
     // Growing amplitude: every frame gets the union range, so the axes do not jump.
@@ -168,7 +168,7 @@ TEST_CASE("Animate and Slider pre-sample frames with one PlotRange") {
 
 TEST_CASE("InterpolatingFunction on a grid: u[x, t]") {
     Context ctx;
-    // u = x*t sampled on {0, 1, 2} x {0, 1}: exact for the cubic interpolant.
+    // u[x, t] == x*t sampled on {0, 1, 2} by {0, 1}: exact for the cubic interpolant.
     run(ctx, "u = InterpolatingFunction[{{0, 2}, {0, 1}}, {0, 1, 2}, {0, 1}, {{0, 0, 0}, {0, 1, 2}}]");
     CHECK(equal(run(ctx, "u[2, 1]"), parse_text("2")));
     CHECK(std::abs(num(run(ctx, "u[3/2, 1/2]")) - 0.75) < 1e-12);

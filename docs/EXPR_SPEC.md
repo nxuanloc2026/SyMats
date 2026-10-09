@@ -71,7 +71,7 @@ Text: `Pi`, `E`, `I`, `Infinity`, `True`, `False`.
 
 `Sin Cos Tan Cot Sec Csc ArcSin ArcCos ArcTan Sinh Cosh Tanh Exp Log`
 Text: `Sin[x]`, `ArcTan[x]`, `Log[x]` = natural log, `Log[b, x]` = base b.
-Also `ArcSinh ArcCosh ArcTanh`; `ArcTan[x, y]` = angle of the point (x, y).
+Also `ArcSinh ArcCosh ArcTanh`; `ArcTan[x, y]` is the angle of the point `{x, y}`.
 
 Special functions (numeric evaluation through Boost.Math in numeric backends; symbolic
 rules may come later): `Gamma[z]`, `Gamma[a, z]` (upper incomplete), `LogGamma[z]`,
@@ -191,7 +191,8 @@ Two-variable plots sample a 51 × 51 grid; values that are not real are `Indeter
 `Plot3D[f, {x, a, b}, {y, c, d}]` →
 `Graphics3D[{SurfaceGrid[xs, ys, zs], …}, PlotRange -> {{a, b}, {c, d}, {zmin, zmax}}]` and
 `ContourPlot[f, …]` → `Graphics[{ContourGrid[xs, ys, zs], …}, PlotRange -> {{a, b}, {c, d}}]`,
-where `zs` holds one row per y value (`zs[[j, i]] = f` at `xs[[i]]`, `ys[[j]]`; Plotly's
+where `zs` holds one row per y value (row j, entry i is `f` at the i-th entry of `xs` and the
+j-th entry of `ys`; Plotly's
 surface/contour layout). `ImplicitPlot[lhs == rhs, {x, a, b}, {y, c, d}]`, also
 `ContourPlot` given an equation, traces the curve by marching squares and returns
 `Line`s in the `Plot` shape with `AspectRatio -> Automatic`.

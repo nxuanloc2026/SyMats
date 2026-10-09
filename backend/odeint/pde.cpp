@@ -72,7 +72,7 @@ std::optional<Ref> reference(const ExprPtr& e, const Layout& l) {
     return Ref{orders[s], orders[t], e->arg(s), e->arg(t)};
 }
 
-// Replaces references to u at (x, t) by slot symbols; anything else referring to u declines.
+// Replaces references to u[x, t] by slot symbols; anything else referring to u declines.
 ExprPtr slot_form(const ExprPtr& e, const Layout& l, const ExprPtr& x, const ExprPtr& t, int time_order) {
     if (auto r = reference(e, l)) {
         if (!equal(r->space_arg, x) || !equal(r->time_arg, t)) throw Decline();
@@ -89,7 +89,8 @@ ExprPtr slot_form(const ExprPtr& e, const Layout& l, const ExprPtr& x, const Exp
     return make_normal(slot_form(e->head(), l, x, t, time_order), std::move(args));
 }
 
-// Boundary condition at one end: u = value(t) (Dirichlet) or du/dx = value(t) (Neumann).
+// Boundary condition at one end: u[x0, t] == value[t] (Dirichlet) or
+// Derivative[{1, 0}][u][x0, t] == value[t] (Neumann).
 struct Boundary {
     bool neumann = false;
     ExprPtr value;  // expression in t
@@ -100,14 +101,14 @@ struct Pde {
     int order = 0;  // in time: 1 (heat, advection) or 2 (wave)
     double x0 = 0, x1 = 0, t0 = 0, t1 = 0, h = 0;
     Compiled rhs;
-    ExprPtr initial, initial_rate;  // u(x, t0), du/dt(x, t0): expressions in x
+    ExprPtr initial, initial_rate;  // u[x, t0] and Derivative[{0, 1}][u][x, t0]: expressions in x
     Boundary left, right;
 };
 
 struct MolSystem {
     std::shared_ptr<const Pde> p;
 
-    // State: u_0..u_N, then (order 2) v_0..v_N with v = du/dt.
+    // State: u at nodes 0..N, then (order 2) v at nodes 0..N, where v == D[u, t].
     void operator()(const Vector& s, Vector& ds, double t) const {
         const Pde& q = *p;
         const std::size_t n = kIntervals + 1;
@@ -127,11 +128,11 @@ struct MolSystem {
                 continue;
             }
             double ux, uxx;
-            if (i == 0) {  // ghost node u_{-1} = u_1 - 2 h g
+            if (i == 0) {  // ghost node: u[-1] == u[1] - 2 h g
                 const double g = b->f.eval(&t);
                 ux = g;
                 uxx = 2 * (u(1) - u(0) - q.h * g) / (q.h * q.h);
-            } else if (i == n - 1) {  // ghost node u_{N+1} = u_{N-1} + 2 h g
+            } else if (i == n - 1) {  // ghost node: u[N + 1] == u[N - 1] + 2 h g
                 const double g = b->f.eval(&t);
                 ux = g;
                 uxx = 2 * (u(n - 2) - u(n - 1) + q.h * g) / (q.h * q.h);
@@ -274,7 +275,7 @@ std::optional<BackendResult> solve_pde(const ExprPtr& expr, std::string& method)
         const auto samples = solve_switching<MolSystem, NumericJacobian<MolSystem>>(
             system, [&] { return NumericJacobian<MolSystem>{system}; }, s0, ts, method);
 
-        // Grid in u's argument order: values[j][i] = u(first[i], second[j]).
+        // Grid in u's argument order: row j, column i holds u at (first[i], second[j]) (C++ indices).
         const bool space_first = layout.space_index == 0;
         const std::vector<double>& first = space_first ? xs : ts;
         const std::vector<double>& second = space_first ? ts : xs;

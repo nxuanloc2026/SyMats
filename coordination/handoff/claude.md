@@ -64,13 +64,13 @@ without noting it here. Claude will review when back.
 - **T-027 xeus kernel (Jules)** — see board.
 
 ## Review fixes (2026-10-09, from an independent review of this branch)
-- NIntegrate declined nothing: divergent/oscillatory integrals (1/x on [0,1], Sin[x]/x to
-  Infinity) came back as finite numbers. Now an estimate must have error <= 1e-6 |value|
+- NIntegrate declined nothing: divergent/oscillatory integrals (`NIntegrate[1/x, {x, 0, 1}]`,
+  `NIntegrate[Sin[x]/x, {x, 1, Infinity}]`) came back as finite numbers. Now an estimate must have error <= 1e-6*Abs[value]
   (or 1e-10). Same for Integrate's NIntegrate fallback.
 - `numeric::decimal` was off by 10^300 below ~1e-289. Fixed.
-- Boost.Math threw on poles/overflow (killed Plot[Gamma[x], ...]); now a quiet policy
+- Boost.Math threw on poles/overflow (killed `Plot[Gamma[x], {x, -3, 3}]`); now a quiet policy
   returns NaN/inf, and plot/verification catch evaluation errors.
-- Native Series accepted non-finite numeric coefficients (Abs[0]^-1); now declines.
+- Native Series accepted non-finite numeric coefficients (`Abs[0]^-1`); now declines.
   `Abs[number]` evaluates.
 - Simpson check: depth 18, one sample without parameters, polls abort (57 s -> 0.1 s).
 - Native results only numerically confirmed now report Numeric, not Exact.
@@ -110,17 +110,17 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
 - `backend/odeint/pde.{h,cpp}`, reached from OdeintBackend when NDSolve has two ranges.
   Shared driver moved to `backend/odeint/integrator.h` (budgeted dopri5 -> Rosenbrock;
   finite-difference Jacobian template).
-- Central differences, ghost nodes for Neumann, Dirichlet nodes driven by a'(t) (a''(t) for
-  wave). Errors O(h^2) with h = L/50 (tests: heat ~2e-3 relative, wave/Neumann < 5e-3).
+- Central differences, ghost nodes for Neumann, Dirichlet nodes driven by `a'[t]` (`a''[t]` for
+  wave). Second-order accurate in the node spacing h (L/50) (tests: heat ~2e-3 relative, wave/Neumann < 5e-3).
 - `numeric::GridSamples` / `interpolating_grid` in core + evaluator support for `sol[x, t]`.
 - Not done: 2 space dimensions, systems of PDEs, adaptive/finer grids, Robin conditions.
 
 ### T-036 Integrate fallback chain — done (review)
 - `core/include/symats/native_backend.h`: `NativeBackend` ("native", supports Integrate) and
   `native_antiderivative`. Forms: x^n / (a x + b)^n, 1/(a x + b), c^(a x + b), Exp, Sin, Cos,
-  Tan, Cot, Sinh, Cosh, Tanh, Log, Sec^2, Csc^2, 1/(1 + x^2), 1/Sqrt[1 - x^2]; linearity;
-  expands products/powers of sums. Accepted only if D[F] - f is exactly 0 (after Expand and
-  Tan/Sec/... -> Sin/Cos). Definite: F[b] - F[a] if the quadrature check agrees, else
+  Tan, Cot, Sinh, Cosh, Tanh, Log, Sec[u]^2, Csc[u]^2, 1/(1 + x^2), 1/Sqrt[1 - x^2]; linearity;
+  expands products/powers of sums. Accepted only if `D[F, x] - f` is exactly 0 (after Expand and
+  Tan/Sec/... -> Sin/Cos). Definite: `F[b] - F[a]` if the quadrature check agrees, else
   `NIntegrate[f, range]` with status Numeric (numeric integrand only).
 - install_default_backends adds it last. Also `Exp[1] -> E`.
 - Also `Series[f, {x, a, n}]` (n <= 12) as a Taylor polynomial in `SeriesData`, declining
@@ -131,8 +131,8 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   verifies (verification_status != Unverified).
 - Also `Limit[f, x -> a]` (finite numeric a): substitution or L'Hopital on 0/0, kept only if
   f is numerically within 1e-3 of it on both sides.
-- Fixed canonical arithmetic: 0*ComplexInfinity and 0*Infinity -> Indeterminate (was 0, so
-  Sin[x]/x /. x -> 0 gave 0), Infinity - Infinity -> Indeterminate, infinities absorb
+- Fixed canonical arithmetic: `0*ComplexInfinity` and `0*Infinity` give `Indeterminate` (was 0, so
+  `Sin[x]/x /. x -> 0` gave 0), `Infinity - Infinity` gives `Indeterminate`, infinities absorb
   finite terms, Indeterminate absorbs everything.
 - Proposal (not done, needs Codex for parser/printer): an `Expr` Real kind (double first,
   MPFR later) so numeric results print as decimals and `N[...]` can exist.
@@ -147,7 +147,7 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
 - Behaviour checked on 23 edge cases (chain/product/power rules, x^x, Log[b, x],
   higher/mixed partials, Expand of powers and products): correct.
 - Fixed: `D[E^x, x]` gave `E^x*Log[E]`; ArcSinh/ArcCosh/ArcTanh had no derivative rules.
-  Added exact values Sin/Tan/.../Exp at 0, Log[1] = 0, Log[E] = 1 (eval.cpp) and made the
+  Added exact values Sin/Tan/.../Exp at 0, `Log[1] == 0`, `Log[E] == 1` (eval.cpp) and made the
   inverse hyperbolic functions Listable. Tests: `tests/test_elementary.cpp`.
 
 ### T-034 Plot sampling — done (review)
@@ -157,7 +157,7 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   point-by-point evaluation when the body does not compile).
 - Output shape documented in EXPR_SPEC §3.9 — Codex: this is what app/ Plotly should render.
 - `numeric.h`: `Samples` (cubic interpolation), `register_functions` / `default_functions`;
-  install_default_backends registers the Boost.Math table so Plot[Gamma[x], ...] works.
+  install_default_backends registers the Boost.Math table so `Plot[Gamma[x], {x, 1, 3}]` works.
 - Also ParametricPlot, PolarPlot (shared 2-D adaptive sampler), Plot3D / ContourPlot
   (51x51 grid -> SurfaceGrid / ContourGrid for Plotly), ImplicitPlot and
   ContourPlot[eqn] (marching squares, segments joined via shared grid edges).
@@ -188,7 +188,7 @@ The merged adapter never solved anything and did not build on Ubuntu (SUNDIALS 6
 `SUN_COMM_NULL`/`realtype` are 7.x-only (now version-guarded / `sunrealtype`), the test
 lacked test_main.cpp + tests/ include, `y'[x]` was matched as `Derivative[1][y[x]]`
 instead of `Derivative[1][y][x]`, `y[x]` in the RHS was never recognised, and the
-first sample asked CVODE for tout == t0. All fixed; tests now check y(1) = e^-1.
+first sample asked CVODE for tout == t0. All fixed; tests now check `y[1] == E^-1`.
 
 ### T-029 Boost.Odeint NDSolve — done (review)
 - `backend/odeint/` (`OdeintBackend`, CMake option `SYMATS_USE_BOOST`, header-only Boost >= 1.71).
@@ -198,9 +198,9 @@ first sample asked CVODE for tout == t0. All fixed; tests now check y(1) = e^-1.
   (Gamma, Gamma[a,z], LogGamma, Beta, Erf, Erfc, Zeta, BesselJ/Y/I/K).
 - Dormand-Prince 5(4) dense output; if it exceeds 20000 steps -> Rosenbrock 4 with a
   symbolic Jacobian from native `differentiate` (finite differences if it does not compile).
-- Result: single function -> bare `InterpolatingFunction[{t0,t1}, {{t,y},...}]` (same
+- Result: single function -> bare `InterpolatingFunction[{t0, t1}, {{t, y}, ...}]` (same
   shape as SUNDIALS); list -> `{x -> IF, y -> IF}`. 101 samples, 12-digit decimal rationals.
-- Note: Prothero-Robinson `y' == -10^6 (y - Cos[t])` makes Rosenbrock4 stall (order
+- Note: Prothero-Robinson `y'[t] == -10^6 (y[t] - Cos[t])` makes Rosenbrock4 stall (order
   reduction); it declines after the 200000-step budget. Robertson and Van der Pol work.
 - Tests: `backend/odeint/test_odeint_backend.cpp` (7 cases), clean under ASan/UBSan.
 - CI: Linux job in ci.yml installs libboost-dev and enables the backend. Windows not yet

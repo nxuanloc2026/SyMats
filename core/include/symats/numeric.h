@@ -59,7 +59,7 @@ struct Samples {
 std::shared_ptr<const Samples> interpolating_samples(const ExprPtr& f);
 
 // Grid table of InterpolatingFunction[{{x0, x1}, {t0, t1}}, {xs}, {ts}, {{u, ...}, ...}]:
-// values[j][i] = u(xs[i], ts[j]) (one row per t), both axes increasing.
+// values[j][i] (C++ indices) is u at x[i], t[j]: one row per t; both axes increasing.
 struct GridSamples {
     std::vector<double> x, t;
     std::vector<std::vector<double>> values;

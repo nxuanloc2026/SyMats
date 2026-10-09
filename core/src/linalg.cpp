@@ -186,7 +186,7 @@ ExprPtr char_poly(const ExprPtr& e, Context&) {
     auto a = exact(e->arg(0));
     if (!a || a->size() != (*a)[0].size()) return nullptr;
     const std::size_t n = a->size();
-    // M_0 = 0, c_n = 1; M_k = A M_{k-1} + c_{n-k+1} I, c_{n-k} = -Tr(A M_k) / k.
+    // M[0] == 0, c[n] == 1; M[k] == A . M[k - 1] + c[n - k + 1] I, c[n - k] == -Trace[A . M[k]]/k.
     std::vector<Rational> c(n + 1, Rational(0));
     c[n] = 1;
     Matrix m(n, Row(n, Rational(0)));

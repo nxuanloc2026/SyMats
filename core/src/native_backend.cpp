@@ -27,7 +27,7 @@ ExprPtr simplify(const ExprPtr& e) {
     return evaluate(e, ctx);
 }
 
-// u = a*x + b with a != 0 free of x: returns a, else nullptr.
+// u == a*x + b with a != 0 free of x: returns a, else nullptr.
 ExprPtr linear_coefficient(const ExprPtr& u, const ExprPtr& x) {
     if (free_of(u, x)) return nullptr;
     const ExprPtr a = simplify(differentiate(u, x));

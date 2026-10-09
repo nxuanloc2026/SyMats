@@ -21,7 +21,7 @@ using Fn = std::function<double(double)>;
 
 struct Sample {
     double t;
-    std::array<double, 2> c;  // (x, y)
+    std::array<double, 2> c;  // {x, y}
     bool finite() const { return std::isfinite(c[0]) && std::isfinite(c[1]); }
 };
 
@@ -360,7 +360,7 @@ std::vector<double> axis(const Iterator& it, std::size_t n) {
     return v;
 }
 
-// z[j][i] = f(xs[i], ys[j]) (rows follow y, as Plotly expects).
+// z[j][i] (C++ indices) is f at xs[i], ys[j]: rows follow y, as Plotly expects.
 std::vector<std::vector<double>> sample_grid(const Fn2& f, const std::vector<double>& xs,
                                              const std::vector<double>& ys) {
     std::vector<std::vector<double>> z(ys.size(), std::vector<double>(xs.size()));

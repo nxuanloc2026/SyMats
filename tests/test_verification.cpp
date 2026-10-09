@@ -22,7 +22,7 @@ TEST_CASE("Verification: exact checks give Verified") {
 }
 
 TEST_CASE("Verification: numeric fallback when the exact check cannot decide") {
-    // Needs Sin^2 + Cos^2 == 1, which the exact simplifier does not know.
+    // Needs Sin[x]^2 + Cos[x]^2 == 1, which the exact simplifier does not know.
     CHECK(status("Integrate[Sin[x]^2, x]", "x/2 - Sin[2*x]/4") == ResultStatus::Numeric);
     CHECK(!verify_backend_result(parse_text("Integrate[Sin[x]^2, x]"), parse_text("x/2 - Sin[2*x]/4")));
     CHECK(status("Det[{{Sin[x], Cos[x]}, {-Cos[x], Sin[x]}}]", "1") == ResultStatus::Numeric);

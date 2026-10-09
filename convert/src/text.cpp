@@ -44,7 +44,7 @@ public:
     explicit Parser(std::string_view input) : input_(input) {}
 
     ExprPtr parse() {
-        ExprPtr result = relation();
+        ExprPtr result = assignment();
         space();
         if (pos_ != input_.size()) error("unexpected character");
         return result;
@@ -95,11 +95,68 @@ private:
         pos_ += token.size();
         return true;
     }
+
+    // Precedence Level 12: assignment (=, :=)
+    ExprPtr assignment() {
+        DepthGuard guard(depth_);
+        ExprPtr left = replace_all();
+        if (take_token(":=")) return make_normal("SetDelayed", {left, assignment()});
+        if (take_token("=")) return make_normal("Set", {left, assignment()});
+        return left;
+    }
+
+    // Precedence Level 11: /. (ReplaceAll)
+    ExprPtr replace_all() {
+        ExprPtr left = rule();
+        while (take_token("/.")) {
+            left = make_normal("ReplaceAll", {left, rule()});
+        }
+        return left;
+    }
+
+    // Precedence Level 10: -> (Rule)
+    ExprPtr rule() {
+        ExprPtr left = logical_or();
+        if (take_token("->")) return make_normal("Rule", {left, rule()});
+        return left;
+    }
+
+    // Precedence Level 9: || (Or)
+    ExprPtr logical_or() {
+        ExprPtr left = logical_and();
+        while (take_token("||")) {
+            ExprPtr right = logical_and();
+            if (left->has_head("Or")) {
+                ExprList args = left->args();
+                args.push_back(right);
+                left = make_normal("Or", std::move(args));
+            } else {
+                left = make_normal("Or", {left, right});
+            }
+        }
+        return left;
+    }
+
+    // Precedence Level 8: && (And)
+    ExprPtr logical_and() {
+        ExprPtr left = relation();
+        while (take_token("&&")) {
+            ExprPtr right = relation();
+            if (left->has_head("And")) {
+                ExprList args = left->args();
+                args.push_back(right);
+                left = make_normal("And", std::move(args));
+            } else {
+                left = make_normal("And", {left, right});
+            }
+        }
+        return left;
+    }
+
+    // Precedence Level 7: relations (==, !=, <=, >=, <, >)
     ExprPtr relation() {
         DepthGuard guard(depth_);
         ExprPtr left = sum();
-        if (take_token("->")) return make_normal("Rule", {left, relation()});
-        if (take_token(":=")) return make_normal("SetDelayed", {left, relation()});
         constexpr std::pair<std::string_view, std::string_view> operators[] = {
             {"==", "Equal"}, {"!=", "Unequal"}, {"<=", "LessEqual"},
             {">=", "GreaterEqual"}, {"<", "Less"}, {">", "Greater"},
@@ -107,9 +164,10 @@ private:
         for (const auto& [token, head] : operators) {
             if (take_token(token)) return make_normal(head, {left, sum()});
         }
-        if (take_token("=")) return make_normal("Set", {left, relation()});
         return left;
     }
+
+    // Precedence Level 6: +, -
     ExprPtr sum() {
         ExprPtr left = product();
         while (true) {
@@ -119,41 +177,90 @@ private:
             else return left;
         }
     }
+
+    // Precedence Level 5: *, /, implicit multiplication
     ExprPtr product() {
-        ExprPtr left = unary();
+        ExprPtr left = dot();
         while (true) {
-            if (take('*')) left = times(left, unary());
-            else if (take('/')) left = divide(left, unary());
+            if (take('*')) left = times(left, dot());
+            else if (peek() == '/' && (pos_ + 1 >= input_.size() || input_[pos_ + 1] != '.') && take('/'))
+                left = divide(left, dot());
             else {
                 // Juxtaposition, such as 2x or a b, denotes multiplication.
                 char c = peek();
-                if (c == '(' || std::isalpha(static_cast<unsigned char>(c)))
-                    left = times(left, unary());
+                if (c == '(' || c == '{' || c == '`' || c == '_' || std::isalpha(static_cast<unsigned char>(c)))
+                    left = times(left, dot());
                 else return left;
             }
         }
     }
-    ExprPtr unary() {
+
+    // Precedence Level 4: . (Dot)
+    ExprPtr dot() {
+        ExprPtr left = prefix_unary();
+        while (true) {
+            if (peek() == '.' &&
+                (pos_ + 1 >= input_.size() || input_[pos_ + 1] != '.') &&
+                (pos_ + 1 >= input_.size() || input_[pos_ + 1] != '/') &&
+                (pos_ + 1 >= input_.size() || !std::isdigit(static_cast<unsigned char>(input_[pos_ + 1])))) {
+                take('.');
+                ExprPtr right = prefix_unary();
+                if (left->has_head("Dot")) {
+                    ExprList args = left->args();
+                    args.push_back(right);
+                    left = make_normal("Dot", std::move(args));
+                } else {
+                    left = make_normal("Dot", {left, right});
+                }
+            } else {
+                break;
+            }
+        }
+        return left;
+    }
+
+    // Precedence Level 3: prefix +, -, ! (Not)
+    ExprPtr prefix_unary() {
         DepthGuard guard(depth_);
-        if (take('+')) return unary();
-        if (take('-')) return negate(unary());
+        if (take('+')) return prefix_unary();
+        if (take('-')) return negate(prefix_unary());
+        if (peek() == '!' && (pos_ + 1 >= input_.size() || input_[pos_ + 1] != '=')) {
+            take('!');
+            return make_normal("Not", {prefix_unary()});
+        }
         return exponent();
     }
+
+    // Precedence Level 2: ^ (Power)
     ExprPtr exponent() {
         ExprPtr base = atom();
-        if (take('^')) return power(base, unary());  // right associative
+        if (take('^')) return power(base, prefix_unary());  // right associative
         return base;
     }
+
+    // Precedence Level 1: atom, calls f[x], derivative primes y'[t], postfix ! (Factorial)
     ExprPtr atom() {
         ExprPtr head = primary();
-        while (take('[')) {
-            ExprList args;
-            if (!take(']')) {
-                do { args.push_back(relation()); } while (take(','));
-                expect(']');
+        while (true) {
+            if (peek() == '\'') {
+                std::size_t primes = 0;
+                while (take('\'')) ++primes;
+                ExprPtr deriv_head = make_normal("Derivative", {make_integer(static_cast<long long>(primes))});
+                head = make_normal(std::move(deriv_head), {head});
+            } else if (peek() == '!' && (pos_ + 1 >= input_.size() || input_[pos_ + 1] != '=')) {
+                take('!');
+                head = make_normal("Factorial", {head});
+            } else if (take('[')) {
+                ExprList args;
+                if (!take(']')) {
+                    do { args.push_back(assignment()); } while (take(','));
+                    expect(']');
+                }
+                head = head->is_symbol() ? call(head->name(), std::move(args))
+                                         : make_normal(std::move(head), std::move(args));
+            } else {
+                break;
             }
-            head = head->is_symbol() ? call(head->name(), std::move(args))
-                                     : make_normal(std::move(head), std::move(args));
         }
         return head;
     }
@@ -229,14 +336,14 @@ private:
             return make_normal("Blank", std::move(args));
         }
         if (take('(')) {
-            ExprPtr inside = relation();
+            ExprPtr inside = assignment();
             expect(')');
             return inside;
         }
         if (take('{')) {
             ExprList items;
             if (!take('}')) {
-                do { items.push_back(relation()); } while (take(','));
+                do { items.push_back(assignment()); } while (take(','));
                 expect('}');
             }
             return make_normal("List", std::move(items));
@@ -246,11 +353,13 @@ private:
 };
 
 std::string_view infix_token(const ExprPtr& e) {
-    if (e->size() != 2) return {};
+    if (e->size() != 2 && !e->has_head("And") && !e->has_head("Or") && !e->has_head("Dot")) return {};
     constexpr std::pair<std::string_view, std::string_view> tokens[] = {
-        {"Rule", "->"}, {"Set", "="}, {"SetDelayed", ":="},
+        {"SetDelayed", ":="}, {"Set", "="}, {"ReplaceAll", "/."},
+        {"Rule", "->"}, {"Or", "||"}, {"And", "&&"},
         {"Equal", "=="}, {"Unequal", "!="}, {"Less", "<"},
         {"LessEqual", "<="}, {"Greater", ">"}, {"GreaterEqual", ">="},
+        {"Dot", "."},
     };
     for (const auto& [head, token] : tokens) {
         if (e->has_head(head)) return token;
@@ -265,10 +374,20 @@ bool negative_term(const ExprPtr& e) {
 }
 
 int precedence(const ExprPtr& e) {
-    if (!infix_token(e).empty()) return 5;
+    if (e->has_head("Set") || e->has_head("SetDelayed")) return 2;
+    if (e->has_head("ReplaceAll")) return 3;
+    if (e->has_head("Rule")) return 4;
+    if (e->has_head("Or")) return 5;
+    if (e->has_head("And")) return 6;
+    if (e->has_head("Equal") || e->has_head("Unequal") ||
+        e->has_head("Less") || e->has_head("LessEqual") ||
+        e->has_head("Greater") || e->has_head("GreaterEqual")) return 7;
     if (e->has_head("Plus")) return 10;
-    if (e->has_head("Times")) return 20;
+    if (e->has_head("Times")) return 15;
+    if (e->has_head("Dot")) return 20;
+    if (e->has_head("Not")) return 30;
     if (e->has_head("Power")) return 40;
+    if (e->has_head("Factorial")) return 50;
     return 50;
 }
 
@@ -279,7 +398,7 @@ std::string write(const ExprPtr& e, int parent, std::size_t depth) {
     if (e->is_integer()) out = e->integer().to_string();
     else if (e->is_rational()) {
         out = e->rational().to_string();
-        own = 20;
+        own = 15;
     } else if (e->is_symbol()) {
         const auto& name = e->name();
         {
@@ -315,7 +434,7 @@ std::string write(const ExprPtr& e, int parent, std::size_t depth) {
         }
     } else if (e->has_head("Times") && negative_term(e)) {
         ExprPtr positive = negate(e);
-        own = positive->has_head("Times") ? 20 : 30;
+        own = positive->has_head("Times") ? 15 : 25;
         out = "-" + write(positive, own, depth + 1);
     } else if (e->has_head("Times") && e->size() > 0) {
         for (std::size_t i = 0; i < e->size(); ++i) {
@@ -327,13 +446,20 @@ std::string write(const ExprPtr& e, int parent, std::size_t depth) {
         if (e->arg(0)->is_integer() && e->arg(0)->integer().is_negative())
             base = "(" + base + ")";
         out = base + "^" + write(e->arg(1), own, depth + 1);
+    } else if (e->has_head("Not") && e->size() == 1) {
+        out = "!" + write(e->arg(0), own, depth + 1);
+    } else if (e->has_head("Factorial") && e->size() == 1) {
+        out = write(e->arg(0), own, depth + 1) + "!";
+    } else if (e->head()->has_head("Derivative") && e->head()->size() == 1 &&
+               e->head()->arg(0)->is_integer() && e->size() == 1) {
+        long long n = e->head()->arg(0)->integer().to_int64().value_or(1);
+        out = write(e->arg(0), own, depth + 1) + std::string(n > 0 ? n : 1, '\'');
     } else if (const auto token = infix_token(e); !token.empty()) {
-        out = write(e->arg(0), own + 1, depth + 1);
-        out += " ";
-        out += token;
-        out += " ";
         const bool right_associative = token == "->" || token == "=" || token == ":=";
-        out += write(e->arg(1), own + (right_associative ? 0 : 1), depth + 1);
+        for (std::size_t i = 0; i < e->size(); ++i) {
+            if (i) out += " " + std::string(token) + " ";
+            out += write(e->arg(i), own + (right_associative ? 0 : 1), depth + 1);
+        }
     } else if (e->has_head("List")) {
         out = "{";
         for (std::size_t i = 0; i < e->size(); ++i) {

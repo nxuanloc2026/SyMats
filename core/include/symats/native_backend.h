@@ -12,6 +12,10 @@
 // Series[f, {x, a, n}] (n <= 12): the Taylor polynomial from native derivatives, as
 // SeriesData[terms, {x, a, n}]. It declines at singular points (poles, Log[0], ...), where
 // a Laurent or Puiseux expansion would be needed.
+//
+// Solve[eqn, x] for polynomial equations of degree 1 or 2, and Solve[{eqns}, {vars}] for
+// linear systems (exact elimination for numeric coefficients, Cramer's rule for up to 3
+// unknowns with symbolic ones). Results are checked by substitution (exact or numeric).
 #pragma once
 
 #include <optional>
@@ -25,7 +29,9 @@ namespace symats {
 class NativeBackend final : public MathBackend {
 public:
     std::string name() const override { return "native"; }
-    bool supports(std::string_view head) const override { return head == "Integrate" || head == "Series"; }
+    bool supports(std::string_view head) const override {
+        return head == "Integrate" || head == "Series" || head == "Solve";
+    }
     std::optional<BackendResult> evaluate(const ExprPtr& expr) override;
 };
 

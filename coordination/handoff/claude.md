@@ -109,6 +109,10 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
 - install_default_backends adds it last. Also `Exp[1] -> E`.
 - Also `Series[f, {x, a, n}]` (n <= 12) as a Taylor polynomial in `SeriesData`, declining
   when a coefficient is singular (ComplexInfinity, Indeterminate, Log[0]).
+- Also `Solve`: one polynomial equation of degree 1-2 (coefficients via derivatives at 0;
+  quadratic formula, complex roots stay as radicals), linear systems (LinearSolve for
+  numeric coefficients, Cramer for <= 3 symbolic unknowns). Kept only if substitution
+  verifies (verification_status != Unverified).
 - Proposal (not done, needs Codex for parser/printer): an `Expr` Real kind (double first,
   MPFR later) so numeric results print as decimals and `N[...]` can exist.
 

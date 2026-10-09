@@ -197,10 +197,132 @@ std::optional<BackendResult> taylor(const ExprPtr& expr) {
     return BackendResult{make_normal("SeriesData", {simplify(plus(std::move(terms))), spec}),
                          ResultStatus::Exact, "native"};
 }
+// ---------------------------------------------------------------- Solve
+
+bool is_zero_expr(const ExprPtr& e) { return e->is_integer() && e->integer().is_zero(); }
+
+// Coefficients c0..cd of p as a polynomial in x (degree <= max_degree), or nullopt.
+std::optional<ExprList> coefficients(const ExprPtr& p, const ExprPtr& x, int max_degree) {
+    ExprList c;
+    ExprPtr d = simplify(expand(p));
+    Integer factorial = 1;
+    for (int k = 0; k <= max_degree + 1; ++k) {
+        if (k > 0) {
+            d = simplify(expand(differentiate(d, x)));
+            factorial *= Integer(k);
+        }
+        if (is_zero_expr(d)) return c;
+        if (k == max_degree + 1) return std::nullopt;
+        const ExprPtr ck = simplify(substitute(d, {{x->name(), make_integer(0)}}));
+        if (!free_of(ck, x) || singular(ck)) return std::nullopt;
+        c.push_back(simplify(times(ck, make_rational(1, factorial))));
+    }
+    return std::nullopt;
+}
+
+ExprPtr rule(const ExprPtr& x, const ExprPtr& v) { return make_normal("Rule", {x, simplify(v)}); }
+ExprPtr branch(ExprList rules) { return make_normal("List", std::move(rules)); }
+
+std::optional<ExprPtr> solve_one(const ExprPtr& p, const ExprPtr& x) {
+    auto c = coefficients(p, x, 2);
+    if (!c) return std::nullopt;
+    while (!c->empty() && is_zero_expr(c->back())) c->pop_back();
+    if (c->size() == 2)  // c0 + c1 x
+        return make_normal("List", {branch({rule(x, negate(divide((*c)[0], (*c)[1])))})});
+    if (c->size() == 3) {  // c0 + c1 x + c2 x^2
+        const ExprPtr &c0 = (*c)[0], &c1 = (*c)[1], &c2 = (*c)[2];
+        const ExprPtr disc = simplify(subtract(power(c1, make_integer(2)), times({make_integer(4), c2, c0})));
+        const ExprPtr root = power(disc, make_rational(1, 2));
+        const ExprPtr two_a = times(make_integer(2), c2);
+        if (is_zero_expr(disc)) return make_normal("List", {branch({rule(x, divide(negate(c1), two_a))})});
+        return make_normal("List", {branch({rule(x, divide(subtract(negate(c1), root), two_a))}),
+                                    branch({rule(x, divide(plus(negate(c1), root), two_a))})});
+    }
+    return std::nullopt;
+}
+
+// Determinant by cofactor expansion (small symbolic matrices).
+ExprPtr det(const std::vector<ExprList>& m) {
+    const std::size_t n = m.size();
+    if (n == 1) return m[0][0];
+    ExprList terms;
+    for (std::size_t j = 0; j < n; ++j) {
+        std::vector<ExprList> minor;
+        for (std::size_t i = 1; i < n; ++i) {
+            ExprList row;
+            for (std::size_t k = 0; k < n; ++k)
+                if (k != j) row.push_back(m[i][k]);
+            minor.push_back(std::move(row));
+        }
+        ExprPtr t = times(m[0][j], det(minor));
+        terms.push_back(j % 2 ? negate(t) : t);
+    }
+    return simplify(plus(std::move(terms)));
+}
+
+std::optional<ExprPtr> solve_linear_system(const ExprList& polys, const ExprList& vars) {
+    const std::size_t n = vars.size();
+    if (polys.size() != n || n > 6) return std::nullopt;
+    std::vector<ExprList> a(n, ExprList(n));
+    ExprList b(n);
+    bool numeric_matrix = true;
+    for (std::size_t i = 0; i < n; ++i) {
+        ExprPtr rest = polys[i];
+        for (std::size_t j = 0; j < n; ++j) {
+            a[i][j] = simplify(differentiate(polys[i], vars[j]));
+            for (const auto& v : vars)
+                if (!free_of(a[i][j], v)) return std::nullopt;  // not linear
+            numeric_matrix = numeric_matrix && a[i][j]->is_number();
+        }
+        Bindings zero;
+        for (const auto& v : vars) zero[v->name()] = make_integer(0);
+        b[i] = simplify(negate(substitute(polys[i], zero)));
+        numeric_matrix = numeric_matrix && b[i]->is_number();
+    }
+    ExprList values;
+    if (numeric_matrix) {
+        ExprList rows;
+        for (const auto& r : a) rows.push_back(make_normal("List", r));
+        const ExprPtr x = simplify(make_normal("LinearSolve", {make_normal("List", rows), make_normal("List", b)}));
+        if (!x->has_head("List") || x->size() != n) return std::nullopt;
+        values = x->args();
+    } else {
+        if (n > 3) return std::nullopt;
+        const ExprPtr d = det(a);
+        if (is_zero_expr(d)) return std::nullopt;
+        for (std::size_t j = 0; j < n; ++j) {  // Cramer's rule
+            std::vector<ExprList> aj = a;
+            for (std::size_t i = 0; i < n; ++i) aj[i][j] = b[i];
+            values.push_back(divide(det(aj), d));
+        }
+    }
+    ExprList rules;
+    for (std::size_t j = 0; j < n; ++j) rules.push_back(rule(vars[j], values[j]));
+    return make_normal("List", {branch(std::move(rules))});
+}
+
+std::optional<BackendResult> solve(const ExprPtr& expr) {
+    const ExprList eqs = expr->arg(0)->has_head("List") ? expr->arg(0)->args() : ExprList{expr->arg(0)};
+    const ExprList vars = expr->arg(1)->has_head("List") ? expr->arg(1)->args() : ExprList{expr->arg(1)};
+    if (eqs.empty() || vars.empty()) return std::nullopt;
+    ExprList polys;
+    for (const auto& eq : eqs) {
+        if (!eq->has_head("Equal") || eq->size() != 2) return std::nullopt;
+        polys.push_back(subtract(eq->arg(0), eq->arg(1)));
+    }
+    for (const auto& v : vars)
+        if (!v->is_symbol()) return std::nullopt;
+    std::optional<ExprPtr> result;
+    if (polys.size() == 1 && vars.size() == 1) result = solve_one(polys[0], vars[0]);
+    else result = solve_linear_system(polys, vars);
+    if (!result || verification_status(expr, *result) == ResultStatus::Unverified) return std::nullopt;
+    return BackendResult{*result, ResultStatus::Exact, "native"};
+}
 }  // namespace
 
 std::optional<BackendResult> NativeBackend::evaluate(const ExprPtr& expr) {
     if (expr && expr->has_head("Series") && expr->size() == 2) return taylor(expr);
+    if (expr && expr->has_head("Solve") && expr->size() == 2) return solve(expr);
     if (!expr || !expr->has_head("Integrate") || expr->size() != 2) return std::nullopt;
     const ExprPtr& f = expr->arg(0);
     const ExprPtr& range = expr->arg(1);

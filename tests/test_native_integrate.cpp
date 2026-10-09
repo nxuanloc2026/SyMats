@@ -82,3 +82,25 @@ TEST_CASE("Native Series: Taylor polynomials as SeriesData") {
     CHECK(run("Series[Sqrt[x], {x, 0, 2}]").value->has_head("Series"));
     CHECK(run("Series[Exp[x], {x, 0, 50}]").value->has_head("Series"));  // left to Giac
 }
+
+TEST_CASE("Native Solve: linear, quadratic and linear systems, checked by substitution") {
+    Run run;
+    CHECK(run.same("Solve[2*x + 3 == 7, x]", "{{x -> 2}}"));
+    CHECK(run.same("Solve[a*x == b, x]", "{{x -> b/a}}"));
+    CHECK(run.same("Solve[x^2 == 4, x]", "{{x -> -2}, {x -> 2}}"));
+    CHECK(run.same("Solve[x^2 - 2*x + 1 == 0, x]", "{{x -> 1}}"));
+    auto r = run("Solve[x^2 == 2, x]");
+    CHECK(r.value->size() == 2 && r.status == ResultStatus::Exact);
+    CHECK(run.same("Solve[{x + y == 3, x - y == 1}, {x, y}]", "{{x -> 2, y -> 1}}"));
+    CHECK(run.same("Solve[{2*x + y == 1, x + 3*y + z == 2, y + z == 0}, {x, y, z}]",
+                   "{{x -> 0, y -> 1, z -> -1}}"));
+    r = run("Solve[{a*x + y == 1, x - y == 0}, {x, y}]");  // x = y = 1/(1 + a), in some form
+    CHECK(r.value->has_head("List") && r.value->size() == 1 && r.value->arg(0)->size() == 2);
+    CHECK(r.status == ResultStatus::Exact);
+    // Complex roots stay in radical form: x -> -(1/2)*(-4)^(1/2), x -> (1/2)*(-4)^(1/2).
+    CHECK(run("Solve[x^2 == -1, x]").value->size() == 2);
+    // Not handled natively: cubic, nonlinear system, singular system.
+    CHECK(run("Solve[x^3 == 2, x]").value->has_head("Solve"));
+    CHECK(run("Solve[{x*y == 1, x + y == 2}, {x, y}]").value->has_head("Solve"));
+    CHECK(run("Solve[{x + y == 1, 2*x + 2*y == 2}, {x, y}]").value->has_head("Solve"));
+}

@@ -73,6 +73,30 @@ TEST_CASE("Pattern: sequences") {
     CHECK(!match(f({pat_seq("ns", "Integer")}), f({Ex(1), x}), k));
 }
 
+TEST_CASE("Pattern: Flat and Orderless Plus matching") {
+    Ex sum = plus({Ex(1).ptr(), x.ptr(), y.ptr()});
+
+    Bindings b;
+    CHECK(match(make_normal("Plus", {pat("a"), pat("b")}), sum, b));
+    CHECK_EQ(F(b.at("a")), std::string("1"));
+    CHECK_EQ(F(b.at("b")), std::string("Plus[x, y]"));
+
+    Bindings c;
+    CHECK(match(make_normal("Plus", {pat("rest"), Ex(1).ptr()}), sum, c));
+    CHECK_EQ(F(c.at("rest")), std::string("Plus[x, y]"));
+
+    Bindings d;
+    CHECK(!match(make_normal("Plus", {pat("a"), pat("b")}),
+                 make_normal("Plus", {x.ptr()}), d));
+    CHECK(d.empty());
+
+    Bindings e;
+    CHECK(match(make_normal("Times", {pat("left"), pat("right")}),
+                times({x.ptr(), y.ptr(), Ex(2).ptr()}), e));
+    CHECK_EQ(F(e.at("left")), std::string("2"));
+    CHECK_EQ(F(e.at("right")), std::string("Times[x, y]"));
+}
+
 TEST_CASE("Pattern: substitute splices sequences") {
     Bindings b;
     CHECK(match(f({pat_seq("xs")}), f({x, y}), b));

@@ -12,6 +12,7 @@
 #include <sunlinsol/sunlinsol_dense.h>
 #include <sunmatrix/sunmatrix_dense.h>
 #include <sundials/sundials_context.h>
+#include <sundials/sundials_types.h>
 
 namespace symats {
 namespace {
@@ -136,7 +137,7 @@ std::optional<BackendResult> solve(const ExprPtr& expr) {
     if (!problem.rhs || !initial) return std::nullopt;
 
     Resources resources;
-    if (SUNContext_Create(nullptr, &resources.context) != SUN_SUCCESS) return std::nullopt;
+    if (SUNContext_Create(SUN_COMM_NULL, &resources.context) != 0) return std::nullopt;
     resources.state = N_VNew_Serial(1, resources.context);
     resources.cvode = CVodeCreate(CV_BDF, resources.context);
     if (!resources.state || !resources.cvode) return std::nullopt;

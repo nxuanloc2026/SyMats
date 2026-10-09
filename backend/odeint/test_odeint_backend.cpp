@@ -119,12 +119,12 @@ TEST_CASE("Odeint backend evaluates Boost.Math special functions") {
     // y' = Erf[t], y(0) = 0  ->  y(1) = Erf[1] - (1 - E^-1)/Sqrt[Pi].
     auto r = solve(backend, "NDSolve[{y'[t]==Erf[t],y[0]==0},y,{t,0,1}]");
     CHECK(r.has_value());
-    if (r) CHECK(near(last(r->value), 0.842700792949715 - (1 - std::exp(-1.0)) / std::sqrt(M_PI), 1e-9));
-    // y' = Gamma[t] on {t, 1, 2}: Gamma[2] - Gamma[1] check through y' = D[Gamma] is not
-    // elementary, so compare against the integral of BesselJ[0, t]' = -BesselJ[1, t].
+    if (r) CHECK(near(last(r->value), 0.842700792949715 - (1 - std::exp(-1.0)) / std::sqrt(std::acos(-1.0)), 1e-9));
+    // BesselJ[0, t]' = -BesselJ[1, t], so y(5) = BesselJ[0, 5].
     r = solve(backend, "NDSolve[{y'[t]==-BesselJ[1,t],y[0]==1},y,{t,0,5}]");
     CHECK(r.has_value());
     if (r) CHECK(near(last(r->value), -0.177596771314338, 1e-9));  // BesselJ[0, 5]
+    // Gamma in the right-hand side (it cancels): y' = y, so y(2) = E.
     r = solve(backend, "NDSolve[{y'[t]==Gamma[t]*y[t]/Gamma[t],y[1]==1},y,{t,1,2}]");
     CHECK(r.has_value());
     if (r) CHECK(near(last(r->value), std::exp(1.0), 1e-8));

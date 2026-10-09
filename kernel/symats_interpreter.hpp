@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "default_backends.h"
 #include "symats/latex.h"
 #include "symats/session.h"
 #include "symats/text.h"
@@ -57,7 +58,7 @@ namespace symats {
 
 class symats_interpreter {
 public:
-    symats_interpreter() = default;
+    symats_interpreter() { install_default_backends(session_.context().backends()); }
     Session& session() { return session_; }
 
 private:

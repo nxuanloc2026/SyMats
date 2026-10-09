@@ -10,7 +10,7 @@ add_executable(symats_kernel
   symats_interpreter.cpp
 )
 
-target_link_libraries(symats_kernel PRIVATE symats::core symats::convert)
+target_link_libraries(symats_kernel PRIVATE symats::core symats::convert symats::default_backends)
 target_compile_features(symats_kernel PRIVATE cxx_std_20)
 
 if(xeus-zmq_FOUND OR xeus_FOUND)

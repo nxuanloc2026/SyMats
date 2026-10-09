@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include "default_backends.h"
 #include "symats/expr.h"
 #include "symats/session.h"
 #include "symats/text.h"
@@ -85,6 +86,7 @@ void run_repl(symats::Session& session) {
 
 int main(int argc, char* argv[]) {
     symats::Session session;
+    symats::install_default_backends(session.context().backends());
     if (argc > 1) {
         std::string arg = argv[1];
         if (arg == "-h" || arg == "--help") {

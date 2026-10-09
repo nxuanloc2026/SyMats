@@ -48,6 +48,8 @@ if(SYMATS_USE_BOOST)
   add_subdirectory(backend/quadrature)
 endif()
 
+add_subdirectory(backend/registry)
+
 if(SYMATS_BUILD_CLI)
   add_subdirectory(cli)
 endif()

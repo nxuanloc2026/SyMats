@@ -66,6 +66,22 @@ without noting it here. Claude will review when back.
 ## Current task (2026-10-09)
 Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
 
+### T-013 numeric fallback — done (review)
+- `core/include/symats/numeric.h` + `core/src/numeric.cpp`: the double evaluator now lives
+  in core (elementary functions); `backend/common` only adds the Boost.Math table
+  (`special_functions()`). New public header, no existing API changed.
+- `verification_status(request, result)` -> Verified (exact) / Numeric (holds at 6 seeded
+  sample points in [0.2, 2.2], >= 4 finite; definite integrals by adaptive Simpson) /
+  Unverified. `verify_backend_result` unchanged (exact only). Giac now uses
+  `verification_status`, so e.g. `Integrate[x^2, {x, 0, 1}]` reports Numeric.
+- Tests: `tests/test_verification.cpp` (4 cases).
+
+### T-033 default backends
+- `backend/registry`: `install_default_backends(registry)` adds whatever was built: Giac,
+  SUNDIALS, Odeint, quadrature (that order). Called by symats-cli and the kernel.
+- Follow-up idea for Codex (convert/): print `InterpolatingFunction[{a, b}, <>]` instead of
+  101 sample pairs, like Mathematica.
+
 ### T-026 NIntegrate — done (review)
 - `backend/quadrature/` (`QuadratureBackend`), built with the odeint backend under the
   renamed option `SYMATS_USE_BOOST` (was SYMATS_USE_ODEINT).
@@ -86,7 +102,7 @@ instead of `Derivative[1][y][x]`, `y[x]` in the RHS was never recognised, and th
 first sample asked CVODE for tout == t0. All fixed; tests now check y(1) = e^-1.
 
 ### T-029 Boost.Odeint NDSolve — done (review)
-- `backend/odeint/` (`OdeintBackend`, CMake option `SYMATS_USE_ODEINT`, header-only Boost >= 1.71).
+- `backend/odeint/` (`OdeintBackend`, CMake option `SYMATS_USE_BOOST`, header-only Boost >= 1.71).
 - Any order, any number of unknowns: reduced to a first-order system. Equations must be
   explicit in the highest derivative (either side of `==`); all initial values at t0.
 - RHS compiled once to a numeric node tree: elementary functions + Boost.Math

@@ -8,7 +8,9 @@
 
 namespace symats {
 
-symats_interpreter::symats_interpreter() = default;
+symats_interpreter::symats_interpreter() {
+    install_default_backends(session_.context().backends());
+}
 
 void symats_interpreter::configure_impl() {
     // Initialization hook for the kernel session

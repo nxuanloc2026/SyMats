@@ -75,9 +75,9 @@ without noting it here. Claude will review when back.
 - Simpson check: depth 18, one sample without parameters, polls abort (57 s -> 0.1 s).
 - Native results only numerically confirmed now report Numeric, not Exact.
 - `register_functions` called once (std::call_once).
-- Known limitation: `Integrate[Sin[1000 x], {x, 0, 1000}]` now stays NIntegrate (the
-  quadrature singularity check cannot resolve it and NIntegrate declines); a better
-  continuity check of F on [a, b] would allow F[b] - F[a] here.
+- Definite native integrals: when f and F are both entire (polynomials, Exp, Sin, Cos, Sinh,
+  Cosh, c^u), `F[b] - F[a]` is used without the quadrature check, so
+  `Integrate[Sin[1000*x], {x, 0, 1000}]` is exact again.
 
 ## Current task (2026-10-09)
 Claude is back. Branch `claude/great-heisenberg-mwf0uy`.

@@ -60,6 +60,9 @@ TEST_CASE("Native Integrate: definite integrals") {
     CHECK(r.status == ResultStatus::Exact);
     CHECK(run.same("Integrate[Exp[x], {x, 0, 1}]", "E - 1"));
     CHECK(run.same("Integrate[a*x, {x, 0, b}]", "a*b^2/2"));
+    // Highly oscillatory but entire: the closed form needs no quadrature check.
+    CHECK(run.same("Integrate[Sin[1000*x], {x, 0, 1000}]", "1/1000 - Cos[1000000]/1000"));
+    CHECK(run.same("Integrate[Exp[2*x] + x^3, {x, -1, 1}]", "Exp[2]/2 - Exp[-2]/2"));
     // No closed form here, or a singularity inside the range: numeric (NIntegrate) instead.
     r = run("Integrate[Exp[x^2], {x, 0, 1}]");
     CHECK(r.value->has_head("NIntegrate"));

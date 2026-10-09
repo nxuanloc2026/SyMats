@@ -139,6 +139,27 @@ ExprPtr sin_cos(const ExprPtr& e) {
     return make_normal(sin_cos(e->head()), std::move(args));
 }
 
+// Built only from entire functions (polynomials, Exp, Sin, Cos, Sinh, Cosh, c^u with a
+// positive number c): no poles or branch points anywhere, so F[b] - F[a] is valid.
+bool entire(const ExprPtr& e) {
+    if (e->is_number()) return true;
+    if (e->is_symbol())
+        return !e->is_symbol("ComplexInfinity") && !e->is_symbol("Indeterminate") && !e->is_symbol("Infinity");
+    if (!e->head()->is_symbol()) return false;
+    const std::string& h = e->head()->name();
+    if (h == "Power" && e->size() == 2) {
+        const ExprPtr &base = e->arg(0), &n = e->arg(1);
+        if (n->is_integer() && n->integer().sign() >= 0) return entire(base);
+        const bool positive_base = base->is_symbol("E") || (base->is_number() && base->number().sign() > 0);
+        return positive_base && entire(n);
+    }
+    if (h != "Plus" && h != "Times" && h != "Exp" && h != "Sin" && h != "Cos" && h != "Sinh" && h != "Cosh")
+        return false;
+    for (const auto& a : e->args())
+        if (!entire(a)) return false;
+    return true;
+}
+
 std::optional<double> number(const ExprPtr& e) {
     try {
         const double v = numeric::constant(e);
@@ -405,9 +426,10 @@ std::optional<BackendResult> NativeBackend::evaluate(const ExprPtr& expr) {
                                                 substitute(F, {{x->name(), range->arg(1)}})));
         // F[b] - F[a] is wrong across a singularity (e.g. 1/x on [-1, 1]); a quadrature
         // check of the closed form catches that.
-        // The antiderivative is proven by differentiation; the quadrature check only rules
-        // out singularities inside the range, so the value counts as exact.
-        if (verification_status(expr, value) != ResultStatus::Unverified)
+        // The antiderivative is proven by differentiation; what remains is to rule out
+        // singularities inside the range: none exist for entire f and F, otherwise a
+        // quadrature check must agree. Either way the value counts as exact.
+        if ((entire(f) && entire(F)) || verification_status(expr, value) != ResultStatus::Unverified)
             return BackendResult{value, ResultStatus::Exact, "native"};
     }
     const auto a = number(range->arg(1)), b = number(range->arg(2));

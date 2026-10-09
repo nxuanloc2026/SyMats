@@ -3,6 +3,8 @@
 #include "symats/native_backend.h"
 
 #include <cmath>
+#include <functional>
+#include <set>
 
 #include "symats/calculus.h"
 #include "symats/eval.h"
@@ -585,6 +587,112 @@ std::optional<BackendResult> dsolve(const ExprPtr& expr) {
     return BackendResult{result, checked == ResultStatus::Verified ? ResultStatus::Exact : checked, "native"};
 }
 
+// ---------------------------------------------------------------- Factor
+
+std::vector<Integer> divisors(const Integer& n) {  // positive divisors of |n| (|n| <= 10^7)
+    std::vector<Integer> out;
+    const auto v = n.to_int64();
+    if (!v) return out;
+    const long long m = *v < 0 ? -*v : *v;
+    for (long long d = 1; d * d <= m; ++d)
+        if (m % d == 0) {
+            out.emplace_back(d);
+            if (d != m / d) out.emplace_back(m / d);
+        }
+    return out;
+}
+
+// Factor[p] for a polynomial in one variable with rational coefficients: numeric content
+// times linear factors from rational roots (with multiplicity) times what is left.
+std::optional<BackendResult> factor(const ExprPtr& expr) {
+    const ExprPtr& p = expr->arg(0);
+    std::set<std::string> symbols;
+    std::function<void(const ExprPtr&)> collect = [&](const ExprPtr& e) {
+        if (e->is_symbol() && !e->is_symbol("Pi") && !e->is_symbol("E")) symbols.insert(e->name());
+        if (e->is_normal()) {
+            collect(e->head());
+            for (const auto& a : e->args()) collect(a);
+        }
+    };
+    collect(p);
+    symbols.erase("Plus"); symbols.erase("Times"); symbols.erase("Power");
+    if (symbols.size() != 1) return std::nullopt;
+    const ExprPtr x = make_symbol(*symbols.begin());
+    if (!polynomial(p, x)) return std::nullopt;
+    const auto c = coefficients(p, x, 12);
+    if (!c || c->size() < 3) return std::nullopt;  // degree >= 2
+    std::vector<Rational> a;
+    for (const auto& ck : *c) {
+        if (!ck->is_number()) return std::nullopt;
+        a.push_back(ck->number());
+    }
+    // Integer primitive polynomial: p == k * q.
+    Integer den = 1;
+    for (const auto& r : a) den = den / Integer::gcd(den, r.den()) * r.den();
+    std::vector<Integer> q;
+    for (const auto& r : a) q.push_back(r.num() * (den / r.den()));
+    Integer g = 0;
+    for (const auto& v : q) g = Integer::gcd(g, v);
+    if (q.back().sign() < 0) g = -g;
+    for (auto& v : q) v = v / g;
+    const Rational k(g, den);
+    ExprList factors{make_number(k)};
+    bool found = false;
+    while (q.size() > 1) {
+        if (q.front().is_zero()) {  // root 0
+            q.erase(q.begin());
+            factors.push_back(x);
+            found = true;
+            continue;
+        }
+        std::optional<std::pair<Integer, Integer>> root;  // num/den with den > 0
+        for (const auto& num : divisors(q.front())) {
+            for (const auto& dd : divisors(q.back())) {
+                for (int sign : {1, -1}) {
+                    const Integer pn = sign > 0 ? num : -num;
+                    // q(pn/dd) * dd^n == sum q_i pn^i dd^(n-i)
+                    Integer acc = 0, pw = 1;
+                    std::vector<Integer> dpow(q.size(), Integer(1));
+                    for (std::size_t i = 1; i < q.size(); ++i) dpow[i] = dpow[i - 1] * dd;
+                    for (std::size_t i = 0; i < q.size(); ++i) {
+                        acc += q[i] * pw * dpow[q.size() - 1 - i];
+                        pw *= pn;
+                    }
+                    if (acc.is_zero()) root = std::pair{pn, dd};
+                    if (root) break;
+                }
+                if (root) break;
+            }
+            if (root) break;
+        }
+        if (!root) break;
+        // Divide q by (d x - n): synthetic division over the integers (exact by Gauss).
+        const auto [n, d] = *root;
+        std::vector<Integer> out(q.size() - 1);
+        Integer carry = 0;
+        for (std::size_t i = q.size() - 1; i >= 1; --i) {  // from the leading coefficient down
+            carry = (q[i] + carry) ;
+            out[i - 1] = carry / d;
+            carry = out[i - 1] * n;
+        }
+        q = std::move(out);
+        factors.push_back(subtract(times(make_integer(d), x), make_number(Rational(n))));
+        found = true;
+    }
+    if (!found) return std::nullopt;
+    if (q.size() > 1) {
+        ExprList terms;
+        for (std::size_t i = 0; i < q.size(); ++i)
+            terms.push_back(times(make_integer(q[i]), power(x, make_integer(static_cast<long long>(i)))));
+        factors.push_back(plus(std::move(terms)));
+    } else if (!q.empty()) {
+        factors.push_back(make_integer(q[0]));
+    }
+    const ExprPtr result = times(std::move(factors));
+    if (verification_status(expr, result) != ResultStatus::Verified) return std::nullopt;
+    return BackendResult{result, ResultStatus::Exact, "native"};
+}
+
 }  // namespace
 
 std::optional<BackendResult> NativeBackend::evaluate(const ExprPtr& expr) {
@@ -592,6 +700,7 @@ std::optional<BackendResult> NativeBackend::evaluate(const ExprPtr& expr) {
     if (expr && expr->has_head("Series") && expr->size() == 2) return taylor(expr);
     if (expr && expr->has_head("Solve") && expr->size() == 2) return solve(expr);
     if (expr && expr->has_head("DSolve") && expr->size() == 3) return dsolve(expr);
+    if (expr && expr->has_head("Factor") && expr->size() == 1) return factor(expr);
     if (!expr || !expr->has_head("Integrate") || expr->size() != 2) return std::nullopt;
     const ExprPtr& f = expr->arg(0);
     const ExprPtr& range = expr->arg(1);

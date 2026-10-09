@@ -137,6 +137,13 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   (real / double / complex characteristic roots); fresh constants C1, C2; conditions
   `y[x0] == v`, `y'[x0] == v` solved as a linear system. Kept only if the DSolve verifier
   passes.
+- Also `Factor[p]`: one variable, rational coefficients, degree <= 12; content, rational-root
+  linear factors with multiplicity (|constant|, |leading| <= 10^7 for the divisor search), rest
+  kept; only if Expand proves it.
+- Notation audit (2026-10-09): comments/docs on this branch and AGENTS.md plot examples now use
+  Tier 1 (`==` for equations, `{x, y}` points, no `[[ ]]`). Two old commit messages still
+  read `{t, a, b(, dt)}` and `0*infinity`; fixing them needs a force-push (not permitted in
+  this session). Local work branch: `claude-work`, pushed to the designated branch.
 - Fixed canonical arithmetic: `0*ComplexInfinity` and `0*Infinity` give `Indeterminate` (was 0, so
   `Sin[x]/x /. x -> 0` gave 0), `Infinity - Infinity` gives `Indeterminate`, infinities absorb
   finite terms, Indeterminate absorbs everything.

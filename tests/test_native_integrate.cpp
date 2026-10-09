@@ -146,3 +146,20 @@ TEST_CASE("Native DSolve: linear constant-coefficient ODEs, verified by substitu
     CHECK(run("DSolve[y'[x] == x*y[x], y[x], x]").value->has_head("DSolve"));
     CHECK(run("DSolve[y''[x] + y[x] == Sin[x], y[x], x]").value->has_head("DSolve"));
 }
+
+TEST_CASE("Native Factor: rational roots of univariate polynomials, checked by Expand") {
+    Run run;
+    CHECK(run.same("Factor[x^2 - 1]", "(x - 1)*(x + 1)"));
+    CHECK(run.same("Factor[x^3 - 6*x^2 + 11*x - 6]", "(x - 1)*(x - 2)*(x - 3)"));
+    CHECK(run.same("Factor[2*x^2 + 3*x + 1]", "(2*x + 1)*(x + 1)"));
+    CHECK(run.same("Factor[x^3 - x]", "x*(x - 1)*(x + 1)"));
+    CHECK(run.same("Factor[(x + 1)^3]", "(x + 1)^3"));                 // multiplicity
+    CHECK(run.same("Factor[x^2/2 - 1/2]", "(x - 1)*(x + 1)/2"));         // rational content
+    CHECK(run.same("Factor[x^3 + x^2 + x + 1]", "(x + 1)*(1 + x^2)"));   // irreducible rest kept
+    CHECK(run.same("Factor[-x^2 + 4]", "-(x - 2)*(x + 2)"));
+    CHECK(run("Factor[x^3 - 6*x^2 + 11*x - 6]").status == ResultStatus::Exact);
+    // Nothing to factor over the rationals, or not univariate: left alone.
+    CHECK(run("Factor[x^2 + 1]").value->has_head("Factor"));
+    CHECK(run("Factor[x^2 - 2]").value->has_head("Factor"));
+    CHECK(run("Factor[x^2 - y^2]").value->has_head("Factor"));
+}

@@ -66,6 +66,13 @@ without noting it here. Claude will review when back.
 ## Current task (2026-10-09)
 Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
 
+### T-015 follow-up — SUNDIALS adapter fixed
+The merged adapter never solved anything and did not build on Ubuntu (SUNDIALS 6.4):
+`SUN_COMM_NULL`/`realtype` are 7.x-only (now version-guarded / `sunrealtype`), the test
+lacked test_main.cpp + tests/ include, `y'[x]` was matched as `Derivative[1][y[x]]`
+instead of `Derivative[1][y][x]`, `y[x]` in the RHS was never recognised, and the
+first sample asked CVODE for tout == t0. All fixed; tests now check y(1) = e^-1.
+
 ### T-029 Boost.Odeint NDSolve — done (review)
 - `backend/odeint/` (`OdeintBackend`, CMake option `SYMATS_USE_ODEINT`, header-only Boost >= 1.71).
 - Any order, any number of unknowns: reduced to a first-order system. Equations must be

@@ -2,6 +2,8 @@
 // Copyright (c) 2026 Loc Ngo and Symats contributors
 #include "sundials_backend.h"
 
+#include <cmath>
+
 #include "symats/text.h"
 #include "test.h"
 
@@ -26,5 +28,15 @@ TEST_CASE("SUNDIALS backend solves scalar first-order NDSolve") {
         CHECK(result->value->size() == 2);
         CHECK(result->value->arg(1)->has_head("List"));
         CHECK(result->value->arg(1)->size() == 101);
+        const auto& last = result->value->arg(1)->arg(100);
+        CHECK(std::abs(last->arg(1)->number().to_double() - std::exp(-1.0)) < 1e-8);
     }
+}
+
+TEST_CASE("SUNDIALS backend rejects y inside a function of the wrong argument") {
+    SundialsBackend backend;
+    CHECK(!backend.evaluate(parse_text("NDSolve[{y'[x]==-y[x+1],y[0]==1},y,{x,0,1}]")));
+    const auto result = backend.evaluate(
+        parse_text("NDSolve[{y'[x]==Sin[y[x]],y[0]==1},y,{x,0,1}]"));
+    CHECK(result.has_value());
 }

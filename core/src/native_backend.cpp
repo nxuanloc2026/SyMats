@@ -160,7 +160,47 @@ ExprPtr native_antiderivative(const ExprPtr& f, const ExprPtr& x) {
     return difference->is_integer() && difference->integer().is_zero() ? F : nullptr;
 }
 
+namespace {
+bool singular(const ExprPtr& e) {
+    if (e->is_symbol())
+        return e->is_symbol("ComplexInfinity") || e->is_symbol("Indeterminate") || e->is_symbol("Infinity");
+    if (!e->is_normal()) return false;
+    if (e->has_head("Log") && e->size() == 1 && e->arg(0)->is_integer() && e->arg(0)->integer().is_zero())
+        return true;
+    if (singular(e->head())) return true;
+    for (const auto& a : e->args())
+        if (singular(a)) return true;
+    return false;
+}
+
+std::optional<BackendResult> taylor(const ExprPtr& expr) {
+    const ExprPtr& f = expr->arg(0);
+    const ExprPtr& spec = expr->arg(1);
+    if (!spec->has_head("List") || spec->size() != 3 || !spec->arg(0)->is_symbol() || !spec->arg(2)->is_integer())
+        return std::nullopt;
+    const ExprPtr& x = spec->arg(0);
+    const ExprPtr& a = spec->arg(1);
+    const auto n = spec->arg(2)->integer().to_int64();
+    if (!n || *n < 0 || *n > 12 || !free_of(a, x)) return std::nullopt;
+    ExprList terms;
+    ExprPtr d = f;
+    Integer factorial = 1;
+    for (long long k = 0; k <= *n; ++k) {
+        if (k > 0) {
+            d = simplify(differentiate(d, x));
+            factorial *= Integer(k);
+        }
+        const ExprPtr c = simplify(substitute(d, {{x->name(), a}}));
+        if (singular(c)) return std::nullopt;
+        terms.push_back(times({c, make_rational(1, factorial), power(subtract(x, a), make_integer(k))}));
+    }
+    return BackendResult{make_normal("SeriesData", {simplify(plus(std::move(terms))), spec}),
+                         ResultStatus::Exact, "native"};
+}
+}  // namespace
+
 std::optional<BackendResult> NativeBackend::evaluate(const ExprPtr& expr) {
+    if (expr && expr->has_head("Series") && expr->size() == 2) return taylor(expr);
     if (!expr || !expr->has_head("Integrate") || expr->size() != 2) return std::nullopt;
     const ExprPtr& f = expr->arg(0);
     const ExprPtr& range = expr->arg(1);

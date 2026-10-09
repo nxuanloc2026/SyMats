@@ -67,3 +67,18 @@ TEST_CASE("Native Integrate: definite integrals") {
     CHECK(run("Integrate[1/x, {x, -1, 1}]").value->has_head("NIntegrate"));
     CHECK(run("Integrate[Exp[a*x^2], {x, 0, 1}]").value->has_head("Integrate"));  // parameter
 }
+
+TEST_CASE("Native Series: Taylor polynomials as SeriesData") {
+    Run run;
+    CHECK(run.same("Series[Exp[x], {x, 0, 3}]", "SeriesData[1 + x + x^2/2 + x^3/6, {x, 0, 3}]"));
+    CHECK(run.same("Series[Sin[x], {x, 0, 5}]", "SeriesData[x - x^3/6 + x^5/120, {x, 0, 5}]"));
+    CHECK(run.same("Series[Log[x], {x, 1, 2}]", "SeriesData[(x - 1) - (x - 1)^2/2, {x, 1, 2}]"));
+    CHECK(run.same("Series[1/(1 - x), {x, 0, 3}]", "SeriesData[1 + x + x^2 + x^3, {x, 0, 3}]"));
+    CHECK(run.same("Series[x^2 + 3, {x, 0, 0}]", "SeriesData[3, {x, 0, 0}]"));
+    CHECK(run("Series[Exp[x], {x, 0, 3}]").status == ResultStatus::Exact);
+    // Singular points need Laurent/Puiseux series: declined.
+    CHECK(run("Series[1/x, {x, 0, 2}]").value->has_head("Series"));
+    CHECK(run("Series[Log[x], {x, 0, 2}]").value->has_head("Series"));
+    CHECK(run("Series[Sqrt[x], {x, 0, 2}]").value->has_head("Series"));
+    CHECK(run("Series[Exp[x], {x, 0, 50}]").value->has_head("Series"));  // left to Giac
+}

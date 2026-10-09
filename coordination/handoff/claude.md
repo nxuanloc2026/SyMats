@@ -107,6 +107,8 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   Tan/Sec/... -> Sin/Cos). Definite: F[b] - F[a] if the quadrature check agrees, else
   `NIntegrate[f, range]` with status Numeric (numeric integrand only).
 - install_default_backends adds it last. Also `Exp[1] -> E`.
+- Also `Series[f, {x, a, n}]` (n <= 12) as a Taylor polynomial in `SeriesData`, declining
+  when a coefficient is singular (ComplexInfinity, Indeterminate, Log[0]).
 - Proposal (not done, needs Codex for parser/printer): an `Expr` Real kind (double first,
   MPFR later) so numeric results print as decimals and `N[...]` can exist.
 

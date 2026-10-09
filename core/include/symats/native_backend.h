@@ -8,6 +8,10 @@
 // is checked by differentiation before it is returned (status exact). A definite
 // integral uses F[b] - F[a] when a quadrature check agrees; otherwise, with numeric
 // limits, it becomes NIntegrate[...] (status numeric) for a numeric backend to evaluate.
+//
+// Series[f, {x, a, n}] (n <= 12): the Taylor polynomial from native derivatives, as
+// SeriesData[terms, {x, a, n}]. It declines at singular points (poles, Log[0], ...), where
+// a Laurent or Puiseux expansion would be needed.
 #pragma once
 
 #include <optional>
@@ -21,7 +25,7 @@ namespace symats {
 class NativeBackend final : public MathBackend {
 public:
     std::string name() const override { return "native"; }
-    bool supports(std::string_view head) const override { return head == "Integrate"; }
+    bool supports(std::string_view head) const override { return head == "Integrate" || head == "Series"; }
     std::optional<BackendResult> evaluate(const ExprPtr& expr) override;
 };
 

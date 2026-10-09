@@ -2,12 +2,125 @@
 // Copyright (c) 2026 Loc Ngo and Symats contributors
 #include "symats/verification.h"
 
+#include <cmath>
+#include <functional>
+#include <random>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "symats/calculus.h"
 #include "symats/eval.h"
+#include "symats/numeric.h"
 #include "symats/pattern.h"
 
 namespace symats {
 namespace {
+
+// When set, identities that the exact check cannot prove are accepted if they hold
+// numerically at several sample points (the Numeric verification level).
+thread_local bool numeric_mode = false;
+
+void free_symbols(const ExprPtr& e, std::set<std::string>& out) {
+    if (e->is_symbol()) {
+        if (!e->is_symbol("Pi") && !e->is_symbol("E")) out.insert(e->name());
+    } else if (e->is_normal()) {
+        free_symbols(e->head(), out);
+        for (const auto& a : e->args()) free_symbols(a, out);
+    }
+}
+
+// Sample assignments for the free symbols: fixed seed, values in [0.2, 2.2] so that
+// Log and Sqrt stay real. Returns the slot map; each sample is one vector.
+numeric::Slots sample_points(const std::set<std::string>& symbols,
+                             std::vector<std::vector<double>>& samples) {
+    numeric::Slots slots;
+    for (const auto& s : symbols) slots.emplace(s, slots.size());
+    std::mt19937_64 rng(20261009);
+    std::uniform_real_distribution<double> uniform(0.2, 2.2);
+    samples.assign(6, std::vector<double>(slots.size()));
+    for (auto& sample : samples)
+        for (auto& v : sample) v = uniform(rng);
+    return slots;
+}
+
+bool close(double a, double b, double tol) {
+    return std::abs(a - b) <= tol * (1.0 + std::abs(a) + std::abs(b));
+}
+
+// lhs == rhs at every sample point where both are finite (at least 4 of 6).
+bool numeric_identity(const ExprPtr& lhs, const ExprPtr& rhs) {
+    std::set<std::string> symbols;
+    free_symbols(lhs, symbols);
+    free_symbols(rhs, symbols);
+    std::vector<std::vector<double>> samples;
+    const numeric::Slots slots = sample_points(symbols, samples);
+    try {
+        const auto l = numeric::compile(lhs, slots), r = numeric::compile(rhs, slots);
+        int valid = 0;
+        for (const auto& sample : samples) {
+            const double a = l.eval(sample.data()), b = r.eval(sample.data());
+            if (!std::isfinite(a) || !std::isfinite(b)) continue;
+            if (!close(a, b, 1e-9)) return false;
+            ++valid;
+        }
+        return valid >= 4;
+    } catch (const numeric::Unsupported&) {
+        return false;
+    }
+}
+
+// Adaptive Simpson quadrature for checking definite integrals.
+double simpson(const std::function<double(double)>& f, double a, double b, double fa, double fm,
+               double fb, double whole, double tol, int depth) {
+    const double m = (a + b) / 2, lm = (a + m) / 2, rm = (m + b) / 2;
+    const double flm = f(lm), frm = f(rm);
+    const double left = (m - a) / 6 * (fa + 4 * flm + fm), right = (b - m) / 6 * (fm + 4 * frm + fb);
+    if (depth <= 0 || std::abs(left + right - whole) <= 15 * tol)
+        return left + right + (left + right - whole) / 15;
+    return simpson(f, a, m, fa, flm, fm, left, tol / 2, depth - 1) +
+           simpson(f, m, b, fm, frm, fb, right, tol / 2, depth - 1);
+}
+
+// Integrate[f, {x, a, b}] == result, by quadrature at sampled values of any parameters.
+bool numeric_definite_integral(const ExprPtr& f, const ExprPtr& range, const ExprPtr& result) {
+    if (!range->has_head("List") || range->size() != 3 || !range->arg(0)->is_symbol()) return false;
+    std::set<std::string> symbols;
+    for (const auto& e : {f, range->arg(1), range->arg(2), result}) free_symbols(e, symbols);
+    const std::string x = range->arg(0)->name();
+    symbols.erase(x);
+    std::vector<std::vector<double>> samples;
+    numeric::Slots slots = sample_points(symbols, samples);
+    try {
+        const auto lower = numeric::compile(range->arg(1), slots);
+        const auto upper = numeric::compile(range->arg(2), slots);
+        const auto value = numeric::compile(result, slots);
+        const std::size_t xi = slots.size();
+        slots.emplace(x, xi);
+        const auto integrand = numeric::compile(f, slots);
+        int valid = 0;
+        for (auto sample : samples) {
+            sample.push_back(0.0);
+            const double a = lower.eval(sample.data()), b = upper.eval(sample.data());
+            const double expected = value.eval(sample.data());
+            const auto g = [&](double t) {
+                sample[xi] = t;
+                return integrand.eval(sample.data());
+            };
+            if (!std::isfinite(a) || !std::isfinite(b) || !std::isfinite(expected)) continue;
+            const double fa = g(a), fm = g((a + b) / 2), fb = g(b);
+            if (!std::isfinite(fa) || !std::isfinite(fm) || !std::isfinite(fb)) continue;
+            const double whole = (b - a) / 6 * (fa + 4 * fm + fb);
+            const double q = simpson(g, a, b, fa, fm, fb, whole, 1e-11 * (1 + std::abs(whole)), 30);
+            if (!std::isfinite(q)) continue;
+            if (!close(q, expected, 1e-7)) return false;
+            ++valid;
+        }
+        return valid >= 4;
+    } catch (const numeric::Unsupported&) {
+        return false;
+    }
+}
 
 ExprPtr normalize(const ExprPtr& expression) {
     try {
@@ -24,7 +137,20 @@ bool zero(const ExprPtr& expression) {
 }
 
 bool identity(const ExprPtr& lhs, const ExprPtr& rhs) {
-    return zero(subtract(lhs, rhs));
+    if (zero(subtract(lhs, rhs))) return true;
+    return numeric_mode && numeric_identity(normalize(lhs), normalize(rhs));
+}
+
+// Structural equality, or entrywise identity for lists (numerically in numeric_mode).
+bool same(const ExprPtr& lhs, const ExprPtr& rhs) {
+    if (equal(lhs, rhs)) return true;
+    if (lhs->has_head("List") && rhs->has_head("List")) {
+        if (lhs->size() != rhs->size()) return false;
+        for (std::size_t i = 0; i < lhs->size(); ++i)
+            if (!same(lhs->arg(i), rhs->arg(i))) return false;
+        return true;
+    }
+    return !lhs->has_head("List") && !rhs->has_head("List") && identity(lhs, rhs);
 }
 
 bool matrix(const ExprPtr& expression, std::size_t* rows = nullptr,
@@ -118,6 +244,8 @@ bool verify_equations(const ExprPtr& equations, const ExprPtr& result) {
 }
 
 bool verify_integral(const ExprPtr& request, const ExprPtr& result) {
+    if (numeric_mode && request->size() == 2 && request->arg(1)->has_head("List"))
+        return numeric_definite_integral(request->arg(0), request->arg(1), result);
     if (request->size() != 2 || !request->arg(1)->is_symbol()) return false;
     try {
         return identity(differentiate(result, request->arg(1)), request->arg(0));
@@ -142,11 +270,11 @@ bool verify_matrix_operation(const ExprPtr& request, const ExprPtr& result) {
             for (std::size_t i = 0; i < rows; ++i) row.push_back(input->arg(i)->arg(j));
             values.push_back(make_normal("List", std::move(row)));
         }
-        return equal(make_normal("List", std::move(values)), result);
+        return same(make_normal("List", std::move(values)), result);
     }
     if (head == "Inverse") {
         ExprPtr product = matrix_product(input, result);
-        return product && equal(product, identity_matrix(input->size()));
+        return product && same(product, identity_matrix(input->size()));
     }
     if (head == "LinearSolve") {
         ExprPtr product = nullptr;
@@ -158,14 +286,12 @@ bool verify_matrix_operation(const ExprPtr& request, const ExprPtr& result) {
         if (!product) return false;
         ExprList values;
         for (const auto& row : product->args()) values.push_back(row->arg(0));
-        return equal(make_normal("List", std::move(values)), request->arg(1));
+        return same(make_normal("List", std::move(values)), request->arg(1));
     }
     return false;
 }
 
-}  // namespace
-
-bool verify_backend_result(const ExprPtr& request, const ExprPtr& result) {
+bool verify(const ExprPtr& request, const ExprPtr& result) {
     if (!request || !result || !request->is_normal() || !request->head()->is_symbol())
         return false;
     const std::string& head = request->head()->name();
@@ -178,6 +304,24 @@ bool verify_backend_result(const ExprPtr& request, const ExprPtr& result) {
         head == "LinearSolve")
         return verify_matrix_operation(request, result);
     return false;
+}
+
+}  // namespace
+
+bool verify_backend_result(const ExprPtr& request, const ExprPtr& result) {
+    numeric_mode = false;
+    return verify(request, result);
+}
+
+ResultStatus verification_status(const ExprPtr& request, const ExprPtr& result) {
+    struct Reset {
+        ~Reset() { numeric_mode = false; }
+    } reset;
+    numeric_mode = false;
+    if (verify(request, result)) return ResultStatus::Verified;
+    numeric_mode = true;
+    if (verify(request, result)) return ResultStatus::Numeric;
+    return ResultStatus::Unverified;
 }
 
 }  // namespace symats

@@ -30,17 +30,18 @@ struct Decline : std::runtime_error {
 
 using numeric::Compiled;
 using numeric::NonFinite;
-using numeric::constant;
 using numeric::decimal;
 
 // Slot 0 is the independent variable; slot 1 + i is state component i.
 Compiled compile(const ExprPtr& e, const numeric::Slots& slots) {
     try {
-        return numeric::compile(e, slots);
+        return numeric::compile(e, slots, numeric::special_functions());
     } catch (const numeric::Unsupported&) {
         throw Decline();
     }
 }
+
+double constant(const ExprPtr& e) { return compile(e, numeric::Slots{}).eval(nullptr); }
 
 // ------------------------------------------------------------ problem extraction
 

@@ -17,7 +17,7 @@ ExprPtr run(std::string_view text) {
         symats_test::report(__FILE__, __LINE__, "backend declined " + std::string(text));
         return nullptr;
     }
-    CHECK(result->status == ResultStatus::Verified ||
+    CHECK(result->status == ResultStatus::Verified || result->status == ResultStatus::Numeric ||
           result->status == ResultStatus::Unverified);
     CHECK_EQ(result->backend, "giac");
     return result->value;
@@ -139,5 +139,5 @@ TEST_CASE("Giac registers with the evaluator and keeps backend status") {
     context.backends().add(std::make_shared<GiacBackend>());
     const auto result = evaluate_top(parse_text("Integrate[x^2,{x,0,1}]"),context);
     CHECK(equal(result.value,parse_text("1/3")));
-    CHECK(result.status == ResultStatus::Unverified);
+    CHECK(result.status == ResultStatus::Numeric);  // definite integral checked by quadrature
 }

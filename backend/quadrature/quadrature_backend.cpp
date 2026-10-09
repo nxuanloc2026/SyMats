@@ -39,7 +39,7 @@ Bound bound(const ExprPtr& e, const numeric::Slots& outer) {
     if (e->is_symbol("Infinity")) b.infinite = kInf;
     else if (e->has_head("Times") && e->size() == 2 && e->arg(1)->is_symbol("Infinity") &&
              e->arg(0)->is_number() && e->arg(0)->number().to_double() < 0) b.infinite = -kInf;
-    else b.expr = numeric::compile(e, outer);  // inner variables are not in `outer`
+    else b.expr = numeric::compile(e, outer, numeric::special_functions());  // inner variables are not in `outer`
     return b;
 }
 
@@ -61,7 +61,7 @@ Problem extract(const ExprPtr& expr) {
         p.upper.push_back(bound(it->arg(2), slots));
         slots[it->arg(0)->name()] = p.dimension++;
     }
-    p.integrand = numeric::compile(expr->arg(0), slots);
+    p.integrand = numeric::compile(expr->arg(0), slots, numeric::special_functions());
     return p;
 }
 

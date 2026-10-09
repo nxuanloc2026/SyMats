@@ -38,5 +38,9 @@ T-013 native backend result verification. The implementation is in
 - Local `git diff --check` passes. CMake/SUNDIALS are unavailable in this environment;
   CI is configured to install `libsundials-dev` on Ubuntu and `sundials:x64-windows`
   through vcpkg.
+- The first dependency-enabled CI run exposed portability issues (`realtype`,
+  `SUN_COMM_NULL`, and the Debian SUNDIALS core library name); these are fixed in
+  commits `d2f7ff0` and `dd035ca`. The previous run's Giac job is still the failed
+  check for the older commit; no new check was reported yet for `dd035ca`.
 - The adapter intentionally supports only scalar first-order ODEs until the core has
   a floating-point/interpolating-function representation.

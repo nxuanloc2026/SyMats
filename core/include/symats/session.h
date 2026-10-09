@@ -25,6 +25,7 @@ struct StatementResult {
     ResultStatus status = ResultStatus::Exact;
     bool suppressed = false;   // statement ended with ';' — do not display
     std::string error;         // empty on success
+    bool aborted = false;      // stopped by Session::abort()
 
     bool ok() const { return error.empty(); }
     // Whether the UI should show an output line (not suppressed, not Null, no error).
@@ -45,8 +46,13 @@ public:
     // Run one statement. Never throws for evaluation errors (see StatementResult::error).
     StatementResult run(const ExprPtr& statement, bool suppressed = false);
 
-    // Run all statements of a cell in order; an error in one does not stop the rest.
+    // Run all statements of a cell in order; an error in one does not stop the rest,
+    // but an abort does: the aborted statement is the last result returned.
     std::vector<StatementResult> run_cell(const std::vector<Statement>& statements);
+
+    // Stop the running cell (thread-safe; for the UI's abort button). The definitions
+    // made so far stay; the kernel keeps running.
+    void abort() { context_->request_abort(); }
 
     // Next line number (1 for a fresh session).
     std::size_t next_line() const { return history_.size() + 1; }
@@ -67,6 +73,7 @@ public:
 
 private:
     void install_session_builtins();
+    StatementResult run_statement(const ExprPtr& statement, bool suppressed);
 
     std::unique_ptr<Context> context_;
     std::vector<StatementResult> history_;

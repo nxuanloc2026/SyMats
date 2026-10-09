@@ -37,6 +37,11 @@ void Session::install_session_builtins() {
 }
 
 StatementResult Session::run(const ExprPtr& statement, bool suppressed) {
+    context_->clear_abort();
+    return run_statement(statement, suppressed);
+}
+
+StatementResult Session::run_statement(const ExprPtr& statement, bool suppressed) {
     StatementResult r;
     r.line = next_line();
     r.input = statement;
@@ -45,6 +50,10 @@ StatementResult Session::run(const ExprPtr& statement, bool suppressed) {
         EvalResult v = evaluate_top(statement, *context_);
         r.output = v.value;
         r.status = v.status;
+    } catch (const EvaluationAborted& ex) {
+        r.output = nullptr;
+        r.error = ex.what();
+        r.aborted = true;
     } catch (const std::exception& ex) {
         r.output = nullptr;
         r.error = ex.what();
@@ -57,7 +66,11 @@ StatementResult Session::run(const ExprPtr& statement, bool suppressed) {
 std::vector<StatementResult> Session::run_cell(const std::vector<Statement>& statements) {
     std::vector<StatementResult> results;
     results.reserve(statements.size());
-    for (const auto& s : statements) results.push_back(run(s.expr, s.suppressed));
+    context_->clear_abort();
+    for (const auto& s : statements) {
+        results.push_back(run_statement(s.expr, s.suppressed));
+        if (results.back().aborted) break;
+    }
     return results;
 }
 

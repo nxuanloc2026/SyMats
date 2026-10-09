@@ -79,6 +79,15 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   condition is checked (exact, then numeric). Before this, DSolve results never verified.
 - Tests: `tests/test_verification.cpp` (5 cases).
 
+### T-038 abort — done (review)
+- `Context::request_abort/clear_abort/abort_requested` (std::atomic<bool>), checked at every
+  rewrite step in `evaluate`; throws `EvaluationAborted` (an `EvaluationError`).
+- `Session::abort()`; `run_cell` clears the flag at start and stops after an aborted
+  statement (`StatementResult::aborted`). Plot's point-by-point fallback rethrows aborts.
+- For T-022 (Codex/Copilot): run cells on a worker thread, call `Session::abort()` from the
+  UI thread. For cli/ (Copilot): a SIGINT handler may call it (lock-free atomic store).
+  Numeric backends (odeint, quadrature) do not poll the flag yet.
+
 ### T-037 PDE NDSolve — done (review)
 - `backend/odeint/pde.{h,cpp}`, reached from OdeintBackend when NDSolve has two ranges.
   Shared driver moved to `backend/odeint/integrator.h` (budgeted dopri5 -> Rosenbrock;

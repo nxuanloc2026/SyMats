@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cstddef>
+#include <atomic>
 #include <functional>
 #include <stdexcept>
 #include <string>
@@ -43,6 +44,12 @@ enum : unsigned {
 class EvaluationError : public std::runtime_error {
 public:
     using std::runtime_error::runtime_error;
+};
+
+// Thrown when Context::request_abort() stops a running evaluation.
+class EvaluationAborted : public EvaluationError {
+public:
+    EvaluationAborted() : EvaluationError("evaluation aborted") {}
 };
 
 class Context {
@@ -78,6 +85,13 @@ public:
     std::size_t max_depth = 400;
     std::size_t max_iterations = 100000;
 
+    // Abort: may be called from another thread (the UI's stop button). The running
+    // evaluation throws EvaluationAborted at its next rewrite step; the flag stays set
+    // until clear_abort() (Session clears it when a new cell starts).
+    void request_abort() { abort_.store(true, std::memory_order_relaxed); }
+    void clear_abort() { abort_.store(false, std::memory_order_relaxed); }
+    bool abort_requested() const { return abort_.load(std::memory_order_relaxed); }
+
     // Worst ResultStatus seen since the last reset (see evaluate_top).
     ResultStatus status() const { return status_; }
     void reset_status() { status_ = ResultStatus::Exact; }
@@ -108,6 +122,7 @@ private:
     ResultStatus status_ = ResultStatus::Exact;
     std::size_t depth_ = 0;
     std::size_t iterations_ = 0;
+    std::atomic<bool> abort_{false};
 };
 
 // Evaluate an expression in a context. Throws EvaluationError when a limit is hit

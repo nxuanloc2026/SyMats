@@ -201,6 +201,8 @@ Fn numeric_function(const ExprPtr& fn, const std::string& variable, Context& ctx
         return [&ctx, fn, variable](double x) {
             try {
                 return numeric::constant(evaluate(substitute(fn, {{variable, numeric::decimal(x)}}), ctx));
+            } catch (const EvaluationAborted&) {
+                throw;
             } catch (const std::exception&) {
                 return std::nan("");
             }
@@ -332,6 +334,8 @@ Fn2 numeric_function2(const ExprPtr& fn, const Grid2& g, Context& ctx) {
             try {
                 return numeric::constant(evaluate(
                     substitute(fn, {{g.x.variable, numeric::decimal(x)}, {g.y.variable, numeric::decimal(y)}}), ctx));
+            } catch (const EvaluationAborted&) {
+                throw;
             } catch (const std::exception&) {
                 return std::nan("");
             }

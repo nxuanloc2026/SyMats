@@ -18,8 +18,10 @@ add_executable(symats_tests
   test_elementary.cpp
   test_linalg.cpp
   test_native_integrate.cpp
+  test_abort.cpp
   test_operators.cpp
   test_mathics_semantics.cpp
 )
-target_link_libraries(symats_tests PRIVATE symats::core symats::convert)
+find_package(Threads REQUIRED)
+target_link_libraries(symats_tests PRIVATE symats::core symats::convert Threads::Threads)
 add_test(NAME symats_tests COMMAND symats_tests)

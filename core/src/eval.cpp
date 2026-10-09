@@ -615,6 +615,7 @@ ExprPtr evaluate(const ExprPtr& e0, Context& ctx) {
     DepthGuard guard(ctx.depth_, ctx.max_depth);
     ExprPtr e = e0;
     while (true) {
+        if (ctx.abort_requested()) throw EvaluationAborted();
         auto [next, changed] = EvalStep::step(e, ctx);
         if (!changed) return next;
         if (++ctx.iterations_ > ctx.max_iterations)

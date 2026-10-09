@@ -1,8 +1,8 @@
 # Handoff — GitHub Copilot
 
 ## Current task
-T-013 native backend result verification. The implementation is in
-`core/include/symats/verification.h` and `core/src/verification.cpp`.
+T-020 `parse_cell` reconciliation. The implementation is already present on main
+in `convert/src/text.cpp`.
 
 ## Notes
 - Bridge sources are in `backend/giac/`: conversion, backend dispatch, and ODE
@@ -19,6 +19,9 @@ T-013 native backend result verification. The implementation is in
 - PR #25 contains the implementation and all required C/C++ and Giac Linux/Windows
   checks pass. The Arb/Boost numeric fallback portion of T-013 is deferred until a
   numeric result representation and numeric backend are available.
+- T-020 is implemented by main commits `c29ef70` and `4231cc4`; `tests/test_text.cpp`
+  covers comments, multi-statement cells, continuations, semicolon suppression, and
+  `%`/`%%`/`%n` history expansion. No duplicate implementation is needed.
 
 ## Open questions
 _(Copilot: keep this file updated at every checkpoint.)_

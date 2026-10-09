@@ -182,6 +182,12 @@ surface/contour layout). `ImplicitPlot[lhs == rhs, {x, a, b}, {y, c, d}]`, also
 `ContourPlot` given an equation, traces the curve by marching squares and returns
 `Line`s in the `Plot` shape with `AspectRatio -> Automatic`.
 
+Time-varying plots are pre-sampled frames sharing one `PlotRange`:
+`Animate[plot, {t, a, b}]` (31 frames) or `Animate[plot, {t, a, b, dt}]` →
+`Animation[{Graphics[…], …}, {t, {t1, t2, …}}]`. Any plot with a trailing
+`Slider[a, lo, hi]` (or `Slider[a, lo, hi, da]`) returns the same with a third argument
+`Control -> Slider`; the front end shows a slider instead of play/pause.
+
 ### 3.10 Assignment
 
 | Head | Text | Meaning |

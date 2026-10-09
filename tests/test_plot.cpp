@@ -141,6 +141,31 @@ TEST_CASE("ImplicitPlot: marching squares joined into curves") {
     CHECK(g->arg(0)->size() == 2);
 }
 
+TEST_CASE("Animate and Slider pre-sample frames with one PlotRange") {
+    Context ctx;
+    auto a = run(ctx, "Animate[Plot[Sin[x - t], {x, 0, 2*Pi}], {t, 0, 10}]");
+    CHECK(a->has_head("Animation"));
+    CHECK(a->arg(0)->size() == 31);
+    CHECK(a->arg(1)->arg(0)->is_symbol("t"));
+    CHECK(a->arg(1)->arg(1)->size() == 31);
+    CHECK(equal(a->arg(1)->arg(1)->arg(30), parse_text("10")));
+    // Frame 0 is Sin[x]: at x = Pi/2 the curve passes through 1.
+    const auto& frame = a->arg(0)->arg(0);
+    CHECK(frame->has_head("Graphics"));
+    // Growing amplitude: every frame gets the union range, so the axes do not jump.
+    a = run(ctx, "Animate[Plot[t*Sin[x], {x, 0, 2*Pi}], {t, 1, 3, 1/2}]");
+    CHECK(a->arg(0)->size() == 5);
+    CHECK(equal(a->arg(0)->arg(0)->arg(1), a->arg(0)->arg(4)->arg(1)));
+    CHECK(std::abs(num(a->arg(0)->arg(0)->arg(1)->arg(1)->arg(1)->arg(1)) - 3) < 1e-3);
+    // Slider form, also for 3-D plots.
+    a = run(ctx, "Plot[Sin[k*x], {x, 0, 2*Pi}, Slider[k, 0, 5]]");
+    CHECK(a->has_head("Animation"));
+    CHECK(a->size() == 3 && a->arg(2)->arg(1)->is_symbol("Slider"));
+    a = run(ctx, "Plot3D[Sin[x + y + s], {x, 0, 1}, {y, 0, 1}, Slider[s, 0, 1, 1/4]]");
+    CHECK(a->arg(0)->size() == 5 && a->arg(0)->arg(0)->has_head("Graphics3D"));
+    CHECK(!run(ctx, "Animate[x + t, {t, 0, 1}]")->has_head("Animation"));  // frames must be plots
+}
+
 TEST_CASE("Plot sampler: direct use") {
     const auto [pieces, range] = sample_curve([](double x) { return x < 0.5 ? 0.0 : 1.0; }, 0.0, 1.0);
     CHECK(pieces.size() == 2);  // step discontinuity

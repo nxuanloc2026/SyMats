@@ -277,18 +277,20 @@ void install_builtins(Context& ctx) {
     });
     ctx.set_attributes("D", HoldAll | Protected);
 
-    ctx.set_builtin("Plot", [](const ExprPtr& e, Context& c) { return plot(e, c); });
-    ctx.set_attributes("Plot", HoldAll | Protected);
-    ctx.set_builtin("ParametricPlot", [](const ExprPtr& e, Context& c) { return parametric_plot(e, c); });
-    ctx.set_attributes("ParametricPlot", HoldAll | Protected);
-    ctx.set_builtin("PolarPlot", [](const ExprPtr& e, Context& c) { return polar_plot(e, c); });
-    ctx.set_attributes("PolarPlot", HoldAll | Protected);
-    ctx.set_builtin("Plot3D", [](const ExprPtr& e, Context& c) { return plot3d(e, c); });
-    ctx.set_attributes("Plot3D", HoldAll | Protected);
-    ctx.set_builtin("ContourPlot", [](const ExprPtr& e, Context& c) { return contour_plot(e, c); });
-    ctx.set_attributes("ContourPlot", HoldAll | Protected);
-    ctx.set_builtin("ImplicitPlot", [](const ExprPtr& e, Context& c) { return implicit_plot(e, c); });
-    ctx.set_attributes("ImplicitPlot", HoldAll | Protected);
+    // Plots (symats/plot.h). Each also accepts a trailing Slider[a, lo, hi].
+    const std::pair<const char*, ExprPtr (*)(const ExprPtr&, Context&)> plots[] = {
+        {"Plot", plot},        {"ParametricPlot", parametric_plot}, {"PolarPlot", polar_plot},
+        {"Plot3D", plot3d},    {"ContourPlot", contour_plot},       {"ImplicitPlot", implicit_plot},
+    };
+    for (const auto& [name, fn] : plots) {
+        ctx.set_builtin(name, [fn](const ExprPtr& e, Context& c) {
+            if (ExprPtr s = with_slider(e, c)) return s;
+            return fn(e, c);
+        });
+        ctx.set_attributes(name, HoldAll | Protected);
+    }
+    ctx.set_builtin("Animate", [](const ExprPtr& e, Context& c) { return animate(e, c); });
+    ctx.set_attributes("Animate", HoldAll | Protected);
     ctx.set_builtin("Expand", [](const ExprPtr& e, Context&) -> ExprPtr {
         return e->size() == 1 ? expand(e->arg(0)) : nullptr;
     });

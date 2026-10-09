@@ -510,4 +510,87 @@ ExprPtr contour_plot(const ExprPtr& expr, Context& ctx) {
     return grid_graphics(expr, ctx, false);
 }
 
+// ------------------------------------------------------------------ animation
+
+namespace {
+
+// Widens `into` (a PlotRange value {{xmin, xmax}, ...}) to also cover `range`.
+ExprPtr union_range(const ExprPtr& into, const ExprPtr& range) {
+    if (!into) return range;
+    if (into->size() != range->size()) return into;
+    ExprList out;
+    for (std::size_t k = 0; k < into->size(); ++k) {
+        const double lo = std::min(into->arg(k)->arg(0)->number().to_double(), range->arg(k)->arg(0)->number().to_double());
+        const double hi = std::max(into->arg(k)->arg(1)->number().to_double(), range->arg(k)->arg(1)->number().to_double());
+        out.push_back(pair(lo, hi));
+    }
+    return make_normal("List", std::move(out));
+}
+
+ExprPtr plot_range(const ExprPtr& g) {
+    for (const auto& a : g->args())
+        if (a->has_head("Rule") && a->size() == 2 && a->arg(0)->is_symbol("PlotRange")) return a->arg(1);
+    return nullptr;
+}
+
+ExprPtr with_range(const ExprPtr& g, const ExprPtr& range) {
+    ExprList args;
+    for (const auto& a : g->args())
+        args.push_back(a->has_head("Rule") && a->arg(0)->is_symbol("PlotRange")
+                           ? make_normal("Rule", {a->arg(0), range}) : a);
+    return make_normal(g->head(), std::move(args));
+}
+
+}  // namespace
+
+ExprPtr animate(const ExprPtr& plot_expr, const ExprPtr& control, Context& ctx, bool slider) {
+    if (!control->has_head("List") || (control->size() != 3 && control->size() != 4) ||
+        !control->arg(0)->is_symbol()) return nullptr;
+    double a = 0.0, b = 0.0, step = 0.0;
+    try {
+        a = numeric::constant(evaluate(control->arg(1), ctx));
+        b = numeric::constant(evaluate(control->arg(2), ctx));
+        if (control->size() == 4) step = numeric::constant(evaluate(control->arg(3), ctx));
+    } catch (const numeric::Unsupported&) {
+        return nullptr;
+    }
+    if (!std::isfinite(a) || !std::isfinite(b) || !(b > a)) return nullptr;
+    std::size_t count = 31;  // 30 steps by default
+    if (control->size() == 4) {
+        if (!(step > 0.0) || (b - a) / step > 1000) return nullptr;
+        count = static_cast<std::size_t>(std::floor((b - a) / step + 1e-9)) + 1;
+    }
+    ExprList frames, values;
+    ExprPtr range;
+    for (std::size_t i = 0; i < count; ++i) {
+        const double v = control->size() == 4 ? a + step * static_cast<double>(i)
+                                              : a + (b - a) * static_cast<double>(i) / static_cast<double>(count - 1);
+        const ExprPtr value = numeric::decimal(v);
+        ExprPtr frame = evaluate(substitute(plot_expr, {{control->arg(0)->name(), value}}), ctx);
+        if (!frame->has_head("Graphics") && !frame->has_head("Graphics3D")) return nullptr;
+        if (const ExprPtr r = plot_range(frame)) range = union_range(range, r);
+        frames.push_back(std::move(frame));
+        values.push_back(value);
+    }
+    if (range)
+        for (auto& f : frames) f = with_range(f, range);
+    ExprList args{make_normal("List", std::move(frames)),
+                  make_normal("List", {control->arg(0), make_normal("List", std::move(values))})};
+    if (slider) args.push_back(make_normal("Rule", {make_symbol("Control"), make_symbol("Slider")}));
+    return make_normal("Animation", std::move(args));
+}
+
+ExprPtr animate(const ExprPtr& expr, Context& ctx) {
+    if (expr->size() != 2) return nullptr;
+    return animate(expr->arg(0), expr->arg(1), ctx, false);
+}
+
+ExprPtr with_slider(const ExprPtr& expr, Context& ctx) {
+    if (expr->size() < 2 || !expr->args().back()->has_head("Slider")) return nullptr;
+    const ExprPtr& s = expr->args().back();
+    if (s->size() != 3 && s->size() != 4) return nullptr;
+    ExprList plot_args(expr->args().begin(), expr->args().end() - 1);
+    return animate(make_normal(expr->head(), std::move(plot_args)), make_normal("List", s->args()), ctx, true);
+}
+
 }  // namespace symats

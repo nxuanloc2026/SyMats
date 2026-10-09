@@ -87,7 +87,9 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
 - Also ParametricPlot, PolarPlot (shared 2-D adaptive sampler), Plot3D / ContourPlot
   (51x51 grid -> SurfaceGrid / ContourGrid for Plotly), ImplicitPlot and
   ContourPlot[eqn] (marching squares, segments joined via shared grid edges).
-- Next in this lane: Animate / Slider frames (needs a frame format agreed with Codex).
+- Animate / Slider: `Animation[{frames}, {t, {values}}(, Control -> Slider)]`, 31 frames by
+  default, all frames rewritten to the union PlotRange. Codex: frame format for Plotly is
+  in EXPR_SPEC §3.9; propose changes there if the app needs something else.
 
 ### T-033 default backends
 - `backend/registry`: `install_default_backends(registry)` adds whatever was built: Giac,

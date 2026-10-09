@@ -61,6 +61,15 @@ ExprPtr plot3d(const ExprPtr& expr, Context& ctx);
 ExprPtr contour_plot(const ExprPtr& expr, Context& ctx);
 ExprPtr implicit_plot(const ExprPtr& expr, Context& ctx);
 
+// Time-varying plots: frames pre-sampled by the engine, all with one common PlotRange.
+//   Animate[plot, {t, a, b}]      31 frames;   Animate[plot, {t, a, b, dt}]  frames a, a + dt, ...
+//   -> Animation[{Graphics[...], ...}, {t, {t1, t2, ...}}]
+// A plot with a trailing Slider[a, lo, hi] (or Slider[a, lo, hi, da]) gives the same
+// with Control -> Slider as a third argument.
+ExprPtr animate(const ExprPtr& expr, Context& ctx);
+// The Slider form of any plot built-in; nullptr when the last argument is not a Slider.
+ExprPtr with_slider(const ExprPtr& expr, Context& ctx);
+
 // Zero set of g on [x0, x1] x [y0, y1] by marching squares on an n x n grid, joined
 // into polylines (closed curves end where they start).
 std::vector<Polyline> implicit_curve(const std::function<double(double, double)>& g, double x0, double x1,

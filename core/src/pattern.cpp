@@ -7,6 +7,7 @@
 #include "symats/pattern.h"
 
 #include <stdexcept>
+#include <vector>
 
 namespace symats {
 
@@ -56,6 +57,8 @@ bool head_ok(const Expr& blank_node, const Expr& e) {
 }
 
 bool match_args(const ExprList& ps, std::size_t i, const ExprList& es, std::size_t j, Bindings& b);
+bool match_flat_orderless(const ExprList& ps, std::size_t i, const ExprList& es,
+                          std::vector<bool>& used, const ExprPtr& head, Bindings& b);
 
 bool bind(const std::string& name, const ExprPtr& value, Bindings& b) {
     auto it = b.find(name);
@@ -130,12 +133,87 @@ bool match(const ExprPtr& p, const ExprPtr& e, Bindings& bindings) {
 
     Bindings trial = bindings;
     if (!match(p->head(), e->head(), trial)) return false;
-    if (!match_args(p->args(), 0, e->args(), 0, trial)) return false;
+    const bool flat_orderless = p->head()->is_symbol() &&
+                               (p->head()->is_symbol("Plus") || p->head()->is_symbol("Times"));
+    if (flat_orderless) {
+        std::vector<bool> used(e->size(), false);
+        if (!match_flat_orderless(p->args(), 0, e->args(), used, p->head(), trial)) return false;
+    } else if (!match_args(p->args(), 0, e->args(), 0, trial)) {
+        return false;
+    }
     bindings = std::move(trial);
     return true;
 }
 
 namespace {
+
+ExprPtr grouped(const ExprPtr& head, const ExprList& terms) {
+    if (terms.size() == 1) return terms.front();
+    return make_normal(head, terms);
+}
+
+bool all_head_ok(const Expr& blank_node, const ExprList& terms) {
+    for (const auto& term : terms)
+        if (!head_ok(blank_node, *term)) return false;
+    return true;
+}
+
+bool choose_flat_terms(const ExprList& es, std::size_t start, std::size_t count,
+                       std::vector<bool>& used, ExprList& selected) {
+    if (selected.size() == count) return true;
+    for (std::size_t i = start; i < es.size(); ++i) {
+        if (used[i]) continue;
+        used[i] = true;
+        selected.push_back(es[i]);
+        if (choose_flat_terms(es, i + 1, count, used, selected)) return true;
+        selected.pop_back();
+        used[i] = false;
+    }
+    return false;
+}
+
+bool match_flat_orderless(const ExprList& ps, std::size_t i, const ExprList& es,
+                          std::vector<bool>& used, const ExprPtr& head, Bindings& b) {
+    if (i == ps.size()) {
+        for (bool selected : used)
+            if (!selected) return false;
+        return true;
+    }
+
+    const SeqInfo info = sequence_info(ps[i]);
+    std::size_t remaining = 0;
+    for (bool selected : used)
+        if (!selected) ++remaining;
+    const std::size_t min_len = info.is_sequence ? info.min_len : 1;
+    const std::size_t max_len = remaining;
+
+    for (std::size_t len = min_len; len <= max_len; ++len) {
+        ExprList selected;
+        std::vector<bool> candidate_used = used;
+        if (!choose_flat_terms(es, 0, len, candidate_used, selected)) continue;
+        if (info.is_sequence && !all_head_ok(*info.blank, selected)) continue;
+
+        ExprPtr value = grouped(head, selected);
+        Bindings trial = b;
+        bool matched = false;
+        if (info.is_sequence) {
+            if (!info.name.empty())
+                matched = bind(info.name, make_normal(sym_sequence(), selected), trial);
+            else
+                matched = true;
+        } else {
+            matched = match(ps[i], value, trial);
+        }
+        if (!matched) continue;
+
+        used = std::move(candidate_used);
+        if (match_flat_orderless(ps, i + 1, es, used, head, trial)) {
+            b = std::move(trial);
+            return true;
+        }
+    }
+    return false;
+}
 
 bool match_args(const ExprList& ps, std::size_t i, const ExprList& es, std::size_t j, Bindings& b) {
     if (i == ps.size()) return j == es.size();

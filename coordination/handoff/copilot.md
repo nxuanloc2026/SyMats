@@ -22,3 +22,10 @@ T-013 native backend result verification. The implementation is in
 
 ## Open questions
 _(Copilot: keep this file updated at every checkpoint.)_
+
+## T-018 takeover
+- Claimed T-018 because Claude is out of usage and the task is in the core lane.
+- Branch: `nxuanloc2026-t018-flat-orderless-pattern-matching`.
+- Implemented Flat/Orderless matching for `Plus` and `Times` in `core/src/pattern.cpp`.
+- Added focused `Plus` tests covering multi-term bindings, literal-plus-pattern matching, and arity failure.
+- Next: configure/build and run the pattern/evaluator tests; then review edge cases and open the PR.

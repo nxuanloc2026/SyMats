@@ -76,6 +76,17 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   `verification_status`, so e.g. `Integrate[x^2, {x, 0, 1}]` reports Numeric.
 - Tests: `tests/test_verification.cpp` (4 cases).
 
+### T-036 Integrate fallback chain — done (review)
+- `core/include/symats/native_backend.h`: `NativeBackend` ("native", supports Integrate) and
+  `native_antiderivative`. Forms: x^n / (a x + b)^n, 1/(a x + b), c^(a x + b), Exp, Sin, Cos,
+  Tan, Cot, Sinh, Cosh, Tanh, Log, Sec^2, Csc^2, 1/(1 + x^2), 1/Sqrt[1 - x^2]; linearity;
+  expands products/powers of sums. Accepted only if D[F] - f is exactly 0 (after Expand and
+  Tan/Sec/... -> Sin/Cos). Definite: F[b] - F[a] if the quadrature check agrees, else
+  `NIntegrate[f, range]` with status Numeric (numeric integrand only).
+- install_default_backends adds it last. Also `Exp[1] -> E`.
+- Proposal (not done, needs Codex for parser/printer): an `Expr` Real kind (double first,
+  MPFR later) so numeric results print as decimals and `N[...]` can exist.
+
 ### T-035 native linear algebra — done (review)
 - `core/src/linalg.{h,cpp}` (private header), installed from install_builtins. Rational
   Gauss-Jordan; CharPoly by Faddeev-LeVerrier. Built-ins run before backends, so only

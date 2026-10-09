@@ -4,6 +4,8 @@
 
 #include <memory>
 
+#include "symats/native_backend.h"
+
 #ifdef SYMATS_HAVE_GIAC
 #include "giac_backend.h"
 #endif
@@ -30,6 +32,7 @@ std::vector<std::shared_ptr<MathBackend>> make_backends() {
     backends.push_back(std::make_shared<OdeintBackend>());
     backends.push_back(std::make_shared<QuadratureBackend>());
 #endif
+    backends.push_back(std::make_shared<NativeBackend>());  // Integrate fallback, always last
     return backends;
 }
 }  // namespace

@@ -442,11 +442,17 @@ void install_builtins(Context& ctx) {
             return e->size() == 1 && e->arg(0)->is_integer() && e->arg(0)->integer().is_zero()
                 ? make_integer(0) : nullptr;
         });
-    for (const char* f : {"Cos", "Cosh", "Exp"})
+    for (const char* f : {"Cos", "Cosh"})
         ctx.set_builtin(f, [](const ExprPtr& e, Context&) -> ExprPtr {
             return e->size() == 1 && e->arg(0)->is_integer() && e->arg(0)->integer().is_zero()
                 ? make_integer(1) : nullptr;
         });
+    ctx.set_builtin("Exp", [](const ExprPtr& e, Context&) -> ExprPtr {
+        if (e->size() != 1 || !e->arg(0)->is_integer()) return nullptr;
+        if (e->arg(0)->integer().is_zero()) return make_integer(1);
+        if (e->arg(0)->integer() == Integer(1)) return make_symbol("E");
+        return nullptr;
+    });
     ctx.set_builtin("Log", [](const ExprPtr& e, Context&) -> ExprPtr {
         if (e->size() != 1) return nullptr;
         if (e->arg(0)->is_integer() && e->arg(0)->integer() == Integer(1)) return make_integer(0);

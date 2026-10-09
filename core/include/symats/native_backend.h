@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Loc Ngo and Symats contributors
+//
+// Symats-native fallback for Integrate (AGENTS.md rule 5: backend -> native -> numeric).
+// Register it after the symbolic backends. It finds antiderivatives by linearity and a
+// table of elementary forms with linear arguments (x^n, 1/(a x + b), Exp, Sin, ..., c^x,
+// 1/(1 + x^2), 1/Sqrt[1 - x^2]), after expanding products of sums. Every antiderivative
+// is checked by differentiation before it is returned (status exact). A definite
+// integral uses F[b] - F[a] when a quadrature check agrees; otherwise, with numeric
+// limits, it becomes NIntegrate[...] (status numeric) for a numeric backend to evaluate.
+#pragma once
+
+#include <optional>
+#include <string>
+#include <string_view>
+
+#include "symats/backend.h"
+
+namespace symats {
+
+class NativeBackend final : public MathBackend {
+public:
+    std::string name() const override { return "native"; }
+    bool supports(std::string_view head) const override { return head == "Integrate"; }
+    std::optional<BackendResult> evaluate(const ExprPtr& expr) override;
+};
+
+// Antiderivative of f with respect to the symbol x, or nullptr when no rule applies.
+ExprPtr native_antiderivative(const ExprPtr& f, const ExprPtr& x);
+
+}  // namespace symats

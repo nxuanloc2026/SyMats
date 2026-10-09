@@ -17,6 +17,7 @@ add_executable(symats_tests
   test_plot.cpp
   test_elementary.cpp
   test_linalg.cpp
+  test_native_integrate.cpp
   test_operators.cpp
   test_mathics_semantics.cpp
 )

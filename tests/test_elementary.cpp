@@ -17,6 +17,7 @@ TEST_CASE("Elementary functions: exact values at 0, Log[1], Log[E]") {
     CHECK(same("Sin[0]", "0"));
     CHECK(same("Cos[0]", "1"));
     CHECK(same("Exp[0]", "1"));
+    CHECK(same("Exp[1]", "E"));
     CHECK(same("Tanh[0] + ArcTan[0] + ArcSinh[0]", "0"));
     CHECK(same("Log[1]", "0"));
     CHECK(same("Log[E]", "1"));

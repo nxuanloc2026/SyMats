@@ -1,0 +1,191 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Loc Ngo and Symats contributors
+#include "symats/native_backend.h"
+
+#include <cmath>
+
+#include "symats/calculus.h"
+#include "symats/eval.h"
+#include "symats/numeric.h"
+#include "symats/pattern.h"
+#include "symats/verification.h"
+
+namespace symats {
+namespace {
+
+bool free_of(const ExprPtr& e, const ExprPtr& x) {
+    if (equal(e, x)) return false;
+    if (!e->is_normal()) return true;
+    if (!free_of(e->head(), x)) return false;
+    for (const auto& a : e->args())
+        if (!free_of(a, x)) return false;
+    return true;
+}
+
+ExprPtr simplify(const ExprPtr& e) {
+    Context ctx;
+    return evaluate(e, ctx);
+}
+
+// u = a*x + b with a != 0 free of x: returns a, else nullptr.
+ExprPtr linear_coefficient(const ExprPtr& u, const ExprPtr& x) {
+    if (free_of(u, x)) return nullptr;
+    const ExprPtr a = simplify(differentiate(u, x));
+    if (!free_of(a, x) || (a->is_integer() && a->integer().is_zero())) return nullptr;
+    return a;
+}
+
+ExprPtr fn(const char* head, const ExprPtr& u) { return make_normal(head, {u}); }
+
+// Antiderivative of a single factor (no constant factors left).
+ExprPtr basic(const ExprPtr& f, const ExprPtr& x) {
+    if (equal(f, x)) return divide(power(x, make_integer(2)), make_integer(2));
+    if (f->has_head("Power") && f->size() == 2) {
+        const ExprPtr &base = f->arg(0), &n = f->arg(1);
+        if (free_of(n, x)) {  // (a x + b)^n
+            if (const ExprPtr a = linear_coefficient(base, x)) {
+                if (n->is_integer() && n->integer() == Integer(-1)) return divide(fn("Log", base), a);
+                const ExprPtr n1 = plus(n, make_integer(1));
+                return divide(power(base, n1), times(a, n1));
+            }
+        }
+        if (free_of(base, x)) {  // c^(a x + b)
+            const ExprPtr a = linear_coefficient(n, x);
+            if (!a) return nullptr;
+            if (base->is_symbol("E")) return divide(f, a);
+            return divide(f, times(a, fn("Log", base)));
+        }
+        // 1/(1 + x^2), 1/Sqrt[1 - x^2]
+        const ExprPtr minus_one = make_integer(-1), minus_half = make_rational(-1, 2);
+        const ExprPtr one_plus = plus(make_integer(1), power(x, make_integer(2)));
+        const ExprPtr one_minus = subtract(make_integer(1), power(x, make_integer(2)));
+        if (equal(n, minus_one) && equal(simplify(base), simplify(one_plus))) return fn("ArcTan", x);
+        if (equal(n, minus_half) && equal(simplify(base), simplify(one_minus))) return fn("ArcSin", x);
+        return nullptr;
+    }
+    if (f->is_normal() && f->head()->is_symbol() && f->size() == 1) {
+        const ExprPtr& u = f->arg(0);
+        const ExprPtr a = linear_coefficient(u, x);
+        if (!a) return nullptr;
+        const std::string& h = f->head()->name();
+        ExprPtr F;
+        if (h == "Exp") F = f;
+        else if (h == "Sin") F = negate(fn("Cos", u));
+        else if (h == "Cos") F = fn("Sin", u);
+        else if (h == "Tan") F = negate(fn("Log", fn("Cos", u)));
+        else if (h == "Cot") F = fn("Log", fn("Sin", u));
+        else if (h == "Sinh") F = fn("Cosh", u);
+        else if (h == "Cosh") F = fn("Sinh", u);
+        else if (h == "Tanh") F = fn("Log", fn("Cosh", u));
+        else if (h == "Log") F = subtract(times(u, fn("Log", u)), u);
+        else return nullptr;
+        return divide(F, a);
+    }
+    return nullptr;
+}
+
+ExprPtr squared_trig(const ExprPtr& f, const ExprPtr& x) {
+    if (!f->has_head("Power") || f->size() != 2 || !equal(f->arg(1), make_integer(2))) return nullptr;
+    const ExprPtr& g = f->arg(0);
+    if (!g->is_normal() || g->size() != 1) return nullptr;
+    const ExprPtr a = linear_coefficient(g->arg(0), x);
+    if (!a) return nullptr;
+    if (g->has_head("Sec")) return divide(fn("Tan", g->arg(0)), a);
+    if (g->has_head("Csc")) return negate(divide(fn("Cot", g->arg(0)), a));
+    return nullptr;
+}
+
+ExprPtr antiderivative(const ExprPtr& f, const ExprPtr& x, int depth) {
+    if (depth > 8) return nullptr;
+    if (free_of(f, x)) return times(f, x);
+    if (f->has_head("Plus")) {
+        ExprList terms;
+        for (const auto& t : f->args()) {
+            ExprPtr F = antiderivative(t, x, depth + 1);
+            if (!F) return nullptr;
+            terms.push_back(F);
+        }
+        return plus(std::move(terms));
+    }
+    if (f->has_head("Times")) {
+        ExprList constant, rest;
+        for (const auto& factor : f->args()) (free_of(factor, x) ? constant : rest).push_back(factor);
+        if (!constant.empty()) {
+            ExprPtr F = antiderivative(times(std::move(rest)), x, depth + 1);
+            return F ? times(times(std::move(constant)), F) : nullptr;
+        }
+    }
+    if (ExprPtr F = basic(f, x)) return F;
+    if (ExprPtr F = squared_trig(f, x)) return F;
+    // Products and powers of sums: expand and try term by term.
+    const ExprPtr expanded = expand(f);
+    if (!equal(expanded, f)) return antiderivative(expanded, x, depth + 1);
+    return nullptr;
+}
+
+// Tan, Cot, Sec, Csc in terms of Sin and Cos, so that exact comparison sees through them.
+ExprPtr sin_cos(const ExprPtr& e) {
+    if (!e->is_normal()) return e;
+    ExprList args;
+    for (const auto& a : e->args()) args.push_back(sin_cos(a));
+    if (args.size() == 1 && e->head()->is_symbol()) {
+        const auto& h = e->head()->name();
+        const ExprPtr s = fn("Sin", args[0]), c = fn("Cos", args[0]);
+        if (h == "Tan") return divide(s, c);
+        if (h == "Cot") return divide(c, s);
+        if (h == "Sec") return power(c, make_integer(-1));
+        if (h == "Csc") return power(s, make_integer(-1));
+    }
+    return make_normal(sin_cos(e->head()), std::move(args));
+}
+
+std::optional<double> number(const ExprPtr& e) {
+    try {
+        const double v = numeric::constant(e);
+        if (std::isfinite(v)) return v;
+    } catch (const numeric::Unsupported&) {}
+    return std::nullopt;
+}
+
+}  // namespace
+
+ExprPtr native_antiderivative(const ExprPtr& f, const ExprPtr& x) {
+    if (!x->is_symbol()) return nullptr;
+    ExprPtr F = antiderivative(f, x, 0);
+    if (!F) return nullptr;
+    F = simplify(F);
+    // Only results that differentiate back to f exactly are trusted.
+    if (verify_backend_result(make_normal("Integrate", {f, x}), F)) return F;
+    const ExprPtr difference = simplify(expand(sin_cos(subtract(differentiate(F, x), f))));
+    return difference->is_integer() && difference->integer().is_zero() ? F : nullptr;
+}
+
+std::optional<BackendResult> NativeBackend::evaluate(const ExprPtr& expr) {
+    if (!expr || !expr->has_head("Integrate") || expr->size() != 2) return std::nullopt;
+    const ExprPtr& f = expr->arg(0);
+    const ExprPtr& range = expr->arg(1);
+    if (range->is_symbol()) {
+        if (ExprPtr F = native_antiderivative(f, range)) return BackendResult{F, ResultStatus::Exact, "native"};
+        return std::nullopt;
+    }
+    if (!range->has_head("List") || range->size() != 3 || !range->arg(0)->is_symbol()) return std::nullopt;
+    const ExprPtr& x = range->arg(0);
+    if (ExprPtr F = native_antiderivative(f, x)) {
+        const ExprPtr value = simplify(subtract(substitute(F, {{x->name(), range->arg(2)}}),
+                                                substitute(F, {{x->name(), range->arg(1)}})));
+        // F[b] - F[a] is wrong across a singularity (e.g. 1/x on [-1, 1]); a quadrature
+        // check of the closed form catches that.
+        if (verification_status(expr, value) != ResultStatus::Unverified)
+            return BackendResult{value, ResultStatus::Exact, "native"};
+    }
+    const auto a = number(range->arg(1)), b = number(range->arg(2));
+    if (!a || !b) return std::nullopt;
+    try {
+        numeric::compile(f, {{x->name(), 0}});  // numeric integrand: no free parameters
+    } catch (const numeric::Unsupported&) {
+        return std::nullopt;
+    }
+    return BackendResult{make_normal("NIntegrate", {f, range}), ResultStatus::Numeric, "native"};
+}
+
+}  // namespace symats

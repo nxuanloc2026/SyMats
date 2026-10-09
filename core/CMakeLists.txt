@@ -13,6 +13,7 @@ add_library(symats_core
   src/numeric.cpp
   src/plot.cpp
   src/linalg.cpp
+  src/native_backend.cpp
   src/verification.cpp
   src/session.cpp
 )

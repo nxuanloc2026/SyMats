@@ -192,6 +192,9 @@ std::optional<BackendResult> taylor(const ExprPtr& expr) {
         }
         const ExprPtr c = simplify(substitute(d, {{x->name(), a}}));
         if (singular(c)) return std::nullopt;
+        try {  // a numeric coefficient must be finite (catches e.g. Abs[0]^-1)
+            if (!std::isfinite(numeric::constant(c))) return std::nullopt;
+        } catch (const numeric::Unsupported&) {}
         terms.push_back(times({c, make_rational(1, factorial), power(subtract(x, a), make_integer(k))}));
     }
     return BackendResult{make_normal("SeriesData", {simplify(plus(std::move(terms))), spec}),
@@ -315,8 +318,10 @@ std::optional<BackendResult> solve(const ExprPtr& expr) {
     std::optional<ExprPtr> result;
     if (polys.size() == 1 && vars.size() == 1) result = solve_one(polys[0], vars[0]);
     else result = solve_linear_system(polys, vars);
-    if (!result || verification_status(expr, *result) == ResultStatus::Unverified) return std::nullopt;
-    return BackendResult{*result, ResultStatus::Exact, "native"};
+    if (!result) return std::nullopt;
+    const ResultStatus checked = verification_status(expr, *result);
+    if (checked == ResultStatus::Unverified) return std::nullopt;
+    return BackendResult{*result, checked == ResultStatus::Verified ? ResultStatus::Exact : checked, "native"};
 }
 // ---------------------------------------------------------------- Limit
 
@@ -400,6 +405,8 @@ std::optional<BackendResult> NativeBackend::evaluate(const ExprPtr& expr) {
                                                 substitute(F, {{x->name(), range->arg(1)}})));
         // F[b] - F[a] is wrong across a singularity (e.g. 1/x on [-1, 1]); a quadrature
         // check of the closed form catches that.
+        // The antiderivative is proven by differentiation; the quadrature check only rules
+        // out singularities inside the range, so the value counts as exact.
         if (verification_status(expr, value) != ResultStatus::Unverified)
             return BackendResult{value, ResultStatus::Exact, "native"};
     }

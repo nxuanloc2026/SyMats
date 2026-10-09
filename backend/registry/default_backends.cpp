@@ -3,6 +3,7 @@
 #include "default_backends.h"
 
 #include <memory>
+#include <mutex>
 
 #include "symats/native_backend.h"
 
@@ -39,7 +40,8 @@ std::vector<std::shared_ptr<MathBackend>> make_backends() {
 
 void install_default_backends(BackendRegistry& registry) {
 #ifdef SYMATS_HAVE_BOOST
-    numeric::register_functions(numeric::special_functions());  // Plot, verification
+    static std::once_flag once;  // the table is global: register once, before any evaluation
+    std::call_once(once, [] { numeric::register_functions(numeric::special_functions()); });
 #endif
     for (auto& backend : make_backends()) registry.add(std::move(backend));
 }

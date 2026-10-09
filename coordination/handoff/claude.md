@@ -63,6 +63,22 @@ without noting it here. Claude will review when back.
   internals switch to mpz_class; all existing tests must pass both ways.
 - **T-027 xeus kernel (Jules)** — see board.
 
+## Review fixes (2026-10-09, from an independent review of this branch)
+- NIntegrate declined nothing: divergent/oscillatory integrals (1/x on [0,1], Sin[x]/x to
+  Infinity) came back as finite numbers. Now an estimate must have error <= 1e-6 |value|
+  (or 1e-10). Same for Integrate's NIntegrate fallback.
+- `numeric::decimal` was off by 10^300 below ~1e-289. Fixed.
+- Boost.Math threw on poles/overflow (killed Plot[Gamma[x], ...]); now a quiet policy
+  returns NaN/inf, and plot/verification catch evaluation errors.
+- Native Series accepted non-finite numeric coefficients (Abs[0]^-1); now declines.
+  `Abs[number]` evaluates.
+- Simpson check: depth 18, one sample without parameters, polls abort (57 s -> 0.1 s).
+- Native results only numerically confirmed now report Numeric, not Exact.
+- `register_functions` called once (std::call_once).
+- Known limitation: `Integrate[Sin[1000 x], {x, 0, 1000}]` now stays NIntegrate (the
+  quadrature singularity check cannot resolve it and NIntegrate declines); a better
+  continuity check of F on [a, b] would allow F[b] - F[a] here.
+
 ## Current task (2026-10-09)
 Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
 

@@ -96,7 +96,7 @@ TEST_CASE("Native Solve: linear, quadratic and linear systems, checked by substi
                    "{{x -> 0, y -> 1, z -> -1}}"));
     r = run("Solve[{a*x + y == 1, x - y == 0}, {x, y}]");  // x = y = 1/(1 + a), in some form
     CHECK(r.value->has_head("List") && r.value->size() == 1 && r.value->arg(0)->size() == 2);
-    CHECK(r.status == ResultStatus::Exact);
+    CHECK(r.status == ResultStatus::Numeric);  // Cramer form only confirmed numerically
     // Complex roots stay in radical form: x -> -(1/2)*(-4)^(1/2), x -> (1/2)*(-4)^(1/2).
     CHECK(run("Solve[x^2 == -1, x]").value->size() == 2);
     // Not handled natively: cubic, nonlinear system, singular system.

@@ -194,7 +194,13 @@ ExprPtr local_body(const ExprPtr& body, const ExprPtr& range, const Iterator& it
 Fn numeric_function(const ExprPtr& fn, const std::string& variable, Context& ctx) {
     try {
         auto compiled = std::make_shared<numeric::Compiled>(numeric::compile(fn, {{variable, 0}}));
-        return [compiled](double x) { return compiled->eval(&x); };
+        return [compiled](double x) {
+            try {
+                return compiled->eval(&x);
+            } catch (const std::exception&) {
+                return std::nan("");
+            }
+        };
     } catch (const numeric::Unsupported&) {
         // Not compilable as a whole (e.g. pattern definitions on numbers): evaluate
         // point by point.
@@ -327,7 +333,11 @@ Fn2 numeric_function2(const ExprPtr& fn, const Grid2& g, Context& ctx) {
             numeric::compile(fn, {{g.x.variable, 0}, {g.y.variable, 1}}));
         return [compiled](double x, double y) {
             const double slots[2] = {x, y};
-            return compiled->eval(slots);
+            try {
+                return compiled->eval(slots);
+            } catch (const std::exception&) {
+                return std::nan("");
+            }
         };
     } catch (const numeric::Unsupported&) {
         return [&ctx, fn, g](double x, double y) {

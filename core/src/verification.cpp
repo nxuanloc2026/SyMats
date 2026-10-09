@@ -67,7 +67,7 @@ bool numeric_identity(const ExprPtr& lhs, const ExprPtr& rhs) {
             ++valid;
         }
         return valid >= 4;
-    } catch (const numeric::Unsupported&) {
+    } catch (const std::exception&) {
         return false;
     }
 }
@@ -75,6 +75,7 @@ bool numeric_identity(const ExprPtr& lhs, const ExprPtr& rhs) {
 // Adaptive Simpson quadrature for checking definite integrals.
 double simpson(const std::function<double(double)>& f, double a, double b, double fa, double fm,
                double fb, double whole, double tol, int depth) {
+    if (backend_abort_requested()) throw std::runtime_error("aborted");
     const double m = (a + b) / 2, lm = (a + m) / 2, rm = (m + b) / 2;
     const double flm = f(lm), frm = f(rm);
     const double left = (m - a) / 6 * (fa + 4 * flm + fm), right = (b - m) / 6 * (fm + 4 * frm + fb);
@@ -113,13 +114,14 @@ bool numeric_definite_integral(const ExprPtr& f, const ExprPtr& range, const Exp
             const double fa = g(a), fm = g((a + b) / 2), fb = g(b);
             if (!std::isfinite(fa) || !std::isfinite(fm) || !std::isfinite(fb)) continue;
             const double whole = (b - a) / 6 * (fa + 4 * fm + fb);
-            const double q = simpson(g, a, b, fa, fm, fb, whole, 1e-11 * (1 + std::abs(whole)), 30);
+            const double q = simpson(g, a, b, fa, fm, fb, whole, 1e-10 * (1 + std::abs(whole)), 18);
             if (!std::isfinite(q)) continue;
             if (!close(q, expected, 1e-7)) return false;
             ++valid;
+            if (symbols.empty()) return true;  // no parameters: one sample decides
         }
         return valid >= 4;
-    } catch (const numeric::Unsupported&) {
+    } catch (const std::exception&) {  // not numeric, or aborted
         return false;
     }
 }

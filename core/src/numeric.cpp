@@ -218,10 +218,12 @@ ExprPtr decimal(double value) {
     if (!std::isfinite(value)) throw NonFinite();
     if (value == 0.0) return make_integer(0);
     const int exponent = static_cast<int>(std::floor(std::log10(std::abs(value))));
-    int shift = 11 - exponent;
+    const int shift = 11 - exponent;
+    // value * 10^shift, split so that 10^shift does not overflow for tiny values.
     double scaled = value;
-    for (; shift > 300; shift -= 300) scaled *= 1e300;
-    const long long mantissa = std::llround(scaled * std::pow(10.0, shift));
+    int rest = shift;
+    for (; rest > 300; rest -= 300) scaled *= 1e300;
+    const long long mantissa = std::llround(scaled * std::pow(10.0, rest));
     if (shift >= 0) return make_rational(Integer(mantissa), Integer::pow(10, static_cast<unsigned>(shift)));
     return make_integer(Integer(mantissa) * Integer::pow(10, static_cast<unsigned>(-shift)));
 }

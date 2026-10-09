@@ -453,6 +453,11 @@ void install_builtins(Context& ctx) {
         if (e->arg(0)->integer() == Integer(1)) return make_symbol("E");
         return nullptr;
     });
+    ctx.set_builtin("Abs", [](const ExprPtr& e, Context&) -> ExprPtr {
+        if (e->size() != 1 || !e->arg(0)->is_number()) return nullptr;
+        const Rational v = e->arg(0)->number();
+        return make_number(v.sign() < 0 ? -v : v);
+    });
     ctx.set_builtin("Log", [](const ExprPtr& e, Context&) -> ExprPtr {
         if (e->size() != 1) return nullptr;
         if (e->arg(0)->is_integer() && e->arg(0)->integer() == Integer(1)) return make_integer(0);

@@ -105,7 +105,8 @@ Estimate integrate1(const std::function<double(double)>& f, double a, double b, 
         if (std::isfinite(value) && std::isfinite(error) && (!best || error < best->error))
             best = Estimate{value, error, true};
     } catch (const std::exception&) {}
-    if (!best) throw Decline();
+    // An estimate whose error is not small is no answer (divergent or badly oscillatory).
+    if (!best || !(best->error <= std::max(1e-6 * std::abs(best->value), 1e-10))) throw Decline();
     return *best;
 }
 

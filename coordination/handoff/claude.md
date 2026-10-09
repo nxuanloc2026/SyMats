@@ -74,7 +74,10 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   sample points in [0.2, 2.2], >= 4 finite; definite integrals by adaptive Simpson) /
   Unverified. `verify_backend_result` unchanged (exact only). Giac now uses
   `verification_status`, so e.g. `Integrate[x^2, {x, 0, 1}]` reports Numeric.
-- Tests: `tests/test_verification.cpp` (4 cases).
+- DSolve: solution rules `f[x] -> body` are applied as functions (also inside
+  `Derivative[n][f][a]`, `f[0]`, mixed partials for PDEs), then every equation and initial
+  condition is checked (exact, then numeric). Before this, DSolve results never verified.
+- Tests: `tests/test_verification.cpp` (5 cases).
 
 ### T-036 Integrate fallback chain — done (review)
 - `core/include/symats/native_backend.h`: `NativeBackend` ("native", supports Integrate) and

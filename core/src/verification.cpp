@@ -4,6 +4,8 @@
 
 #include <cmath>
 #include <functional>
+#include <map>
+#include <optional>
 #include <random>
 #include <set>
 #include <string>
@@ -243,6 +245,80 @@ bool verify_equations(const ExprPtr& equations, const ExprPtr& result) {
     return true;
 }
 
+// A solved function: f[v1, ..., vn] -> body.
+struct FunctionRule {
+    std::vector<std::string> variables;
+    ExprPtr body;
+};
+
+// Replaces f[a...] by body(v -> a) and Derivative[n][f][a...] (n an integer or a list of
+// orders) by the derivative of body, so ODE/PDE solutions can be substituted into
+// equations and initial conditions.
+ExprPtr apply_functions(const ExprPtr& e, const std::map<std::string, FunctionRule>& fns) {
+    if (!e->is_normal()) return e;
+    ExprList args;
+    for (const auto& a : e->args()) args.push_back(apply_functions(a, fns));
+    const ExprPtr& head = e->head();
+    const auto at = [&](const FunctionRule& f, ExprPtr body) -> ExprPtr {
+        if (args.size() != f.variables.size()) return nullptr;
+        Bindings b;
+        for (std::size_t i = 0; i < args.size(); ++i) b[f.variables[i]] = args[i];
+        return substitute(body, b);
+    };
+    if (head->is_symbol()) {
+        if (auto it = fns.find(head->name()); it != fns.end())
+            if (ExprPtr r = at(it->second, it->second.body)) return r;
+    } else if (head->is_normal() && head->size() == 1 && head->arg(0)->is_symbol() &&
+               head->head()->has_head("Derivative") && head->head()->size() == 1) {
+        if (auto it = fns.find(head->arg(0)->name()); it != fns.end()) {
+            const FunctionRule& f = it->second;
+            const ExprPtr& orders = head->head()->arg(0);
+            const ExprList order_list = orders->has_head("List") ? orders->args() : ExprList{orders};
+            if (order_list.size() == f.variables.size()) {
+                ExprPtr body = f.body;
+                bool ok = true;
+                for (std::size_t i = 0; i < order_list.size() && ok; ++i) {
+                    const auto n = order_list[i]->is_integer() ? order_list[i]->integer().to_int64()
+                                                               : std::optional<long long>();
+                    ok = n && *n >= 0 && *n <= 32;
+                    for (long long k = 0; ok && k < *n; ++k)
+                        body = differentiate(body, make_symbol(f.variables[i]));
+                }
+                if (ok)
+                    if (ExprPtr r = at(f, body)) return r;
+            }
+        }
+    }
+    return make_normal(apply_functions(head, fns), std::move(args));
+}
+
+// DSolve[eqns, funcs, vars] -> {{f[x] -> ..., ...}, ...}: every branch must satisfy every
+// equation and condition.
+bool verify_differential(const ExprPtr& equations, const ExprPtr& result) {
+    if (!result->has_head("List") || result->size() == 0) return false;
+    const ExprList eqs = equations->has_head("List") ? equations->args() : ExprList{equations};
+    for (const auto& branch : result->args()) {
+        if (!branch->has_head("List") || branch->size() == 0) return false;
+        std::map<std::string, FunctionRule> fns;
+        for (const auto& rule : branch->args()) {
+            if (!rule->has_head("Rule") || rule->size() != 2) return false;
+            const ExprPtr& lhs = rule->arg(0);
+            FunctionRule f{{}, rule->arg(1)};
+            if (!lhs->is_normal() || !lhs->head()->is_symbol() || lhs->size() == 0) return false;
+            for (const auto& v : lhs->args()) {
+                if (!v->is_symbol()) return false;
+                f.variables.push_back(v->name());
+            }
+            fns[lhs->head()->name()] = std::move(f);
+        }
+        for (const auto& eq : eqs) {
+            if (!eq->has_head("Equal") || eq->size() != 2) return false;
+            if (!identity(apply_functions(eq->arg(0), fns), apply_functions(eq->arg(1), fns))) return false;
+        }
+    }
+    return true;
+}
+
 bool verify_integral(const ExprPtr& request, const ExprPtr& result) {
     if (numeric_mode && request->size() == 2 && request->arg(1)->has_head("List"))
         return numeric_definite_integral(request->arg(0), request->arg(1), result);
@@ -296,8 +372,8 @@ bool verify(const ExprPtr& request, const ExprPtr& result) {
         return false;
     const std::string& head = request->head()->name();
     if (head == "Integrate") return verify_integral(request, result);
-    if (head == "Solve" || head == "DSolve")
-        return request->size() > 0 && verify_equations(request->arg(0), result);
+    if (head == "Solve") return request->size() > 0 && verify_equations(request->arg(0), result);
+    if (head == "DSolve") return request->size() > 0 && verify_differential(request->arg(0), result);
     if (head == "Factor" && request->size() == 1)
         return identity(expand(result), expand(request->arg(0)));
     if (head == "Det" || head == "Transpose" || head == "Inverse" ||

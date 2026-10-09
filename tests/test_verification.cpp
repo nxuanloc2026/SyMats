@@ -45,3 +45,18 @@ TEST_CASE("Verification: wrong results stay Unverified") {
     CHECK(status("Integrate[f[x], x]", "g[x]") == ResultStatus::Unverified);  // not numeric
     CHECK(status("Plot[x, {x, 0, 1}]", "x") == ResultStatus::Unverified);     // no check exists
 }
+
+TEST_CASE("Verification: DSolve solutions substituted into equations and conditions") {
+    CHECK(status("DSolve[y'[x] == y[x], y[x], x]", "{{y[x] -> C1*Exp[x]}}") == ResultStatus::Verified);
+    CHECK(status("DSolve[y''[x] + y[x] == 0, y[x], x]", "{{y[x] -> C1*Cos[x] + C2*Sin[x]}}") ==
+          ResultStatus::Verified);
+    CHECK(status("DSolve[{y'[x] == y[x], y[0] == 2}, y[x], x]", "{{y[x] -> 2*Exp[x]}}") == ResultStatus::Verified);
+    CHECK(status("DSolve[{x'[t] == y[t], y'[t] == -x[t]}, {x[t], y[t]}, t]",
+                 "{{x[t] -> C1*Cos[t] + C2*Sin[t], y[t] -> C2*Cos[t] - C1*Sin[t]}}") == ResultStatus::Verified);
+    CHECK(status("DSolve[D[u[x, t], t] == k*D[u[x, t], {x, 2}], u[x, t], {x, t}]",
+                 "{{u[x, t] -> Exp[-k*t]*Sin[x]}}") == ResultStatus::Verified);
+    // Wrong initial value, wrong frequency, a branch that fails.
+    CHECK(status("DSolve[{y'[x] == y[x], y[0] == 2}, y[x], x]", "{{y[x] -> 3*Exp[x]}}") == ResultStatus::Unverified);
+    CHECK(status("DSolve[y''[x] == -y[x], y[x], x]", "{{y[x] -> Sin[2*x]}}") == ResultStatus::Unverified);
+    CHECK(status("DSolve[y'[x] == y[x], y[x], x]", "{{y[x] -> Exp[x]}, {y[x] -> x}}") == ResultStatus::Unverified);
+}

@@ -1,5 +1,18 @@
 # Handoff — Claude
 
+## Current task (2026-10-09) — fix Giac backend build CI (run #39 on main)
+Branch `claude/sweet-lovelace-920i5y`. The workflow `.github/workflows/giac.yml` also builds
+`SYMATS_USE_SUNDIALS=ON`, and `backend/sundials/` (T-015, PR #30) broke it on both OSes:
+- Linux (apt SUNDIALS 6.4.1): `SUN_COMM_NULL` is 7.x-only -> gate on `SUNDIALS_VERSION_MAJOR`.
+- Windows (vcpkg SUNDIALS 7.9.0): `realtype` was removed in 7.x -> use `sunrealtype` (6.x has it too).
+- `sundials_backend_test` lacked `tests/test_main.cpp` and the `tests/` include dir.
+Once it ran, the test showed the backend never solved anything:
+- `y'[x]` is `Derivative[1][y][x]`, but `solve()` matched `Derivative[1][y[x]]`.
+- `numeric()` matched `f[y[x]]` instead of `y[x]` (so `Sin[y[x]]` would have returned y).
+- The first sample asked CVODE for `tout == t0`, which CVODE rejects.
+Added value checks against exact solutions. Verified locally with SUNDIALS 6.4.1 and 7.9.0.
+Files: `backend/sundials/{sundials_backend.cpp,CMakeLists.txt,test_sundials_backend.cpp}`.
+
 ## Takeover by Codex — T-012 result contract (2026-10-06)
 
 The Giac bridge needs to preserve the truncation of a series without exposing

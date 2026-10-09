@@ -30,3 +30,13 @@ T-013 native backend result verification. The implementation is in
   inventing core APIs; unsupported expression forms should decline.
 - Next: add an optional pinned SUNDIALS dependency, CVODE adapter for scalar first-order
   ODEs, focused tests, and CI configuration.
+
+## Handoff: PR #30
+
+- Implemented and pushed commit `8c737a0` on `nxuanloc2026-t-015-sundials-ndsolve`.
+- PR: https://github.com/nxuanloc2026/Symats/pull/30
+- Local `git diff --check` passes. CMake/SUNDIALS are unavailable in this environment;
+  CI is configured to install `libsundials-dev` on Ubuntu and `sundials:x64-windows`
+  through vcpkg.
+- The adapter intentionally supports only scalar first-order ODEs until the core has
+  a floating-point/interpolating-function representation.

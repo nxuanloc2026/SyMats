@@ -44,3 +44,21 @@ T-013 native backend result verification. The implementation is in
   check for the older commit; no new check was reported yet for `dd035ca`.
 - The adapter intentionally supports only scalar first-order ODEs until the core has
   a floating-point/interpolating-function representation.
+_(Copilot: keep this file updated at every checkpoint.)_
+
+## T-018 takeover
+- Claimed T-018 because Claude is out of usage and the task is in the core lane.
+- Branch: `nxuanloc2026-t018-flat-orderless-pattern-matching`.
+- Implemented Flat/Orderless matching for `Plus` and `Times` in `core/src/pattern.cpp`.
+- Added focused `Plus` tests covering multi-term bindings, literal-plus-pattern matching, and arity failure.
+- Local CMake/compiler tools are unavailable, so `git diff --check` is the local validation performed.
+- Committed as `f3b5fff`, pushed branch `nxuanloc2026-t018-flat-orderless-pattern-matching`, and opened PR #29.
+- CI is the remaining build/test validation.
+## T-006 checkpoint
+- Existing implementation from Jules provides the interactive REPL and `.sym` runner.
+- Follow-up hardening is in `cli/main.cpp`: shared input execution, whitespace-tolerant
+  `quit`/`exit`, and preserved nonzero script exit status on evaluation errors.
+- README now documents REPL and script usage.
+- Native CMake validation is blocked in this environment because `cmake` and C++
+  compilers are not on PATH; `git diff --check` passes.
+- Committed as `e550173`, pushed as `nxuanloc2026-t006-cli-repl`, and opened PR #28.

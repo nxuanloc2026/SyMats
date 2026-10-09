@@ -22,7 +22,7 @@ scope of every task on this board.
 | T-002 | Converter fixes: (1) nesting-depth limit instead of crash, (2) readable output (`x - y`, `-x^2`, `Sin[x]`, `==`, `->`), (3) decimals, (4) document/decide space-before-paren, (5) `=` per T-003 | convert | Codex | Claude | done | | backup-ok | 2026-10-02 03:38 |
 | T-004 | Fix CI build failures on Windows and Linux — merged (PR #10), restoring test function linkage | build/CI | Codex (for Copilot) | Codex | done | | backup-ok | 2026-10-05 17:12 |
 | T-005 | Tests: parser edge cases (unicode, whitespace, huge numbers, malformed input), Integer/Rational property tests — PR #1 merged | tests | Jules | Copilot | done | | backup-ok | 2026-10-02 |
-| T-006 | `symats-cli` REPL: read Tier 1 square bracket input → `parse_text` → print `to_text` — completed with interactive REPL and Session execution | cli | Jules (for Copilot) | Codex | done | | backup-ok | 2026-10-08 |
+| T-006 | `symats-cli` REPL: read Tier 1 square bracket input → `parse_text` → print `to_text` — completed with interactive REPL and Session execution | cli | Copilot | Codex | review | | backup-ok | 2026-10-09 03:00 |
 | T-007 | MathJSON ⇄ Expr converter — merged (PR #3). Follow-up: allow Unicode symbols (α, θ) | convert | Codex | Claude | done | app editor | | 2026-10-02 |
 | T-009 | Optional GMP backend for `Integer` behind CMake option `SYMATS_USE_GMP` — merged (PR #12) | core | Jules (for Claude) | Copilot | done | | backup-ok | 2026-10-05 |
 | T-010 | **Native** `D` (partial derivatives, chain/product rule, all elementary functions) and `Expand` in core/ — no Giac; these power result verification — PR #21 | core | Codex (for Claude) | Codex | done | T-013 | | 2026-10-05 18:08 |

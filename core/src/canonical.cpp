@@ -101,6 +101,23 @@ ExprPtr plus(ExprList terms) {
     std::map<ExprPtr, Rational, ExprLess> coeffs;  // ordered by term, ignoring coefficient
     for (const auto& t : terms) collect_terms(t, number, coeffs);
 
+    // Infinite and undefined terms absorb finite ones; opposite infinities do not cancel.
+    const auto coefficient_of = [&](const char* name) -> const Rational* {
+        auto it = coeffs.find(make_symbol(name));
+        return it == coeffs.end() ? nullptr : &it->second;
+    };
+    if (coefficient_of("Indeterminate")) return make_symbol("Indeterminate");
+    const Rational* complex_infinity = coefficient_of("ComplexInfinity");
+    const Rational* infinity = coefficient_of("Infinity");
+    if (complex_infinity && infinity) return make_symbol("Indeterminate");
+    if (complex_infinity)
+        return complex_infinity->is_zero() ? make_symbol("Indeterminate") : make_symbol("ComplexInfinity");
+    if (infinity) {
+        if (infinity->is_zero()) return make_symbol("Indeterminate");
+        return infinity->sign() > 0 ? make_symbol("Infinity")
+                                    : make_normal(sym_times(), {make_integer(-1), make_symbol("Infinity")});
+    }
+
     ExprList out;
     if (!number.is_zero()) out.push_back(make_number(number));
     for (const auto& [rest, c] : coeffs)
@@ -119,6 +136,11 @@ ExprPtr times(ExprList factors) {
     Rational coeff = 1;
     std::map<ExprPtr, ExprList, ExprLess> exponents;  // base -> exponents to add
     for (const auto& f : factors) collect_factors(f, coeff, exponents);
+    // 0 times an infinity is undefined, and Indeterminate absorbs everything.
+    if (exponents.count(make_symbol("Indeterminate"))) return make_symbol("Indeterminate");
+    if (coeff.is_zero() &&
+        (exponents.count(make_symbol("ComplexInfinity")) || exponents.count(make_symbol("Infinity"))))
+        return make_symbol("Indeterminate");
     if (coeff.is_zero()) return make_integer(0);
 
     ExprList out;

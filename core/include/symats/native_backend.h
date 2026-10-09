@@ -16,6 +16,9 @@
 // Solve[eqn, x] for polynomial equations of degree 1 or 2, and Solve[{eqns}, {vars}] for
 // linear systems (exact elimination for numeric coefficients, Cramer's rule for up to 3
 // unknowns with symbolic ones). Results are checked by substitution (exact or numeric).
+//
+// Limit[f, x -> a] for a finite numeric a: substitution where f is continuous, else
+// L'Hopital on 0/0 quotients; kept only if f is numerically close to it on both sides.
 #pragma once
 
 #include <optional>
@@ -30,7 +33,7 @@ class NativeBackend final : public MathBackend {
 public:
     std::string name() const override { return "native"; }
     bool supports(std::string_view head) const override {
-        return head == "Integrate" || head == "Series" || head == "Solve";
+        return head == "Integrate" || head == "Series" || head == "Solve" || head == "Limit";
     }
     std::optional<BackendResult> evaluate(const ExprPtr& expr) override;
 };

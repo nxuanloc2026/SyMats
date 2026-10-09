@@ -318,9 +318,72 @@ std::optional<BackendResult> solve(const ExprPtr& expr) {
     if (!result || verification_status(expr, *result) == ResultStatus::Unverified) return std::nullopt;
     return BackendResult{*result, ResultStatus::Exact, "native"};
 }
+// ---------------------------------------------------------------- Limit
+
+// Numerator and denominator of a product (factors with negative integer powers go down).
+std::pair<ExprPtr, ExprPtr> fraction(const ExprPtr& e) {
+    ExprList num, den;
+    for (const auto& f : e->has_head("Times") ? e->args() : ExprList{e}) {
+        if (f->has_head("Power") && f->size() == 2 && f->arg(1)->is_number() && f->arg(1)->number().sign() < 0)
+            den.push_back(power(f->arg(0), negate(f->arg(1))));
+        else
+            num.push_back(f);
+    }
+    return {simplify(times(std::move(num))), simplify(times(std::move(den)))};
+}
+
+// f near a on both sides agrees with L (numerically, when f and L are numeric).
+bool numeric_limit_ok(const ExprPtr& f, const ExprPtr& x, double a, double L) {
+    try {
+        const auto c = numeric::compile(f, {{x->name(), 0}});
+        int valid = 0;
+        for (double h : {1e-4, -1e-4, 1e-5, -1e-5}) {
+            const double at = a + h * (1.0 + std::abs(a));
+            const double v = c.eval(&at);
+            if (!std::isfinite(v)) continue;
+            if (std::abs(v - L) > 1e-3 * (1.0 + std::abs(L))) return false;
+            ++valid;
+        }
+        return valid >= 2;
+    } catch (const numeric::Unsupported&) {
+        return false;
+    }
+}
+
+std::optional<BackendResult> limit(const ExprPtr& expr) {
+    const ExprPtr& f = expr->arg(0);
+    const ExprPtr& r = expr->arg(1);
+    if (!r->has_head("Rule") || r->size() != 2 || !r->arg(0)->is_symbol()) return std::nullopt;
+    const ExprPtr& x = r->arg(0);
+    const ExprPtr& a = r->arg(1);
+    if (!free_of(a, x) || singular(a)) return std::nullopt;
+    const auto at = [&](const ExprPtr& e) { return simplify(substitute(e, {{x->name(), a}})); };
+    ExprPtr value = at(f);
+    if (singular(value)) {
+        // 0/0: L'Hopital on the quotient, a few times.
+        auto [num, den] = fraction(f);
+        value = nullptr;
+        for (int k = 0; k < 4 && !value; ++k) {
+            const ExprPtr n0 = at(num), d0 = at(den);
+            if (!is_zero_expr(n0) || !is_zero_expr(d0)) {
+                const ExprPtr q = simplify(divide(n0, d0));
+                if (!singular(q) && !is_zero_expr(d0)) value = q;
+                break;
+            }
+            num = simplify(differentiate(num, x));
+            den = simplify(differentiate(den, x));
+        }
+        if (!value) return std::nullopt;
+    }
+    // Trust the value only if f approaches it from both sides, where both are numeric.
+    const auto av = number(a), lv = number(value);
+    if (!av || !lv || !numeric_limit_ok(f, x, *av, *lv)) return std::nullopt;
+    return BackendResult{value, ResultStatus::Exact, "native"};
+}
 }  // namespace
 
 std::optional<BackendResult> NativeBackend::evaluate(const ExprPtr& expr) {
+    if (expr && expr->has_head("Limit") && expr->size() == 2) return limit(expr);
     if (expr && expr->has_head("Series") && expr->size() == 2) return taylor(expr);
     if (expr && expr->has_head("Solve") && expr->size() == 2) return solve(expr);
     if (!expr || !expr->has_head("Integrate") || expr->size() != 2) return std::nullopt;

@@ -104,3 +104,18 @@ TEST_CASE("Native Solve: linear, quadratic and linear systems, checked by substi
     CHECK(run("Solve[{x*y == 1, x + y == 2}, {x, y}]").value->has_head("Solve"));
     CHECK(run("Solve[{x + y == 1, 2*x + 2*y == 2}, {x, y}]").value->has_head("Solve"));
 }
+
+TEST_CASE("Native Limit: substitution and L'Hopital, checked numerically") {
+    Run run;
+    CHECK(run.same("Limit[x^2 + 1, x -> 2]", "5"));
+    CHECK(run.same("Limit[Sin[x]/x, x -> 0]", "1"));
+    CHECK(run.same("Limit[(1 - Cos[x])/x^2, x -> 0]", "1/2"));
+    CHECK(run.same("Limit[(x^2 - 1)/(x - 1), x -> 1]", "2"));
+    CHECK(run.same("Limit[(Exp[x] - 1)/x, x -> 0]", "1"));
+    CHECK(run("Limit[Sin[x]/x, x -> 0]").status == ResultStatus::Exact);
+    // No finite two-sided limit, or not numeric: declined.
+    CHECK(run("Limit[1/x, x -> 0]").value->has_head("Limit"));
+    CHECK(run("Limit[Abs[x]/x, x -> 0]").value->has_head("Limit"));
+    CHECK(run("Limit[Sin[a*x]/x, x -> 0]").value->has_head("Limit"));
+    CHECK(run("Limit[x, x -> Infinity]").value->has_head("Limit"));
+}

@@ -113,6 +113,11 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   quadratic formula, complex roots stay as radicals), linear systems (LinearSolve for
   numeric coefficients, Cramer for <= 3 symbolic unknowns). Kept only if substitution
   verifies (verification_status != Unverified).
+- Also `Limit[f, x -> a]` (finite numeric a): substitution or L'Hopital on 0/0, kept only if
+  f is numerically within 1e-3 of it on both sides.
+- Fixed canonical arithmetic: 0*ComplexInfinity and 0*Infinity -> Indeterminate (was 0, so
+  Sin[x]/x /. x -> 0 gave 0), Infinity - Infinity -> Indeterminate, infinities absorb
+  finite terms, Indeterminate absorbs everything.
 - Proposal (not done, needs Codex for parser/printer): an `Expr` Real kind (double first,
   MPFR later) so numeric results print as decimals and `N[...]` can exist.
 

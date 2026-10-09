@@ -33,3 +33,16 @@ TEST_CASE("D: E^x and inverse hyperbolic functions") {
     CHECK(same("D[ArcCosh[x], x]", "(-1 + x^2)^(-1/2)"));
     CHECK(same("D[ArcTanh[x], x]", "(1 - x^2)^-1"));
 }
+
+TEST_CASE("Arithmetic with infinities and Indeterminate") {
+    CHECK(same("0*ComplexInfinity", "Indeterminate"));
+    CHECK(same("Sin[x]/x /. x -> 0", "Indeterminate"));  // was 0
+    CHECK(same("0*Infinity", "Indeterminate"));
+    CHECK(same("Infinity - Infinity", "Indeterminate"));
+    CHECK(same("Infinity + 3", "Infinity"));
+    CHECK(same("-Infinity + 2", "-Infinity"));
+    CHECK(same("ComplexInfinity + x", "ComplexInfinity"));
+    CHECK(same("Indeterminate + 1", "Indeterminate"));
+    CHECK(same("2*Indeterminate", "Indeterminate"));
+    CHECK(same("x - x", "0"));
+}

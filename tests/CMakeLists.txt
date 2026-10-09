@@ -14,6 +14,7 @@ add_executable(symats_tests
   test_calculus.cpp
   test_session.cpp
   test_verification.cpp
+  test_plot.cpp
   test_operators.cpp
   test_mathics_semantics.cpp
 )

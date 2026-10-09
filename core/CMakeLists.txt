@@ -11,6 +11,7 @@ add_library(symats_core
   src/eval.cpp
   src/calculus.cpp
   src/numeric.cpp
+  src/plot.cpp
   src/verification.cpp
   src/session.cpp
 )

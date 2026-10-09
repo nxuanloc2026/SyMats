@@ -127,6 +127,8 @@ sample points) usable in `Plot`. `NDSolve[eqns, y, range]` returns one
 `InterpolatingFunction`; `NDSolve[eqns, {x, y}, range]` returns
 `{x -> InterpolatingFunction[…], y -> InterpolatingFunction[…]}`. Equations must be
 explicit in the highest derivative of each function, with all initial values at `t0`.
+`InterpolatingFunction[…][t]` with a number `t` in the domain evaluates to the cubic
+interpolant of the samples; it can be used inside `Plot`.
 
 ### 3.7 Matrices and linear algebra
 
@@ -160,6 +162,13 @@ Text: `Expand[e]`, `Factor[e]`, `Simplify[e]`, `Solve[eqn, x]`, `Substitute[e, x
 | `ContourPlot` | `ContourPlot[x^2 - y^2, {x, -2, 2}, {y, -2, 2}]` |
 | `Animate` | `Animate[Plot[Sin[x - t], {x, 0, 2*Pi}], {t, 0, 10}]` |
 | `Slider` | `Plot[Sin[a*x], {x, 0, 2*Pi}, Slider[a, 0, 5]]` |
+
+`Plot` (implemented in core, `symats/plot.h`) evaluates to
+`Graphics[{{Line[{{x, y}, …}], …}, …}, PlotRange -> {{a, b}, {ymin, ymax}}]`: one inner
+`List` per plotted function, one `Line` per continuous piece. Sampling is adaptive
+(refined where the curve bends) and the curve is broken at asymptotes, jumps and where
+the function is not real; `PlotRange` clips values next to asymptotes. The plot variable
+is local (a global `x = 5` does not affect `Plot[f[x], {x, 0, 1}]`).
 
 ### 3.10 Assignment
 

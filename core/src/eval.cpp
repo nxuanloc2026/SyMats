@@ -8,8 +8,11 @@
 // Algebraic Computation", Academic Press, 1988, ch. 1-2.
 #include "symats/eval.h"
 #include "symats/calculus.h"
+#include "symats/numeric.h"
+#include "symats/plot.h"
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 #include "symats/pattern.h"
@@ -273,6 +276,9 @@ void install_builtins(Context& ctx) {
         return result;
     });
     ctx.set_attributes("D", HoldAll | Protected);
+
+    ctx.set_builtin("Plot", [](const ExprPtr& e, Context& c) { return plot(e, c); });
+    ctx.set_attributes("Plot", HoldAll | Protected);
     ctx.set_builtin("Expand", [](const ExprPtr& e, Context&) -> ExprPtr {
         return e->size() == 1 ? expand(e->arg(0)) : nullptr;
     });
@@ -449,6 +455,18 @@ static ExprPtr evaluated_derivative_application(const ExprPtr& cur,
     return substitute(body, {{name, cur->arg(0)}});
 }
 
+// InterpolatingFunction[{a, b}, data][t] for a number t: the interpolated value.
+static ExprPtr interpolated_value(const ExprPtr& cur, const ExprPtr& head) {
+    if (!head->has_head("InterpolatingFunction") || cur->size() != 1 || !cur->arg(0)->is_number())
+        return nullptr;
+    try {
+        const double v = (*numeric::interpolating_samples(head))(cur->arg(0)->number().to_double());
+        return std::isfinite(v) ? numeric::decimal(v) : nullptr;
+    } catch (const std::exception&) {
+        return nullptr;
+    }
+}
+
 struct EvalStep {
     // One rewrite step. Returns {expr, changed}. When changed is false, `expr` is fully
     // evaluated (arguments evaluated, no rule applies).
@@ -512,6 +530,7 @@ struct EvalStep {
         const ExprPtr cur = args_changed ? make_normal(head, std::move(args)) : e;
         if (!hname) {
             if (ExprPtr d = evaluated_derivative_application(cur, head, ctx)) return {d, true};
+            if (ExprPtr v = interpolated_value(cur, head)) return {v, true};
             return {cur, false};
         }
 

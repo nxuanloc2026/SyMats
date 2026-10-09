@@ -11,6 +11,7 @@
 #include "sundials_backend.h"
 #endif
 #ifdef SYMATS_HAVE_BOOST
+#include "numeric_expr.h"
 #include "odeint_backend.h"
 #include "quadrature_backend.h"
 #endif
@@ -34,6 +35,9 @@ std::vector<std::shared_ptr<MathBackend>> make_backends() {
 }  // namespace
 
 void install_default_backends(BackendRegistry& registry) {
+#ifdef SYMATS_HAVE_BOOST
+    numeric::register_functions(numeric::special_functions());  // Plot, verification
+#endif
     for (auto& backend : make_backends()) registry.add(std::move(backend));
 }
 

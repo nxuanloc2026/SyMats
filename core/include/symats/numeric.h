@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <functional>
 #include <map>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -42,25 +43,42 @@ struct Functions {
 // Sin ... ArcTanh, Exp, Log (1 and 2 arguments), Sqrt, Abs, ArcTan[x, y].
 const Functions& elementary_functions();
 
+// The table used when compile() gets none: the elementary functions plus everything
+// added by register_functions (install_default_backends adds the Boost.Math special
+// functions). Register at startup, before evaluating in other threads.
+const Functions& default_functions();
+void register_functions(const Functions& extra);
+
+// Sample table of InterpolatingFunction[{a, b}, {{t, y}, ...}], sorted by t.
+struct Samples {
+    std::vector<double> t, y;
+    // Cubic (4-point Lagrange) interpolation; NaN outside [t.front(), t.back()].
+    double operator()(double at) const;
+};
+// Throws Unsupported unless `f` is a well-formed InterpolatingFunction with numeric data.
+std::shared_ptr<const Samples> interpolating_samples(const ExprPtr& f);
+
 class Compiled {
 public:
     double eval(const double* slots) const;
 
-    enum class Op { Const, Slot, Plus, Times, Power, Call1, Call2 };
+    enum class Op { Const, Slot, Plus, Times, Power, Call1, Call2, Interpolate };
     Op op = Op::Const;
     double value = 0.0;
     std::size_t index = 0;
     Fn1 f1 = nullptr;
     Fn2 f2 = nullptr;
+    std::shared_ptr<const Samples> samples;  // Interpolate
     std::vector<Compiled> args;
 };
 
 // Throws Unsupported for symbols outside `slots` (other than Pi and E) and unknown heads.
+// InterpolatingFunction[...][u] compiles to interpolation of its samples.
 Compiled compile(const ExprPtr& e, const Slots& slots,
-                 const Functions& functions = elementary_functions());
+                 const Functions& functions = default_functions());
 
 // Value of an expression without free variables; throws Unsupported otherwise.
-double constant(const ExprPtr& e, const Functions& functions = elementary_functions());
+double constant(const ExprPtr& e, const Functions& functions = default_functions());
 
 // 12 significant digits as an exact decimal rational (until Expr has a Real kind).
 // Throws NonFinite for inf/NaN.

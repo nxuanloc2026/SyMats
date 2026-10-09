@@ -2,7 +2,9 @@
 // Copyright (c) 2026 Loc Ngo and Symats contributors
 #include "symats/numeric.h"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace symats::numeric {
 
@@ -37,6 +39,59 @@ const Functions& elementary_functions() {
     return table;
 }
 
+namespace {
+Functions& mutable_default_functions() {
+    static Functions table = elementary_functions();
+    return table;
+}
+}  // namespace
+
+const Functions& default_functions() { return mutable_default_functions(); }
+
+void register_functions(const Functions& extra) {
+    auto& table = mutable_default_functions();
+    for (const auto& [name, fn] : extra.unary) table.unary[name] = fn;
+    for (const auto& [name, fn] : extra.binary) table.binary[name] = fn;
+}
+
+double Samples::operator()(double at) const {
+    const std::size_t n = t.size();
+    if (n == 0 || std::isnan(at)) return std::numeric_limits<double>::quiet_NaN();
+    const double slack = 1e-12 * (1.0 + std::abs(t.back() - t.front()));
+    if (at < t.front() - slack || at > t.back() + slack) return std::numeric_limits<double>::quiet_NaN();
+    if (n == 1) return y[0];
+    // Interval [t[i], t[i+1]] containing `at`, then the 4 nearest samples around it.
+    const std::size_t i = std::min<std::size_t>(
+        n - 2, static_cast<std::size_t>(std::max<std::ptrdiff_t>(
+                   0, std::upper_bound(t.begin(), t.end(), at) - t.begin() - 1)));
+    const std::size_t lo = n < 4 ? 0 : std::min(n - 4, i > 0 ? i - 1 : 0);
+    const std::size_t hi = std::min(n, lo + 4);
+    double sum = 0.0;
+    for (std::size_t j = lo; j < hi; ++j) {
+        double w = 1.0;
+        for (std::size_t k = lo; k < hi; ++k)
+            if (k != j) w *= (at - t[k]) / (t[j] - t[k]);
+        sum += w * y[j];
+    }
+    return sum;
+}
+
+std::shared_ptr<const Samples> interpolating_samples(const ExprPtr& f) {
+    if (!f->has_head("InterpolatingFunction") || f->size() != 2 || !f->arg(1)->has_head("List"))
+        throw Unsupported();
+    auto samples = std::make_shared<Samples>();
+    for (const auto& point : f->arg(1)->args()) {
+        if (!point->has_head("List") || point->size() != 2 || !point->arg(0)->is_number() ||
+            !point->arg(1)->is_number()) throw Unsupported();
+        const double t = point->arg(0)->number().to_double();
+        if (!samples->t.empty() && !(t > samples->t.back())) throw Unsupported();
+        samples->t.push_back(t);
+        samples->y.push_back(point->arg(1)->number().to_double());
+    }
+    if (samples->t.empty()) throw Unsupported();
+    return samples;
+}
+
 double Compiled::eval(const double* slots) const {
     switch (op) {
     case Op::Const: return value;
@@ -54,6 +109,7 @@ double Compiled::eval(const double* slots) const {
     case Op::Power: return std::pow(args[0].eval(slots), args[1].eval(slots));
     case Op::Call1: return f1(args[0].eval(slots));
     case Op::Call2: return f2(args[0].eval(slots), args[1].eval(slots));
+    case Op::Interpolate: return (*samples)(args[0].eval(slots));
     }
     return 0.0;
 }
@@ -72,6 +128,12 @@ Compiled compile(const ExprPtr& e, const Slots& slots, const Functions& function
             n.op = Compiled::Op::Slot;
             n.index = it->second;
         } else throw Unsupported();
+        return n;
+    }
+    if (e->head()->has_head("InterpolatingFunction") && e->size() == 1) {
+        n.op = Compiled::Op::Interpolate;
+        n.samples = interpolating_samples(e->head());
+        n.args.push_back(compile(e->arg(0), slots, functions));
         return n;
     }
     if (!e->head()->is_symbol()) throw Unsupported();

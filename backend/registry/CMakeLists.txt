@@ -15,7 +15,7 @@ foreach(backend IN ITEMS giac sundials)
 endforeach()
 if(TARGET symats::odeint_backend AND TARGET symats::quadrature_backend)
   target_link_libraries(symats_default_backends PRIVATE
-    symats::odeint_backend symats::quadrature_backend)
+    symats::odeint_backend symats::quadrature_backend symats::numeric_expr)
   target_compile_definitions(symats_default_backends PRIVATE SYMATS_HAVE_BOOST)
 endif()
 

@@ -76,6 +76,17 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   `verification_status`, so e.g. `Integrate[x^2, {x, 0, 1}]` reports Numeric.
 - Tests: `tests/test_verification.cpp` (4 cases).
 
+### T-034 Plot sampling — done (review)
+- `core/include/symats/plot.h`, `core/src/plot.cpp`: `sample_curve` (64 intervals, up to 10
+  bisections, tolerance 1e-3 of the robust y range) and the `Plot` built-in (HoldAll; the
+  variable is substituted by a fresh symbol before evaluating, like Block; falls back to
+  point-by-point evaluation when the body does not compile).
+- Output shape documented in EXPR_SPEC §3.9 — Codex: this is what app/ Plotly should render.
+- `numeric.h`: `Samples` (cubic interpolation), `register_functions` / `default_functions`;
+  install_default_backends registers the Boost.Math table so Plot[Gamma[x], ...] works.
+- Next in this lane: ParametricPlot, PolarPlot, Plot3D (mesh), ContourPlot / ImplicitPlot
+  (marching squares), Animate frames.
+
 ### T-033 default backends
 - `backend/registry`: `install_default_backends(registry)` adds whatever was built: Giac,
   SUNDIALS, Odeint, quadrature (that order). Called by symats-cli and the kernel.

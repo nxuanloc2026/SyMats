@@ -16,9 +16,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # v0.1 has no external dependencies. Add GMP/MPFR/FLINT installs here when
-      # the optional backends are introduced.
+      # Boost.Odeint/Boost.Math are header-only; the odeint backend is built on Linux.
+      - name: Install Boost headers
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libboost-dev
+
       - name: Configure
+        if: runner.os == 'Linux'
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DSYMATS_USE_ODEINT=ON
+
+      - name: Configure
+        if: runner.os != 'Linux'
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build

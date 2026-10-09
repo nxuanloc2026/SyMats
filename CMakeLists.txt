@@ -13,6 +13,7 @@ option(SYMATS_BUILD_KERNEL "Build the Jupyter kernel" ON)
 option(SYMATS_USE_GMP     "Use GMP library for symats::Integer" OFF)
 option(SYMATS_USE_GIAC    "Build the pinned Giac symbolic backend" OFF)
 option(SYMATS_USE_SUNDIALS "Build the SUNDIALS CVODE numeric backend" OFF)
+option(SYMATS_USE_ODEINT  "Build the Boost.Odeint numeric backend" OFF)
 
 if(SYMATS_BUILD_TESTS)
   enable_testing()
@@ -37,6 +38,10 @@ if(SYMATS_USE_SUNDIALS)
     add_subdirectory(third_party)
   endif()
   add_subdirectory(backend/sundials)
+endif()
+
+if(SYMATS_USE_ODEINT)
+  add_subdirectory(backend/odeint)
 endif()
 
 if(SYMATS_BUILD_CLI)

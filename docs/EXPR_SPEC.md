@@ -71,6 +71,12 @@ Text: `Pi`, `E`, `I`, `Infinity`, `True`, `False`.
 
 `Sin Cos Tan Cot Sec Csc ArcSin ArcCos ArcTan Sinh Cosh Tanh Exp Log`
 Text: `Sin[x]`, `ArcTan[x]`, `Log[x]` = natural log, `Log[b, x]` = base b.
+Also `ArcSinh ArcCosh ArcTanh`; `ArcTan[x, y]` = angle of the point (x, y).
+
+Special functions (numeric evaluation through Boost.Math in numeric backends; symbolic
+rules may come later): `Gamma[z]`, `Gamma[a, z]` (upper incomplete), `LogGamma[z]`,
+`Beta[a, b]`, `Erf[z]`, `Erfc[z]`, `Zeta[s]`, `BesselJ[n, z]`, `BesselY[n, z]`,
+`BesselI[n, z]`, `BesselK[n, z]`.
 
 ### 3.4 Relations and logic
 
@@ -116,7 +122,11 @@ function. This is a named head using the existing Tier 1 call syntax.
 | `NIntegrate` | numeric integral | `NIntegrate[Exp[-x^2], {x, 0, Infinity}]` |
 
 Results are `List` of `Rule`s: `{{y[x] -> C1*Cos[x] + C2*Sin[x]}}`.
-Numeric results return `InterpolatingFunction[…]` usable in `Plot`.
+Numeric results return `InterpolatingFunction[{t0, t1}, {{t, y}, …}]` (domain, then
+sample points) usable in `Plot`. `NDSolve[eqns, y, range]` returns one
+`InterpolatingFunction`; `NDSolve[eqns, {x, y}, range]` returns
+`{x -> InterpolatingFunction[…], y -> InterpolatingFunction[…]}`. Equations must be
+explicit in the highest derivative of each function, with all initial values at `t0`.
 
 ### 3.7 Matrices and linear algebra
 

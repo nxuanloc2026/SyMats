@@ -63,9 +63,24 @@ without noting it here. Claude will review when back.
   internals switch to mpz_class; all existing tests must pass both ways.
 - **T-027 xeus kernel (Jules)** — see board.
 
-## Current task
-T-021 (kernel Session) done on branch `claude/T-021-session` (review — needs push + PR).
-T-001 merged (PR #5). Next: T-010 (native `D` and `Expand`), then T-012 (Giac bridge).
+## Current task (2026-10-09)
+Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
+
+### T-029 Boost.Odeint NDSolve — done (review)
+- `backend/odeint/` (`OdeintBackend`, CMake option `SYMATS_USE_ODEINT`, header-only Boost >= 1.71).
+- Any order, any number of unknowns: reduced to a first-order system. Equations must be
+  explicit in the highest derivative (either side of `==`); all initial values at t0.
+- RHS compiled once to a numeric node tree: elementary functions + Boost.Math
+  (Gamma, Gamma[a,z], LogGamma, Beta, Erf, Erfc, Zeta, BesselJ/Y/I/K).
+- Dormand-Prince 5(4) dense output; if it exceeds 20000 steps -> Rosenbrock 4 with a
+  symbolic Jacobian from native `differentiate` (finite differences if it does not compile).
+- Result: single function -> bare `InterpolatingFunction[{t0,t1}, {{t,y},...}]` (same
+  shape as SUNDIALS); list -> `{x -> IF, y -> IF}`. 101 samples, 12-digit decimal rationals.
+- Note: Prothero-Robinson `y' == -10^6 (y - Cos[t])` makes Rosenbrock4 stall (order
+  reduction); it declines after the 200000-step budget. Robertson and Van der Pol work.
+- Tests: `backend/odeint/test_odeint_backend.cpp` (7 cases), clean under ASan/UBSan.
+- CI: Linux job in ci.yml installs libboost-dev and enables the backend. Windows not yet
+  (needs vcpkg boost-odeint + boost-math).
 
 ## T-021 — what was built
 - `core/include/symats/session.h`, `core/src/session.cpp`: `Session` (one per notebook):

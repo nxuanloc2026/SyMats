@@ -1,8 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (c) 2026 Loc Ngo and Symats contributors
-# Boost.Odeint and Boost.Math are header-only; only this backend may include them.
-find_package(Boost 1.71 REQUIRED)
-
 add_library(symats_odeint_backend
   odeint_backend.cpp
 )
@@ -12,7 +9,7 @@ target_include_directories(symats_odeint_backend PUBLIC
 )
 target_link_libraries(symats_odeint_backend
   PUBLIC symats::core
-  PRIVATE Boost::headers
+  PRIVATE symats::numeric_expr Boost::headers
 )
 target_compile_features(symats_odeint_backend PUBLIC cxx_std_20)
 # uBLAS type checks make Debug Rosenbrock steps orders of magnitude slower.

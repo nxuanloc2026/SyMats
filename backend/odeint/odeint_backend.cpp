@@ -6,19 +6,16 @@
 #include <cstddef>
 #include <limits>
 #include <map>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <boost/math/special_functions/bessel.hpp>
-#include <boost/math/special_functions/beta.hpp>
-#include <boost/math/special_functions/erf.hpp>
-#include <boost/math/special_functions/gamma.hpp>
-#include <boost/math/special_functions/zeta.hpp>
 #include <boost/numeric/odeint.hpp>
 
+#include "numeric_expr.h"
 #include "symats/calculus.h"
 
 namespace symats {
@@ -31,127 +28,18 @@ struct Decline : std::runtime_error {
     Decline() : std::runtime_error("NDSolve form not supported") {}
 };
 
-// ------------------------------------------------------------ compiled numeric expressions
+using numeric::Compiled;
+using numeric::NonFinite;
+using numeric::constant;
+using numeric::decimal;
 
-using Fn1 = double (*)(double);
-using Fn2 = double (*)(double, double);
-
-const std::map<std::string, Fn1, std::less<>>& unary_functions() {
-    static const std::map<std::string, Fn1, std::less<>> table = {
-        {"Sin", [](double x) { return std::sin(x); }},
-        {"Cos", [](double x) { return std::cos(x); }},
-        {"Tan", [](double x) { return std::tan(x); }},
-        {"Cot", [](double x) { return 1.0 / std::tan(x); }},
-        {"Sec", [](double x) { return 1.0 / std::cos(x); }},
-        {"Csc", [](double x) { return 1.0 / std::sin(x); }},
-        {"ArcSin", [](double x) { return std::asin(x); }},
-        {"ArcCos", [](double x) { return std::acos(x); }},
-        {"ArcTan", [](double x) { return std::atan(x); }},
-        {"Sinh", [](double x) { return std::sinh(x); }},
-        {"Cosh", [](double x) { return std::cosh(x); }},
-        {"Tanh", [](double x) { return std::tanh(x); }},
-        {"ArcSinh", [](double x) { return std::asinh(x); }},
-        {"ArcCosh", [](double x) { return std::acosh(x); }},
-        {"ArcTanh", [](double x) { return std::atanh(x); }},
-        {"Exp", [](double x) { return std::exp(x); }},
-        {"Log", [](double x) { return std::log(x); }},
-        {"Sqrt", [](double x) { return std::sqrt(x); }},
-        {"Abs", [](double x) { return std::abs(x); }},
-        {"Gamma", [](double x) { return boost::math::tgamma(x); }},
-        {"LogGamma", [](double x) { return boost::math::lgamma(x); }},
-        {"Erf", [](double x) { return boost::math::erf(x); }},
-        {"Erfc", [](double x) { return boost::math::erfc(x); }},
-        {"Zeta", [](double x) { return boost::math::zeta(x); }},
-    };
-    return table;
-}
-
-const std::map<std::string, Fn2, std::less<>>& binary_functions() {
-    static const std::map<std::string, Fn2, std::less<>> table = {
-        {"Log", [](double b, double x) { return std::log(x) / std::log(b); }},
-        {"ArcTan", [](double x, double y) { return std::atan2(y, x); }},
-        {"Gamma", [](double a, double x) { return boost::math::tgamma(a, x); }},
-        {"Beta", [](double a, double b) { return boost::math::beta(a, b); }},
-        {"BesselJ", [](double n, double x) { return boost::math::cyl_bessel_j(n, x); }},
-        {"BesselY", [](double n, double x) { return boost::math::cyl_neumann(n, x); }},
-        {"BesselI", [](double n, double x) { return boost::math::cyl_bessel_i(n, x); }},
-        {"BesselK", [](double n, double x) { return boost::math::cyl_bessel_k(n, x); }},
-    };
-    return table;
-}
-
-struct Node {
-    enum class Op { Const, Time, State, Plus, Times, Power, Call1, Call2 } op = Op::Const;
-    double value = 0.0;
-    std::size_t index = 0;
-    Fn1 f1 = nullptr;
-    Fn2 f2 = nullptr;
-    std::vector<Node> args;
-
-    double eval(double t, const Vector& x) const {
-        switch (op) {
-        case Op::Const: return value;
-        case Op::Time: return t;
-        case Op::State: return x[index];
-        case Op::Plus: {
-            double r = 0.0;
-            for (const auto& a : args) r += a.eval(t, x);
-            return r;
-        }
-        case Op::Times: {
-            double r = 1.0;
-            for (const auto& a : args) r *= a.eval(t, x);
-            return r;
-        }
-        case Op::Power: return std::pow(args[0].eval(t, x), args[1].eval(t, x));
-        case Op::Call1: return f1(args[0].eval(t, x));
-        case Op::Call2: return f2(args[0].eval(t, x), args[1].eval(t, x));
-        }
-        return 0.0;
+// Slot 0 is the independent variable; slot 1 + i is state component i.
+Compiled compile(const ExprPtr& e, const numeric::Slots& slots) {
+    try {
+        return numeric::compile(e, slots);
+    } catch (const numeric::Unsupported&) {
+        throw Decline();
     }
-};
-
-// Symbols that compile to state components, plus the independent variable.
-struct Variables {
-    std::string time;
-    std::map<std::string, std::size_t, std::less<>> state;
-};
-
-Node compile(const ExprPtr& e, const Variables& vars) {
-    Node n;
-    if (e->is_number()) {
-        n.value = e->number().to_double();
-        return n;
-    }
-    if (e->is_symbol()) {
-        const auto& s = e->name();
-        if (s == "Pi") n.value = 3.14159265358979323846;
-        else if (s == "E") n.value = 2.71828182845904523536;
-        else if (s == vars.time) n.op = Node::Op::Time;
-        else if (auto it = vars.state.find(s); it != vars.state.end()) {
-            n.op = Node::Op::State;
-            n.index = it->second;
-        } else throw Decline();
-        return n;
-    }
-    if (!e->head()->is_symbol()) throw Decline();
-    const auto& head = e->head()->name();
-    for (const auto& a : e->args()) n.args.push_back(compile(a, vars));
-    if (head == "Plus") n.op = Node::Op::Plus;
-    else if (head == "Times") n.op = Node::Op::Times;
-    else if (head == "Power" && e->size() == 2) n.op = Node::Op::Power;
-    else if (auto f = unary_functions().find(head); e->size() == 1 && f != unary_functions().end()) {
-        n.op = Node::Op::Call1;
-        n.f1 = f->second;
-    } else if (auto g = binary_functions().find(head); e->size() == 2 && g != binary_functions().end()) {
-        n.op = Node::Op::Call2;
-        n.f2 = g->second;
-    } else throw Decline();
-    return n;
-}
-
-double constant(const ExprPtr& e) {
-    return compile(e, Variables{}).eval(0.0, Vector());
 }
 
 // ------------------------------------------------------------ problem extraction
@@ -208,7 +96,8 @@ struct Problem {
     bool single = false;  // funcs given as one symbol, not a list
     double start = 0.0, finish = 0.0;
     std::size_t dimension = 0;
-    Variables vars;
+    std::string time;
+    numeric::Slots slots;
     std::vector<ExprPtr> rhs;  // state form, one per unknown
 };
 
@@ -274,22 +163,20 @@ Problem extract(const ExprPtr& expr) {
         u.initial[ref.order] = constant(value);
     }
 
-    p.vars.time = t->name();
+    p.time = t->name();
+    p.slots[p.time] = 0;
     for (auto& u : p.unknowns) {
         if (!u.rhs || u.initial.size() != static_cast<std::size_t>(u.order)) throw Decline();
         u.base = p.dimension;
         p.dimension += static_cast<std::size_t>(u.order);
     }
-    for (std::size_t i = 0; i < p.dimension; ++i) p.vars.state[state_name(i)] = i;
+    for (std::size_t i = 0; i < p.dimension; ++i) p.slots[state_name(i)] = i + 1;
     for (const auto& u : p.unknowns) p.rhs.push_back(to_state_form(u.rhs, p.unknowns, t));
     return p;
 }
 
 // ------------------------------------------------------------ integration
 
-struct NonFinite : std::runtime_error {
-    NonFinite() : std::runtime_error("NDSolve produced a non-finite value") {}
-};
 struct BudgetExceeded : std::runtime_error {
     BudgetExceeded() : std::runtime_error("NDSolve step budget exceeded") {}
 };
@@ -304,9 +191,18 @@ struct StepBudget {
     void reset() {}
 };
 
+// Slot array [t, x0, x1, ...] for Compiled::eval; reused to avoid allocating per call.
+const double* pack(double t, const Vector& x) {
+    thread_local std::vector<double> buffer;
+    buffer.resize(x.size() + 1);
+    buffer[0] = t;
+    for (std::size_t i = 0; i < x.size(); ++i) buffer[i + 1] = x[i];
+    return buffer.data();
+}
+
 struct System {
     const Problem* problem;
-    std::vector<Node> highest;  // one per unknown
+    std::vector<Compiled> highest;  // one per unknown
 
     void operator()(const Vector& x, Vector& dxdt, double t) const {
         for (const auto& u : problem->unknowns) {
@@ -315,7 +211,7 @@ struct System {
         }
         for (std::size_t k = 0; k < highest.size(); ++k) {
             const auto& u = problem->unknowns[k];
-            const double v = highest[k].eval(t, x);
+            const double v = highest[k].eval(pack(t, x));
             if (!std::isfinite(v)) throw NonFinite();
             dxdt[u.base + static_cast<std::size_t>(u.order) - 1] = v;
         }
@@ -325,8 +221,8 @@ struct System {
 // Jacobian for Rosenbrock: symbolic (native D) where it compiles, else finite differences.
 struct Jacobian {
     const System* system;
-    std::optional<std::vector<std::vector<Node>>> rows;  // [unknown][state component]
-    std::optional<std::vector<Node>> time_rows;          // [unknown]
+    std::optional<std::vector<std::vector<Compiled>>> rows;  // [unknown][state component]
+    std::optional<std::vector<Compiled>> time_rows;          // [unknown]
 
     void operator()(const Vector& x, Matrix& jac, double t, Vector& dfdt) const {
         const auto& p = *system->problem;
@@ -338,11 +234,13 @@ struct Jacobian {
         }
         Vector f0(n), f1(n);
         if (!rows || !time_rows) (*system)(x, f0, t);
+        const double* packed = pack(t, x);
+        const std::vector<double> slots(packed, packed + n + 1);  // system() reuses the buffer
         for (std::size_t k = 0; k < p.unknowns.size(); ++k) {
             const auto row = p.unknowns[k].base + static_cast<std::size_t>(p.unknowns[k].order) - 1;
             for (std::size_t j = 0; j < n; ++j) {
                 if (rows) {
-                    jac(row, j) = (*rows)[k][j].eval(t, x);
+                    jac(row, j) = (*rows)[k][j].eval(slots.data());
                 } else {
                     Vector shifted = x;
                     const double h = 1e-7 * std::max(1.0, std::abs(x[j]));
@@ -356,7 +254,7 @@ struct Jacobian {
         if (time_rows) {
             for (std::size_t k = 0; k < p.unknowns.size(); ++k)
                 dfdt[p.unknowns[k].base + static_cast<std::size_t>(p.unknowns[k].order) - 1] =
-                    (*time_rows)[k].eval(t, x);
+                    (*time_rows)[k].eval(slots.data());
         } else {
             const double h = 1e-7 * std::max(1.0, std::abs(t));
             (*system)(x, f1, t + h);
@@ -369,34 +267,21 @@ Jacobian make_jacobian(const System& system) {
     const auto& p = *system.problem;
     Jacobian jac{&system, std::nullopt, std::nullopt};
     try {
-        std::vector<std::vector<Node>> rows;
+        std::vector<std::vector<Compiled>> rows;
         for (const auto& rhs : p.rhs) {
             rows.emplace_back();
             for (std::size_t j = 0; j < p.dimension; ++j)
-                rows.back().push_back(compile(differentiate(rhs, make_symbol(state_name(j))), p.vars));
+                rows.back().push_back(compile(differentiate(rhs, make_symbol(state_name(j))), p.slots));
         }
         jac.rows = std::move(rows);
     } catch (const std::exception&) {}
     try {
-        std::vector<Node> time_rows;
+        std::vector<Compiled> time_rows;
         for (const auto& rhs : p.rhs)
-            time_rows.push_back(compile(differentiate(rhs, make_symbol(p.vars.time)), p.vars));
+            time_rows.push_back(compile(differentiate(rhs, make_symbol(p.time)), p.slots));
         jac.time_rows = std::move(time_rows);
     } catch (const std::exception&) {}
     return jac;
-}
-
-// 12 significant digits as an exact decimal rational.
-ExprPtr decimal(double value) {
-    if (!std::isfinite(value)) throw NonFinite();
-    if (value == 0.0) return make_integer(0);
-    const int exponent = static_cast<int>(std::floor(std::log10(std::abs(value))));
-    int shift = 11 - exponent;
-    double scaled = value;
-    for (; shift > 300; shift -= 300) scaled *= 1e300;
-    const long long mantissa = std::llround(scaled * std::pow(10.0, shift));
-    if (shift >= 0) return make_rational(Integer(mantissa), Integer::pow(10, static_cast<unsigned>(shift)));
-    return make_integer(Integer(mantissa) * Integer::pow(10, static_cast<unsigned>(-shift)));
 }
 
 constexpr std::size_t kSamples = 101;
@@ -423,7 +308,7 @@ std::optional<BackendResult> OdeintBackend::evaluate(const ExprPtr& expr) {
     try {
         const Problem p = extract(expr);
         System system{&p, {}};
-        for (const auto& rhs : p.rhs) system.highest.push_back(compile(rhs, p.vars));
+        for (const auto& rhs : p.rhs) system.highest.push_back(compile(rhs, p.slots));
         Vector x0(p.dimension);
         for (const auto& u : p.unknowns)
             for (const auto& [k, v] : u.initial) x0[u.base + static_cast<std::size_t>(k)] = v;

@@ -66,6 +66,18 @@ without noting it here. Claude will review when back.
 ## Current task (2026-10-09)
 Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
 
+### T-026 NIntegrate — done (review)
+- `backend/quadrature/` (`QuadratureBackend`), built with the odeint backend under the
+  renamed option `SYMATS_USE_BOOST` (was SYMATS_USE_ODEINT).
+- Shared numeric compiler moved to `backend/common/numeric_expr.{h,cpp}` (slots, Boost.Math
+  special functions, `decimal()`), used by odeint and quadrature.
+- 1-3 dims: nested tanh-sinh / exp-sinh / sinh-sinh, Gauss-Kronrod 61 fallback; inner
+  limits may depend on outer variables; +-Infinity limits. >= 4 dims: VEGAS (own
+  implementation in `vegas.{h,cpp}`, Lepage 1978; not ported from Numerica, so no
+  attribution needed), fixed seed, finite limits only.
+- `last_error()` / `last_method()` on the backend. Error-tracking floats need a Real kind
+  in Expr (EXPR_SPEC "later kinds") — not done.
+
 ### T-015 follow-up — SUNDIALS adapter fixed
 The merged adapter never solved anything and did not build on Ubuntu (SUNDIALS 6.4):
 `SUN_COMM_NULL`/`realtype` are 7.x-only (now version-guarded / `sunrealtype`), the test

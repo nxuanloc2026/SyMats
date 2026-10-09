@@ -13,7 +13,7 @@ option(SYMATS_BUILD_KERNEL "Build the Jupyter kernel" ON)
 option(SYMATS_USE_GMP     "Use GMP library for symats::Integer" OFF)
 option(SYMATS_USE_GIAC    "Build the pinned Giac symbolic backend" OFF)
 option(SYMATS_USE_SUNDIALS "Build the SUNDIALS CVODE numeric backend" OFF)
-option(SYMATS_USE_ODEINT  "Build the Boost.Odeint numeric backend" OFF)
+option(SYMATS_USE_BOOST   "Build the Boost numeric backends (Odeint NDSolve, quadrature NIntegrate)" OFF)
 
 if(SYMATS_BUILD_TESTS)
   enable_testing()
@@ -40,8 +40,12 @@ if(SYMATS_USE_SUNDIALS)
   add_subdirectory(backend/sundials)
 endif()
 
-if(SYMATS_USE_ODEINT)
+if(SYMATS_USE_BOOST)
+  # Boost.Odeint, Boost.Math and Boost.Random are header-only; only backend/ includes them.
+  find_package(Boost 1.71 REQUIRED)
+  add_subdirectory(backend/common)
   add_subdirectory(backend/odeint)
+  add_subdirectory(backend/quadrature)
 endif()
 
 if(SYMATS_BUILD_CLI)

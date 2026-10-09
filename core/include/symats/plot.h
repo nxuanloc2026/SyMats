@@ -6,6 +6,8 @@
 // with one inner List per function and one Line per continuous piece (the curve is
 // broken at singularities, jumps and points where f is not real). Coordinates are
 // 12-significant-digit decimal rationals. The front end renders this with Plotly.
+// ParametricPlot[{x[t], y[t]}, {t, a, b}] (or a list of pairs) and PolarPlot[r[th],
+// {th, a, b}] give the same shape plus AspectRatio -> Automatic (equal axis scales).
 #pragma once
 
 #include <cstddef>
@@ -33,7 +35,19 @@ using Polyline = std::vector<std::pair<double, double>>;
 std::pair<std::vector<Polyline>, std::pair<double, double>> sample_curve(
     const std::function<double(double)>& f, double a, double b, const SampleOptions& options = {});
 
-// The Plot built-in (HoldAll). Returns nullptr when the arguments are not a valid plot.
+struct CurveSamples {
+    std::vector<Polyline> pieces;
+    std::pair<double, double> x_range, y_range;  // outliers near asymptotes clipped
+};
+
+// Adaptive samples of the parametric curve (fx(t), fy(t)) for t in [a, b].
+CurveSamples sample_parametric(const std::function<double(double)>& fx,
+                               const std::function<double(double)>& fy, double a, double b,
+                               const SampleOptions& options = {});
+
+// The built-ins (HoldAll). They return nullptr when the arguments are not a valid plot.
 ExprPtr plot(const ExprPtr& expr, Context& ctx);
+ExprPtr parametric_plot(const ExprPtr& expr, Context& ctx);
+ExprPtr polar_plot(const ExprPtr& expr, Context& ctx);
 
 }  // namespace symats

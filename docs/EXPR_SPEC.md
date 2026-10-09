@@ -169,6 +169,9 @@ Text: `Expand[e]`, `Factor[e]`, `Simplify[e]`, `Solve[eqn, x]`, `Substitute[e, x
 (refined where the curve bends) and the curve is broken at asymptotes, jumps and where
 the function is not real; `PlotRange` clips values next to asymptotes. The plot variable
 is local (a global `x = 5` does not affect `Plot[f[x], {x, 0, 1}]`).
+`ParametricPlot[{x[t], y[t]}, {t, a, b}]` (or a list of pairs) and `PolarPlot[r, {th, a, b}]`
+return the same `Graphics` shape with `PlotRange -> {{xmin, xmax}, {ymin, ymax}}` and
+`AspectRatio -> Automatic` (equal axis scales).
 
 ### 3.10 Assignment
 

@@ -279,6 +279,10 @@ void install_builtins(Context& ctx) {
 
     ctx.set_builtin("Plot", [](const ExprPtr& e, Context& c) { return plot(e, c); });
     ctx.set_attributes("Plot", HoldAll | Protected);
+    ctx.set_builtin("ParametricPlot", [](const ExprPtr& e, Context& c) { return parametric_plot(e, c); });
+    ctx.set_attributes("ParametricPlot", HoldAll | Protected);
+    ctx.set_builtin("PolarPlot", [](const ExprPtr& e, Context& c) { return polar_plot(e, c); });
+    ctx.set_attributes("PolarPlot", HoldAll | Protected);
     ctx.set_builtin("Expand", [](const ExprPtr& e, Context&) -> ExprPtr {
         return e->size() == 1 ? expand(e->arg(0)) : nullptr;
     });

@@ -78,6 +78,29 @@ TEST_CASE("InterpolatingFunction: evaluates and plots") {
     CHECK(std::abs(num(lines(p)[0]->arg(0)->args().back()->arg(1)) - 27.0) < 1e-9);
 }
 
+TEST_CASE("ParametricPlot and PolarPlot") {
+    Context ctx;
+    auto g = run(ctx, "ParametricPlot[{Cos[t], Sin[t]}, {t, 0, 2*Pi}]");
+    CHECK(g->has_head("Graphics"));
+    CHECK(g->size() == 3);
+    CHECK(g->arg(2)->arg(0)->is_symbol("AspectRatio"));
+    CHECK(lines(g).size() == 1);
+    bool on_circle = true;
+    for (const auto& p : lines(g)[0]->arg(0)->args())
+        on_circle = on_circle && std::abs(std::hypot(num(p->arg(0)), num(p->arg(1))) - 1) < 1e-9;
+    CHECK(on_circle);
+    const auto& xr = g->arg(1)->arg(1)->arg(0);
+    CHECK(std::abs(num(xr->arg(0)) + 1) < 1e-3 && std::abs(num(xr->arg(1)) - 1) < 1e-3);
+    // Two curves.
+    g = run(ctx, "ParametricPlot[{{t, t^2}, {t^2, t}}, {t, 0, 1}]");
+    CHECK(g->arg(0)->size() == 2);
+    // Cardioid r = 1 + Cos[th]: x reaches 2 at th = 0.
+    g = run(ctx, "PolarPlot[1 + Cos[th], {th, 0, 2*Pi}]");
+    CHECK(g->has_head("Graphics"));
+    CHECK(std::abs(num(g->arg(1)->arg(1)->arg(0)->arg(1)) - 2) < 1e-9);
+    CHECK(!run(ctx, "ParametricPlot[Sin[t], {t, 0, 1}]")->has_head("Graphics"));  // not a pair
+}
+
 TEST_CASE("Plot sampler: direct use") {
     const auto [pieces, range] = sample_curve([](double x) { return x < 0.5 ? 0.0 : 1.0; }, 0.0, 1.0);
     CHECK(pieces.size() == 2);  // step discontinuity

@@ -5,7 +5,7 @@ States: `active`, `idle`, `out — resets <time>`.
 
 | Agent   | Status | Note | Last seen (UTC) | Usage resets (fill in when known) |
 |---------|--------|------|-----------------|-----------------------------------|
-| Claude  | out — usage limit reached (Loc to fill reset time) | All Claude tasks delegated: Codex = engine, Jules = tests/GMP/kernel. See handoff/claude.md | 2026-10-03 | |
+| Claude  | active | T-029 Boost.Odeint NDSolve backend | 2026-10-09 | |
 | Codex   | idle | T-011 merged with green CI; tested T-012 preserved locally; awaiting Jules task/PR link to reconcile completed work | 2026-10-06 18:35 | |
 | Copilot | active | Reconciling T-020, already implemented and tested on main | 2026-10-09 04:05 | |
 | Jules   | active | T-030 Mathics3 semantics audit tests ready for review | 2026-10-05 02:00 | |

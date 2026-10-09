@@ -10,6 +10,7 @@
 #include "symats/calculus.h"
 #include "symats/numeric.h"
 #include "symats/plot.h"
+#include "linalg.h"
 
 #include <algorithm>
 #include <cmath>
@@ -428,6 +429,7 @@ void install_builtins(Context& ctx) {
         return acc;
     });
     ctx.set_attributes("Dot", Protected);
+    install_linear_algebra(ctx);
 
     // Elementary functions thread over lists; numerical evaluation comes later.
     for (const char* f : {"Sin", "Cos", "Tan", "Cot", "Sec", "Csc", "ArcSin", "ArcCos", "ArcTan",

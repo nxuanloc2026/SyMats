@@ -76,6 +76,12 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   `verification_status`, so e.g. `Integrate[x^2, {x, 0, 1}]` reports Numeric.
 - Tests: `tests/test_verification.cpp` (4 cases).
 
+### T-035 native linear algebra — done (review)
+- `core/src/linalg.{h,cpp}` (private header), installed from install_builtins. Rational
+  Gauss-Jordan; CharPoly by Faddeev-LeVerrier. Built-ins run before backends, so only
+  exact-number matrices are taken (Transpose/Trace any entries); symbolic -> Giac.
+- Tests: `tests/test_linalg.cpp` (3 cases). Full Giac+SUNDIALS+Boost ctest still 7/7.
+
 ### T-010 review (Codex's native D/Expand) — reviewed, fixed in place
 - Behaviour checked on 23 edge cases (chain/product/power rules, x^x, Log[b, x],
   higher/mixed partials, Expand of powers and products): correct.

@@ -144,6 +144,12 @@ A matrix is a `List` of row `List`s; a vector is a `List`.
 | `Eigenvalues`, `Eigenvectors` | `Eigenvalues[A]` | |
 | `Rank`, `Trace`, `RowReduce`, `CharPoly`, `MatrixExp` | capitalized built-in calls | |
 | `LinearSolve` | `LinearSolve[A, b]` | |
+| `IdentityMatrix` | `IdentityMatrix[n]` | |
+
+`Transpose` and `Trace` are native for any entries. `Det`, `Inverse`, `Rank`,
+`RowReduce`, `LinearSolve` (unique solutions only) and `CharPoly[A, x]` are computed
+natively and exactly when every entry is an exact number (status exact); matrices with
+symbolic entries go to the symbolic backend. A singular `Inverse` stays unevaluated.
 
 ### 3.8 Algebra
 

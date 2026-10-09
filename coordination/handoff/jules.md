@@ -14,7 +14,8 @@ None (all remaining tasks completed).
 - **T-020**: Cell statement parser (`parse_cell`) handling comments, continuations, `;` suppression, and `%` history expansion.
 - **T-024**: Tier 1 operators in `convert/src/text.cpp` (`/.`, `.`, `&&`, `||`, `!`, `!`, `y'[t]`, precedence and round-trip printing).
 - **T-006 & T-023**: `symats-cli` interactive REPL and `.sym` script runner (`cli/main.cpp`).
+- **T-022**: C++ engine bridge (`bridge/`) supporting JSON cell evaluation (MathJSON + LaTeX + status + error), kernel restart, user workspace symbols, and C FFI for Tauri / WebAssembly.
 
 ## Verification
 - Built with `SYMATS_BUILD_KERNEL=ON`.
-- 100% of unit tests pass cleanly via CTest (87 test cases, 0 failures).
+- 100% of unit tests pass cleanly via CTest (including `test_bridge.cpp`).

@@ -25,6 +25,7 @@ endif()
 
 add_subdirectory(core)
 add_subdirectory(convert)
+add_subdirectory(bridge)
 
 if(SYMATS_USE_GIAC)
   add_subdirectory(third_party)

@@ -15,6 +15,7 @@ add_executable(symats_tests
   test_session.cpp
   test_operators.cpp
   test_mathics_semantics.cpp
+  test_bridge.cpp
 )
-target_link_libraries(symats_tests PRIVATE symats::core symats::convert)
+target_link_libraries(symats_tests PRIVATE symats::core symats::convert symats::bridge)
 add_test(NAME symats_tests COMMAND symats_tests)

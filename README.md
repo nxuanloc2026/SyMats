@@ -43,6 +43,10 @@ ctest --test-dir build --output-on-failure   # run tests
 ./build/cli/symats-cli                        # run demo (Windows: build\cli\Debug\symats-cli.exe)
 ```
 
+With no arguments, `symats-cli` starts an interactive REPL. Enter canonical Tier 1
+expressions such as `Sin[Pi/2]` or `x = 5`; enter `quit` or `exit` to leave. Passing
+a `.sym` path runs the file as a script and prints each visible result as `Out[n]`.
+
 ## License
 
 Symats is free software, licensed under the [GNU General Public License v3.0](LICENSE).

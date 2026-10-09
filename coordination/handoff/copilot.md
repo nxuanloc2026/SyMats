@@ -22,3 +22,12 @@ T-013 native backend result verification. The implementation is in
 
 ## Open questions
 _(Copilot: keep this file updated at every checkpoint.)_
+
+## T-006 checkpoint
+- Existing implementation from Jules provides the interactive REPL and `.sym` runner.
+- Follow-up hardening is in `cli/main.cpp`: shared input execution, whitespace-tolerant
+  `quit`/`exit`, and preserved nonzero script exit status on evaluation errors.
+- README now documents REPL and script usage.
+- Native CMake validation is blocked in this environment because `cmake` and C++
+  compilers are not on PATH; `git diff --check` passes.
+- Committed as `e550173`, pushed as `nxuanloc2026-t006-cli-repl`, and opened PR #28.

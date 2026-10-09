@@ -431,8 +431,26 @@ void install_builtins(Context& ctx) {
 
     // Elementary functions thread over lists; numerical evaluation comes later.
     for (const char* f : {"Sin", "Cos", "Tan", "Cot", "Sec", "Csc", "ArcSin", "ArcCos", "ArcTan",
-                          "Sinh", "Cosh", "Tanh", "Exp", "Log", "Abs"})
+                          "Sinh", "Cosh", "Tanh", "ArcSinh", "ArcCosh", "ArcTanh", "Exp", "Log", "Abs"})
         ctx.set_attributes(f, Listable | Protected);
+
+    // Exact values at 0 (and Log at 1 and E); everything else stays symbolic.
+    for (const char* f : {"Sin", "Tan", "ArcSin", "ArcTan", "Sinh", "Tanh", "ArcSinh", "ArcTanh"})
+        ctx.set_builtin(f, [](const ExprPtr& e, Context&) -> ExprPtr {
+            return e->size() == 1 && e->arg(0)->is_integer() && e->arg(0)->integer().is_zero()
+                ? make_integer(0) : nullptr;
+        });
+    for (const char* f : {"Cos", "Cosh", "Exp"})
+        ctx.set_builtin(f, [](const ExprPtr& e, Context&) -> ExprPtr {
+            return e->size() == 1 && e->arg(0)->is_integer() && e->arg(0)->integer().is_zero()
+                ? make_integer(1) : nullptr;
+        });
+    ctx.set_builtin("Log", [](const ExprPtr& e, Context&) -> ExprPtr {
+        if (e->size() != 1) return nullptr;
+        if (e->arg(0)->is_integer() && e->arg(0)->integer() == Integer(1)) return make_integer(0);
+        if (e->arg(0)->is_symbol("E")) return make_integer(1);
+        return nullptr;
+    });
 
     // Constants and structural heads.
     for (const char* s : {"Pi", "E", "I", "Infinity", "ComplexInfinity", "Indeterminate", "True",

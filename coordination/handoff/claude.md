@@ -76,6 +76,13 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   `verification_status`, so e.g. `Integrate[x^2, {x, 0, 1}]` reports Numeric.
 - Tests: `tests/test_verification.cpp` (4 cases).
 
+### T-010 review (Codex's native D/Expand) — reviewed, fixed in place
+- Behaviour checked on 23 edge cases (chain/product/power rules, x^x, Log[b, x],
+  higher/mixed partials, Expand of powers and products): correct.
+- Fixed: `D[E^x, x]` gave `E^x*Log[E]`; ArcSinh/ArcCosh/ArcTanh had no derivative rules.
+  Added exact values Sin/Tan/.../Exp at 0, Log[1] = 0, Log[E] = 1 (eval.cpp) and made the
+  inverse hyperbolic functions Listable. Tests: `tests/test_elementary.cpp`.
+
 ### T-034 Plot sampling — done (review)
 - `core/include/symats/plot.h`, `core/src/plot.cpp`: `sample_curve` (64 intervals, up to 10
   bisections, tolerance 1e-3 of the robust y range) and the `Plot` built-in (HoldAll; the

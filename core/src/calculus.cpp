@@ -56,7 +56,8 @@ ExprPtr derivative(const ExprPtr& e, const ExprPtr& variable, std::size_t depth)
         if (free_of(exponent, variable))
             return times({exponent, power(base, subtract(exponent, integer(1))), db});
         ExprPtr de = derivative(exponent, variable, depth + 1);
-        return times(e, plus(times(de, fn("Log", base)),
+        ExprPtr log_base = base->is_symbol("E") ? integer(1) : fn("Log", base);
+        return times(e, plus(times(de, log_base),
                              divide(times(exponent, db), base)));
     }
 
@@ -104,6 +105,9 @@ ExprPtr derivative(const ExprPtr& e, const ExprPtr& variable, std::size_t depth)
         else if (h == "ArcCos") outer = negate(power(subtract(integer(1), power(u, integer(2))),
                                                       make_rational(-1, 2)));
         else if (h == "ArcTan") outer = power(plus(integer(1), power(u, integer(2))), integer(-1));
+        else if (h == "ArcSinh") outer = power(plus(integer(1), power(u, integer(2))), make_rational(-1, 2));
+        else if (h == "ArcCosh") outer = power(subtract(power(u, integer(2)), integer(1)), make_rational(-1, 2));
+        else if (h == "ArcTanh") outer = power(subtract(integer(1), power(u, integer(2))), integer(-1));
         else if (h == "Sinh") outer = fn("Cosh", u);
         else if (h == "Cosh") outer = fn("Sinh", u);
         else if (h == "Tanh") outer = power(fn("Cosh", u), integer(-2));

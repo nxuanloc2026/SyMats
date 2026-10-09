@@ -130,6 +130,14 @@ explicit in the highest derivative of each function, with all initial values at 
 `InterpolatingFunction[…][t]` with a number `t` in the domain evaluates to the cubic
 interpolant of the samples; it can be used inside `Plot`.
 
+`NDSolve` also solves PDEs in one space variable by the method of lines:
+`NDSolve[{D[u[x, t], t] == f, u[x, t0] == g, u[x0, t] == a, Derivative[{1, 0}][u][x1, t] == b},
+u, {x, x0, x1}, {t, t0, t1}]` (first or second order in time; `f` may use `u`, its first and
+second space derivatives and, for second order, `D[u, t]`; each end Dirichlet or Neumann).
+The result is a grid `InterpolatingFunction[{{x0, x1}, {t0, t1}}, {xs}, {ts}, {{u, …}, …}]`
+in `u`'s argument order (one row per value of the second argument); `sol[x, t]` evaluates
+by tensor cubic interpolation and works in `Plot3D`, `Plot` and `Animate`.
+
 ### 3.7 Matrices and linear algebra
 
 A matrix is a `List` of row `List`s; a vector is a `List`.

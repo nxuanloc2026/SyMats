@@ -138,3 +138,68 @@ TEST_CASE("Odeint backend through the evaluator") {
     CHECK(r.value->has_head("InterpolatingFunction"));
     if (r.value->has_head("InterpolatingFunction")) CHECK(near(last(r.value), std::exp(-5.0), 1e-9));
 }
+
+namespace {
+// u at (x, t) from a PDE result, through the evaluator.
+double at(const ExprPtr& fn, const char* x, const char* t) {
+    Context ctx;
+    const auto v = evaluate(make_normal(fn, {parse_text(x), parse_text(t)}), ctx);
+    return v->is_number() ? v->number().to_double() : std::nan("");
+}
+const double kPi = std::acos(-1.0);
+
+// Arguments evaluated as the evaluator would (D[u[x, t], t] -> Derivative[{0, 1}][u][x, t]).
+std::optional<BackendResult> solve_evaluated(OdeintBackend& backend, const char* text) {
+    Context ctx;
+    return backend.evaluate(evaluate(parse_text(text), ctx));
+}
+}  // namespace
+
+TEST_CASE("Odeint backend: heat equation by the method of lines") {
+    OdeintBackend backend;
+    const auto r = solve_evaluated(backend,
+        "NDSolve[{D[u[x, t], t] == D[u[x, t], {x, 2}], u[x, 0] == Sin[Pi*x], u[0, t] == 0, u[1, t] == 0},"
+        " u, {x, 0, 1}, {t, 0, 1/2}]");
+    CHECK(r.has_value());
+    if (!r) return;
+    CHECK(r->status == ResultStatus::Numeric);
+    CHECK(r->value->has_head("InterpolatingFunction") && r->value->size() == 4);
+    CHECK(backend.last_method().rfind("MethodOfLines/", 0) == 0);
+    const double exact = std::exp(-kPi * kPi / 2);  // at x = 1/2, t = 1/2
+    CHECK(std::abs(at(r->value, "1/2", "1/2") / exact - 1) < 5e-3);
+    CHECK(std::abs(at(r->value, "1/4", "1/10") - std::exp(-kPi * kPi / 10) * std::sin(kPi / 4)) < 1e-3);
+    CHECK(std::abs(at(r->value, "0", "1/3")) < 1e-9);  // boundary value
+}
+
+TEST_CASE("Odeint backend: wave equation and Neumann boundaries") {
+    OdeintBackend backend;
+    auto r = solve_evaluated(backend,
+        "NDSolve[{D[u[x, t], {t, 2}] == D[u[x, t], {x, 2}], u[x, 0] == Sin[Pi*x],"
+        " Derivative[{0, 1}][u][x, 0] == 0, u[0, t] == 0, u[1, t] == 0}, u, {x, 0, 1}, {t, 0, 1}]");
+    CHECK(r.has_value());
+    if (r) CHECK(std::abs(at(r->value, "1/2", "1") + 1) < 5e-3);  // Cos[Pi t] Sin[Pi x]
+    // Insulated ends: u = Exp[-Pi^2 t] Cos[Pi x]; argument order u[t, x] also works.
+    r = solve_evaluated(backend,
+        "NDSolve[{D[u[t, x], t] == D[u[t, x], {x, 2}], u[0, x] == Cos[Pi*x],"
+        " Derivative[{0, 1}][u][t, 0] == 0, Derivative[{0, 1}][u][t, 1] == 0}, u, {t, 0, 1/10}, {x, 0, 1}]");
+    CHECK(r.has_value());
+    if (r) CHECK(std::abs(at(r->value, "1/10", "0") - std::exp(-kPi * kPi / 10)) < 2e-3);
+}
+
+TEST_CASE("Odeint backend: PDE results evaluate and plot; bad forms decline") {
+    Context ctx;
+    ctx.backends().add(std::make_shared<OdeintBackend>());
+    evaluate(parse_text("sol = NDSolve[{D[u[x, t], t] == D[u[x, t], {x, 2}] + u[x, t]*(1 - u[x, t]),"
+                        " u[x, 0] == x*(1 - x), u[0, t] == 0, u[1, t] == 0}, u, {x, 0, 1}, {t, 0, 1}]"), ctx);
+    CHECK(evaluate(parse_text("sol"), ctx)->has_head("InterpolatingFunction"));
+    const auto g = evaluate(parse_text("Plot3D[sol[x, t], {x, 0, 1}, {t, 0, 1}]"), ctx);
+    CHECK(g->has_head("Graphics3D"));
+    CHECK(g->arg(0)->arg(0)->arg(2)->arg(10)->arg(25)->is_number());  // compiled, not Indeterminate
+    const auto frames = evaluate(parse_text("Animate[Plot[sol[x, t], {x, 0, 1}], {t, 0, 1, 1/4}]"), ctx);
+    CHECK(frames->has_head("Animation") && frames->arg(0)->size() == 5);
+    OdeintBackend backend;
+    CHECK(!solve_evaluated(backend, "NDSolve[{D[u[x, t], t] == D[u[x, t], {x, 2}], u[x, 0] == 0, u[0, t] == 0},"
+                          " u, {x, 0, 1}, {t, 0, 1}]"));  // missing right boundary
+    CHECK(!solve_evaluated(backend, "NDSolve[{D[u[x, t], t] == D[u[x, t], {x, 3}], u[x, 0] == 0, u[0, t] == 0,"
+                          " u[1, t] == 0}, u, {x, 0, 1}, {t, 0, 1}]"));  // third order in x
+}

@@ -58,17 +58,28 @@ struct Samples {
 // Throws Unsupported unless `f` is a well-formed InterpolatingFunction with numeric data.
 std::shared_ptr<const Samples> interpolating_samples(const ExprPtr& f);
 
+// Grid table of InterpolatingFunction[{{x0, x1}, {t0, t1}}, {xs}, {ts}, {{u, ...}, ...}]:
+// values[j][i] = u(xs[i], ts[j]) (one row per t), both axes increasing.
+struct GridSamples {
+    std::vector<double> x, t;
+    std::vector<std::vector<double>> values;
+    // Tensor-product cubic interpolation; NaN outside the grid.
+    double operator()(double at_x, double at_t) const;
+};
+std::shared_ptr<const GridSamples> interpolating_grid(const ExprPtr& f);
+
 class Compiled {
 public:
     double eval(const double* slots) const;
 
-    enum class Op { Const, Slot, Plus, Times, Power, Call1, Call2, Interpolate };
+    enum class Op { Const, Slot, Plus, Times, Power, Call1, Call2, Interpolate, Interpolate2 };
     Op op = Op::Const;
     double value = 0.0;
     std::size_t index = 0;
     Fn1 f1 = nullptr;
     Fn2 f2 = nullptr;
     std::shared_ptr<const Samples> samples;  // Interpolate
+    std::shared_ptr<const GridSamples> grid; // Interpolate2
     std::vector<Compiled> args;
 };
 

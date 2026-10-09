@@ -493,12 +493,16 @@ static ExprPtr evaluated_derivative_application(const ExprPtr& cur,
     return substitute(body, {{name, cur->arg(0)}});
 }
 
-// InterpolatingFunction[{a, b}, data][t] for a number t: the interpolated value.
+// InterpolatingFunction[...][t] (or [x, t] for a grid) at numbers: the interpolated value.
 static ExprPtr interpolated_value(const ExprPtr& cur, const ExprPtr& head) {
-    if (!head->has_head("InterpolatingFunction") || cur->size() != 1 || !cur->arg(0)->is_number())
-        return nullptr;
+    if (!head->has_head("InterpolatingFunction") || cur->size() == 0 || cur->size() > 2) return nullptr;
+    for (const auto& a : cur->args())
+        if (!a->is_number()) return nullptr;
     try {
-        const double v = (*numeric::interpolating_samples(head))(cur->arg(0)->number().to_double());
+        const double v = cur->size() == 1
+            ? (*numeric::interpolating_samples(head))(cur->arg(0)->number().to_double())
+            : (*numeric::interpolating_grid(head))(cur->arg(0)->number().to_double(),
+                                                   cur->arg(1)->number().to_double());
         return std::isfinite(v) ? numeric::decimal(v) : nullptr;
     } catch (const std::exception&) {
         return nullptr;

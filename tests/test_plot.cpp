@@ -166,6 +166,16 @@ TEST_CASE("Animate and Slider pre-sample frames with one PlotRange") {
     CHECK(!run(ctx, "Animate[x + t, {t, 0, 1}]")->has_head("Animation"));  // frames must be plots
 }
 
+TEST_CASE("InterpolatingFunction on a grid: u[x, t]") {
+    Context ctx;
+    // u = x*t sampled on {0, 1, 2} x {0, 1}: exact for the cubic interpolant.
+    run(ctx, "u = InterpolatingFunction[{{0, 2}, {0, 1}}, {0, 1, 2}, {0, 1}, {{0, 0, 0}, {0, 1, 2}}]");
+    CHECK(equal(run(ctx, "u[2, 1]"), parse_text("2")));
+    CHECK(std::abs(num(run(ctx, "u[3/2, 1/2]")) - 0.75) < 1e-12);
+    CHECK(run(ctx, "u[3, 1]")->is_normal());  // outside the grid
+    CHECK(run(ctx, "Plot3D[u[x, t], {x, 0, 2}, {t, 0, 1}]")->has_head("Graphics3D"));
+}
+
 TEST_CASE("Plot sampler: direct use") {
     const auto [pieces, range] = sample_curve([](double x) { return x < 0.5 ? 0.0 : 1.0; }, 0.0, 1.0);
     CHECK(pieces.size() == 2);  // step discontinuity

@@ -13,16 +13,15 @@
 #include <utility>
 #include <vector>
 
-#include <boost/numeric/odeint.hpp>
 
+#include "integrator.h"
+#include "pde.h"
 #include "numeric_expr.h"
 #include "symats/calculus.h"
 
 namespace symats {
 namespace {
-namespace odeint = boost::numeric::odeint;
-using Vector = boost::numeric::ublas::vector<double>;
-using Matrix = boost::numeric::ublas::matrix<double>;
+using namespace odeint_detail;
 
 struct Decline : std::runtime_error {
     Decline() : std::runtime_error("NDSolve form not supported") {}
@@ -178,20 +177,6 @@ Problem extract(const ExprPtr& expr) {
 
 // ------------------------------------------------------------ integration
 
-struct BudgetExceeded : std::runtime_error {
-    BudgetExceeded() : std::runtime_error("NDSolve step budget exceeded") {}
-};
-
-// Counts steps over the whole integration (odeint's max_step_checker resets per sample).
-struct StepBudget {
-    std::size_t* used;
-    std::size_t limit;
-    void operator()() {
-        if (++*used > limit) throw BudgetExceeded();
-    }
-    void reset() {}
-};
-
 // Slot array [t, x0, x1, ...] for Compiled::eval; reused to avoid allocating per call.
 const double* pack(double t, const Vector& x) {
     thread_local std::vector<double> buffer;
@@ -286,26 +271,16 @@ Jacobian make_jacobian(const System& system) {
 }
 
 constexpr std::size_t kSamples = 101;
-constexpr double kAbsTol = 1e-10, kRelTol = 1e-10;
-constexpr std::size_t kExplicitBudget = 20000, kStiffBudget = 200000;
-
-// Integrates from the initial state and records every state component at each sample time.
-template <class Stepper, class Sys>
-std::vector<Vector> integrate(Stepper stepper, Sys sys, Vector x, const std::vector<double>& times,
-                              std::size_t budget) {
-    std::vector<Vector> samples;
-    std::size_t used = 0;
-    odeint::integrate_times(stepper, sys, x, times.begin(), times.end(),
-                            (times.back() - times.front()) / 1000.0,
-                            [&](const Vector& state, double) { samples.push_back(state); },
-                            StepBudget{&used, budget});
-    if (samples.size() != times.size()) throw Decline();
-    return samples;
-}
 
 }  // namespace
 
 std::optional<BackendResult> OdeintBackend::evaluate(const ExprPtr& expr) {
+    if (expr && expr->size() == 4) {  // PDE: two ranges
+        std::string method;
+        auto r = solve_pde(expr, method);
+        if (r) last_method_ = "MethodOfLines/" + method;
+        return r;
+    }
     try {
         const Problem p = extract(expr);
         System system{&p, {}};
@@ -318,19 +293,9 @@ std::optional<BackendResult> OdeintBackend::evaluate(const ExprPtr& expr) {
             times[i] = p.start + (p.finish - p.start) * static_cast<double>(i) / (kSamples - 1);
         times.back() = p.finish;
 
-        std::vector<Vector> samples;
-        std::string method = "DormandPrince";
-        try {
-            samples = integrate(odeint::make_dense_output(kAbsTol, kRelTol,
-                                                          odeint::runge_kutta_dopri5<Vector>()),
-                                system, x0, times, kExplicitBudget);
-        } catch (const BudgetExceeded&) {
-            method = "Rosenbrock";
-            const Jacobian jac = make_jacobian(system);
-            samples = integrate(odeint::make_dense_output(kAbsTol, kRelTol,
-                                                          odeint::rosenbrock4<double>()),
-                                std::make_pair(system, jac), x0, times, kStiffBudget);
-        }
+        std::string method;
+        const std::vector<Vector> samples = solve_switching<System, Jacobian>(
+            system, [&] { return make_jacobian(system); }, x0, times, method);
 
         const auto domain = make_normal("List", {decimal(p.start), decimal(p.finish)});
         ExprList rules;

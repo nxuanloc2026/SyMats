@@ -79,6 +79,15 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   condition is checked (exact, then numeric). Before this, DSolve results never verified.
 - Tests: `tests/test_verification.cpp` (5 cases).
 
+### T-037 PDE NDSolve — done (review)
+- `backend/odeint/pde.{h,cpp}`, reached from OdeintBackend when NDSolve has two ranges.
+  Shared driver moved to `backend/odeint/integrator.h` (budgeted dopri5 -> Rosenbrock;
+  finite-difference Jacobian template).
+- Central differences, ghost nodes for Neumann, Dirichlet nodes driven by a'(t) (a''(t) for
+  wave). Errors O(h^2) with h = L/50 (tests: heat ~2e-3 relative, wave/Neumann < 5e-3).
+- `numeric::GridSamples` / `interpolating_grid` in core + evaluator support for `sol[x, t]`.
+- Not done: 2 space dimensions, systems of PDEs, adaptive/finer grids, Robin conditions.
+
 ### T-036 Integrate fallback chain — done (review)
 - `core/include/symats/native_backend.h`: `NativeBackend` ("native", supports Integrate) and
   `native_antiderivative`. Forms: x^n / (a x + b)^n, 1/(a x + b), c^(a x + b), Exp, Sin, Cos,

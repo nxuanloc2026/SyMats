@@ -2,6 +2,7 @@
 # Copyright (c) 2026 Loc Ngo and Symats contributors
 add_library(symats_odeint_backend
   odeint_backend.cpp
+  pde.cpp
 )
 add_library(symats::odeint_backend ALIAS symats_odeint_backend)
 target_include_directories(symats_odeint_backend PUBLIC

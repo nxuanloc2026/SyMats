@@ -54,26 +54,76 @@ void register_functions(const Functions& extra) {
     for (const auto& [name, fn] : extra.binary) table.binary[name] = fn;
 }
 
-double Samples::operator()(double at) const {
+namespace {
+constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
+
+// Index range [lo, hi) of the (up to) 4 samples around `at`, or false outside the axis.
+bool stencil(const std::vector<double>& t, double at, std::size_t& lo, std::size_t& hi) {
     const std::size_t n = t.size();
-    if (n == 0 || std::isnan(at)) return std::numeric_limits<double>::quiet_NaN();
+    if (n == 0 || std::isnan(at)) return false;
     const double slack = 1e-12 * (1.0 + std::abs(t.back() - t.front()));
-    if (at < t.front() - slack || at > t.back() + slack) return std::numeric_limits<double>::quiet_NaN();
-    if (n == 1) return y[0];
-    // Interval [t[i], t[i+1]] containing `at`, then the 4 nearest samples around it.
-    const std::size_t i = std::min<std::size_t>(
+    if (at < t.front() - slack || at > t.back() + slack) return false;
+    const std::size_t i = n < 2 ? 0 : std::min<std::size_t>(
         n - 2, static_cast<std::size_t>(std::max<std::ptrdiff_t>(
                    0, std::upper_bound(t.begin(), t.end(), at) - t.begin() - 1)));
-    const std::size_t lo = n < 4 ? 0 : std::min(n - 4, i > 0 ? i - 1 : 0);
-    const std::size_t hi = std::min(n, lo + 4);
+    lo = n < 4 ? 0 : std::min(n - 4, i > 0 ? i - 1 : 0);
+    hi = std::min(n, lo + 4);
+    return true;
+}
+
+double lagrange_weight(const std::vector<double>& t, std::size_t lo, std::size_t hi, std::size_t j, double at) {
+    double w = 1.0;
+    for (std::size_t k = lo; k < hi; ++k)
+        if (k != j) w *= (at - t[k]) / (t[j] - t[k]);
+    return w;
+}
+}  // namespace
+
+double Samples::operator()(double at) const {
+    std::size_t lo = 0, hi = 0;
+    if (!stencil(t, at, lo, hi)) return kNaN;
     double sum = 0.0;
-    for (std::size_t j = lo; j < hi; ++j) {
-        double w = 1.0;
-        for (std::size_t k = lo; k < hi; ++k)
-            if (k != j) w *= (at - t[k]) / (t[j] - t[k]);
-        sum += w * y[j];
+    for (std::size_t j = lo; j < hi; ++j) sum += lagrange_weight(t, lo, hi, j, at) * y[j];
+    return sum;
+}
+
+double GridSamples::operator()(double at_x, double at_t) const {
+    std::size_t xlo = 0, xhi = 0, tlo = 0, thi = 0;
+    if (!stencil(x, at_x, xlo, xhi) || !stencil(t, at_t, tlo, thi)) return kNaN;
+    double sum = 0.0;
+    for (std::size_t j = tlo; j < thi; ++j) {
+        const double wt = lagrange_weight(t, tlo, thi, j, at_t);
+        for (std::size_t i = xlo; i < xhi; ++i) sum += wt * lagrange_weight(x, xlo, xhi, i, at_x) * values[j][i];
     }
     return sum;
+}
+
+std::shared_ptr<const GridSamples> interpolating_grid(const ExprPtr& f) {
+    if (!f->has_head("InterpolatingFunction") || f->size() != 4) throw Unsupported();
+    auto g = std::make_shared<GridSamples>();
+    const auto axis = [](const ExprPtr& e, std::vector<double>& out) {
+        if (!e->has_head("List") || e->size() == 0) throw Unsupported();
+        for (const auto& v : e->args()) {
+            if (!v->is_number()) throw Unsupported();
+            const double d = v->number().to_double();
+            if (!out.empty() && !(d > out.back())) throw Unsupported();
+            out.push_back(d);
+        }
+    };
+    axis(f->arg(1), g->x);
+    axis(f->arg(2), g->t);
+    const ExprPtr& rows = f->arg(3);
+    if (!rows->has_head("List") || rows->size() != g->t.size()) throw Unsupported();
+    for (const auto& row : rows->args()) {
+        if (!row->has_head("List") || row->size() != g->x.size()) throw Unsupported();
+        std::vector<double> r;
+        for (const auto& v : row->args()) {
+            if (!v->is_number()) throw Unsupported();
+            r.push_back(v->number().to_double());
+        }
+        g->values.push_back(std::move(r));
+    }
+    return g;
 }
 
 std::shared_ptr<const Samples> interpolating_samples(const ExprPtr& f) {
@@ -110,6 +160,7 @@ double Compiled::eval(const double* slots) const {
     case Op::Call1: return f1(args[0].eval(slots));
     case Op::Call2: return f2(args[0].eval(slots), args[1].eval(slots));
     case Op::Interpolate: return (*samples)(args[0].eval(slots));
+    case Op::Interpolate2: return (*grid)(args[0].eval(slots), args[1].eval(slots));
     }
     return 0.0;
 }
@@ -134,6 +185,13 @@ Compiled compile(const ExprPtr& e, const Slots& slots, const Functions& function
         n.op = Compiled::Op::Interpolate;
         n.samples = interpolating_samples(e->head());
         n.args.push_back(compile(e->arg(0), slots, functions));
+        return n;
+    }
+    if (e->head()->has_head("InterpolatingFunction") && e->size() == 2) {
+        n.op = Compiled::Op::Interpolate2;
+        n.grid = interpolating_grid(e->head());
+        n.args.push_back(compile(e->arg(0), slots, functions));
+        n.args.push_back(compile(e->arg(1), slots, functions));
         return n;
     }
     if (!e->head()->is_symbol()) throw Unsupported();

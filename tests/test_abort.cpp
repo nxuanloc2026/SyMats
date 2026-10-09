@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Loc Ngo and Symats contributors
+#include <atomic>
 #include <chrono>
+#include <memory>
 #include <thread>
 
 #include "symats/eval.h"
@@ -39,4 +41,33 @@ TEST_CASE("Abort: Session stops a long cell from another thread and keeps runnin
     CHECK(!results.back().ok());
     CHECK(equal(session.run(parse_text("a")).output, parse_text("1")));  // definitions kept
     CHECK(session.run(parse_text("b")).output->is_symbol("b"));
+}
+
+namespace {
+// Declines while an abort is requested, like a long-running numeric backend.
+class SlowBackend final : public MathBackend {
+public:
+    std::string name() const override { return "slow"; }
+    bool supports(std::string_view head) const override { return head == "Slow"; }
+    std::optional<BackendResult> evaluate(const ExprPtr&) override {
+        if (backend_abort_requested()) return std::nullopt;
+        return BackendResult{make_integer(42), ResultStatus::Numeric, "slow"};
+    }
+};
+}  // namespace
+
+TEST_CASE("Abort: backends see the flag and the evaluator raises the abort") {
+    Context ctx;
+    ctx.backends().add(std::make_shared<SlowBackend>());
+    CHECK(equal(evaluate(parse_text("Slow[]"), ctx), parse_text("42")));
+    CHECK(!backend_abort_requested());  // only inside backend calls
+    // Flag raised between the evaluator's own check and the backend call is the
+    // realistic case; simulate it with a scope set around a direct evaluation.
+    std::atomic<bool> flag{true};
+    {
+        const BackendAbortScope scope(&flag);
+        CHECK(!SlowBackend().evaluate(parse_text("Slow[]")).has_value());
+    }
+    ctx.request_abort();
+    CHECK_THROWS(evaluate(parse_text("Slow[]"), ctx));
 }

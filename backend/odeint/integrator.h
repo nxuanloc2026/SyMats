@@ -16,6 +16,8 @@
 
 #include <boost/numeric/odeint.hpp>
 
+#include "symats/backend.h"
+
 namespace symats::odeint_detail {
 namespace odeint = boost::numeric::odeint;
 using Vector = boost::numeric::ublas::vector<double>;
@@ -31,6 +33,7 @@ struct StepBudget {
     std::size_t limit;
     void operator()() {
         if (++*used > limit) throw BudgetExceeded();
+        if ((*used & 63) == 0 && backend_abort_requested()) throw std::runtime_error("aborted");
     }
     void reset() {}
 };

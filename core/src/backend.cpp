@@ -47,4 +47,18 @@ std::optional<BackendResult> BackendRegistry::try_evaluate(const ExprPtr& expr) 
     return std::nullopt;
 }
 
+namespace {
+thread_local const std::atomic<bool>* current_abort = nullptr;
+}  // namespace
+
+bool backend_abort_requested() {
+    return current_abort && current_abort->load(std::memory_order_relaxed);
+}
+
+BackendAbortScope::BackendAbortScope(const std::atomic<bool>* flag) : previous_(current_abort) {
+    current_abort = flag;
+}
+
+BackendAbortScope::~BackendAbortScope() { current_abort = previous_; }
+
 }  // namespace symats

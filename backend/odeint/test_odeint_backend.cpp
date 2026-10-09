@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Loc Ngo and Symats contributors
 #include "odeint_backend.h"
 
+#include <atomic>
 #include <cmath>
 #include <memory>
 
@@ -202,4 +203,16 @@ TEST_CASE("Odeint backend: PDE results evaluate and plot; bad forms decline") {
                           " u, {x, 0, 1}, {t, 0, 1}]"));  // missing right boundary
     CHECK(!solve_evaluated(backend, "NDSolve[{D[u[x, t], t] == D[u[x, t], {x, 3}], u[x, 0] == 0, u[0, t] == 0,"
                           " u[1, t] == 0}, u, {x, 0, 1}, {t, 0, 1}]"));  // third order in x
+}
+
+TEST_CASE("Odeint backend: stops when the evaluation is aborted") {
+    std::atomic<bool> flag{true};
+    OdeintBackend backend;
+    {
+        const BackendAbortScope scope(&flag);
+        CHECK(backend_abort_requested());
+        CHECK(!solve(backend, "NDSolve[{y'[x]==-y[x],y[0]==1},y,{x,0,1000}]"));
+    }
+    CHECK(!backend_abort_requested());  // scope restored
+    CHECK(solve(backend, "NDSolve[{y'[x]==-y[x],y[0]==1},y,{x,0,1}]").has_value());
 }

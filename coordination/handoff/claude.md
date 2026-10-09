@@ -86,7 +86,9 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   statement (`StatementResult::aborted`). Plot's point-by-point fallback rethrows aborts.
 - For T-022 (Codex/Copilot): run cells on a worker thread, call `Session::abort()` from the
   UI thread. For cli/ (Copilot): a SIGINT handler may call it (lock-free atomic store).
-  Numeric backends (odeint, quadrature) do not poll the flag yet.
+  Backends: `backend_abort_requested()` (backend.h) is true inside backend calls of an
+  aborted evaluation (thread-local `BackendAbortScope` set by the evaluator); odeint polls it
+  every 64 steps, VEGAS every iteration. Nested 1-3 D quadrature does not (bounded cost).
 
 ### T-037 PDE NDSolve — done (review)
 - `backend/odeint/pde.{h,cpp}`, reached from OdeintBackend when NDSolve has two ranges.

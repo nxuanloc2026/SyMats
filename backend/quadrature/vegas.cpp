@@ -2,6 +2,8 @@
 // Copyright (c) 2026 Loc Ngo and Symats contributors
 #include "vegas.h"
 
+#include "symats/backend.h"
+
 #include <cmath>
 #include <random>
 #include <stdexcept>
@@ -63,6 +65,7 @@ VegasResult vegas(const std::function<double(const double*)>& f, std::size_t dim
     std::vector<double> values, variances;
 
     for (std::size_t it = 0; it < o.iterations; ++it) {
+        if (backend_abort_requested()) throw std::runtime_error("aborted");
         std::vector<std::vector<double>> d(dimension, std::vector<double>(nb, 0.0));
         double sum = 0.0, sum2 = 0.0;
         for (std::size_t s = 0; s < o.samples; ++s) {

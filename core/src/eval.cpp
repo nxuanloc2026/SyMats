@@ -598,7 +598,13 @@ struct EvalStep {
 
         // 3. Backends.
         if (!ctx.backends_.empty()) {
-            if (auto r = ctx.backends_.try_evaluate(cur)) {
+            std::optional<BackendResult> r;
+            {
+                const BackendAbortScope scope(&ctx.abort_);
+                r = ctx.backends_.try_evaluate(cur);
+            }
+            if (ctx.abort_requested()) throw EvaluationAborted();
+            if (r) {
                 ctx.note_status(r->status);
                 if (!equal(r->value, cur)) return {r->value, true};
             }

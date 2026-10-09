@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Loc Ngo and Symats contributors
 #include "quadrature_backend.h"
 
+#include <atomic>
 #include <cmath>
 #include <memory>
 
@@ -94,4 +95,11 @@ TEST_CASE("Quadrature backend through the evaluator") {
     CHECK(r.status == ResultStatus::Numeric);
     CHECK(r.value->is_number());
     if (r.value->is_number()) CHECK(std::abs(r.value->number().to_double() - std::sqrt(kPi) / 2) < 1e-10);
+}
+
+TEST_CASE("Quadrature backend: VEGAS stops when the evaluation is aborted") {
+    QuadratureBackend b;
+    std::atomic<bool> flag{true};
+    const BackendAbortScope scope(&flag);
+    CHECK(!integral(b, "NIntegrate[x*y*z*w, {x, 0, 1}, {y, 0, 1}, {z, 0, 1}, {w, 0, 1}]"));
 }

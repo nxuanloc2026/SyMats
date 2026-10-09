@@ -8,6 +8,7 @@
 // third-party math headers. Everything crosses this boundary as Symats Expr.
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <optional>
 #include <string>
@@ -50,6 +51,23 @@ public:
     // evaluated. Return std::nullopt to decline (e.g. no closed form found).
     // Implementations should not throw; exceptions are treated as declining.
     virtual std::optional<BackendResult> evaluate(const ExprPtr& expr) = 0;
+};
+
+// For long-running backends: true when the user asked to abort the evaluation that
+// called this backend (Context::request_abort). Poll it in loops and decline (return
+// std::nullopt); the evaluator then throws EvaluationAborted.
+bool backend_abort_requested();
+
+// Set by the evaluator around backend calls (one per thread).
+class BackendAbortScope {
+public:
+    explicit BackendAbortScope(const std::atomic<bool>* flag);
+    ~BackendAbortScope();
+    BackendAbortScope(const BackendAbortScope&) = delete;
+    BackendAbortScope& operator=(const BackendAbortScope&) = delete;
+
+private:
+    const std::atomic<bool>* previous_;
 };
 
 // Ordered list of backends. For each expression the first backend that supports

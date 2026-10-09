@@ -35,7 +35,8 @@ bool antiderivative_ok(const char* f) {
 TEST_CASE("Native Integrate: table forms, linearity and expansion") {
     for (const char* f : {"x^3", "3*x^2 + 2*x + 1", "1/x", "x^(-2)", "Sqrt[x]", "Exp[x]", "E^(2*x)",
                           "Sin[3*x]", "Cos[x/2]", "Sinh[x]", "Cosh[2*x + 1]", "2^x", "(2*x + 1)^5",
-                          "1/(3*x - 1)", "a*Sin[x] + b", "(x + 1)*(x - 2)", "(x + 1)^2"})
+                          "1/(3*x - 1)", "a*Sin[x] + b", "(x + 1)*(x - 2)", "(x + 1)^2",
+                          "x*Sin[x]", "x^2*Exp[3*x]", "(x + 1)*Cos[2*x]", "x^3*Sinh[x]", "x*2^x"})
         CHECK(antiderivative_ok(f));
     Run run;
     CHECK(run.same("Integrate[1/(1 + x^2), x]", "ArcTan[x]"));
@@ -49,7 +50,7 @@ TEST_CASE("Native Integrate: table forms, linearity and expansion") {
 TEST_CASE("Native Integrate: declines what it cannot do") {
     Run run;
     CHECK(run("Integrate[Exp[x^2], x]").value->has_head("Integrate"));
-    CHECK(run("Integrate[x*Sin[x], x]").value->has_head("Integrate"));  // needs integration by parts
+    CHECK(run("Integrate[Log[x]^2, x]").value->has_head("Integrate"));  // not in the table
     CHECK(run("Integrate[f[x], x]").value->has_head("Integrate"));
 }
 
@@ -121,4 +122,27 @@ TEST_CASE("Native Limit: substitution and L'Hopital, checked numerically") {
     CHECK(run("Limit[Abs[x]/x, x -> 0]").value->has_head("Limit"));
     CHECK(run("Limit[Sin[a*x]/x, x -> 0]").value->has_head("Limit"));
     CHECK(run("Limit[x, x -> Infinity]").value->has_head("Limit"));
+}
+
+TEST_CASE("Native DSolve: linear constant-coefficient ODEs, verified by substitution") {
+    Run run;
+    CHECK(run.same("DSolve[y'[x] == y[x], y[x], x]", "{{y[x] -> C1*Exp[x]}}"));
+    CHECK(run.same("DSolve[{y'[x] == y[x], y[0] == 2}, y[x], x]", "{{y[x] -> 2*Exp[x]}}"));
+    CHECK(run.same("DSolve[{y''[x] + y[x] == 0, y[0] == 0, y'[0] == 1}, y[x], x]", "{{y[x] -> Sin[x]}}"));
+    auto r = run("DSolve[y''[x] - 3*y'[x] + 2*y[x] == 0, y, x]");  // roots 1 and 2
+    CHECK(r.value->has_head("List") && r.status == ResultStatus::Exact);
+    r = run("DSolve[y''[x] + 2*y'[x] + y[x] == 0, y[x], x]");  // double root -1
+    CHECK(r.value->has_head("List") && r.status == ResultStatus::Exact);
+    r = run("DSolve[{y''[x] + 2*y'[x] + 5*y[x] == 10, y[0] == 2, y'[0] == 0}, y[x], x]");  // damped, forced
+    CHECK(r.value->has_head("List"));
+    r = run("DSolve[y'[x] + 2*y[x] == x, y[x], x]");  // first order with forcing
+    CHECK(r.value->has_head("List") && r.status != ResultStatus::Unverified);
+    CHECK(run.same("DSolve[y'[x] == 3, y[x], x]", "{{y[x] -> C1 + 3*x}}"));
+    // A constant name already in use is skipped.
+    CHECK(run.same("DSolve[y'[x] == C1*y[x], y[x], x]", "{{y[x] -> C2*Exp[C1*x]}}") ||
+          run("DSolve[y'[x] == C1*y[x], y[x], x]").value->has_head("DSolve"));
+    // Not handled natively: nonlinear, variable coefficients, non-constant forcing of order 2.
+    CHECK(run("DSolve[y'[x] == y[x]^2, y[x], x]").value->has_head("DSolve"));
+    CHECK(run("DSolve[y'[x] == x*y[x], y[x], x]").value->has_head("DSolve"));
+    CHECK(run("DSolve[y''[x] + y[x] == Sin[x], y[x], x]").value->has_head("DSolve"));
 }

@@ -131,6 +131,12 @@ Claude is back. Branch `claude/great-heisenberg-mwf0uy`.
   verifies (verification_status != Unverified).
 - Also `Limit[f, x -> a]` (finite numeric a): substitution or L'Hopital on 0/0, kept only if
   f is numerically within 1e-3 of it on both sides.
+- Integration by parts for polynomial times Exp/Sin/Cos/Sinh/Cosh/c^u of a linear argument.
+- Also `DSolve[eqns, y[x], x]`: linear, constant numeric coefficients; order 1 with any
+  forcing the native integrator handles (integrating factor), order 2 with constant forcing
+  (real / double / complex characteristic roots); fresh constants C1, C2; conditions
+  `y[x0] == v`, `y'[x0] == v` solved as a linear system. Kept only if the DSolve verifier
+  passes.
 - Fixed canonical arithmetic: `0*ComplexInfinity` and `0*Infinity` give `Indeterminate` (was 0, so
   `Sin[x]/x /. x -> 0` gave 0), `Infinity - Infinity` gives `Indeterminate`, infinities absorb
   finite terms, Indeterminate absorbs everything.

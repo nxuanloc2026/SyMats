@@ -95,8 +95,46 @@ ExprPtr squared_trig(const ExprPtr& f, const ExprPtr& x) {
     return nullptr;
 }
 
+ExprPtr antiderivative(const ExprPtr& f, const ExprPtr& x, int depth);
+
+bool zero_integer(const ExprPtr& e) { return e->is_integer() && e->integer().is_zero(); }
+
+bool polynomial(const ExprPtr& e, const ExprPtr& x) {
+    if (free_of(e, x) || equal(e, x)) return true;
+    if (e->has_head("Power") && e->size() == 2)
+        return e->arg(1)->is_integer() && e->arg(1)->integer().sign() > 0 && polynomial(e->arg(0), x);
+    if (e->has_head("Plus") || e->has_head("Times")) {
+        for (const auto& a : e->args())
+            if (!polynomial(a, x)) return false;
+        return true;
+    }
+    return false;
+}
+
+// Integral of P[x] g[a x + b] with P a polynomial and g one of Exp, Sin, Cos, Sinh, Cosh
+// (or c^(a x + b)): P G - Integral[P' G], until the polynomial is used up.
+ExprPtr by_parts(const ExprPtr& f, const ExprPtr& x, int depth) {
+    if (!f->has_head("Times")) return nullptr;
+    ExprList poly, rest;
+    for (const auto& factor : f->args()) (polynomial(factor, x) ? poly : rest).push_back(factor);
+    if (poly.empty() || rest.size() != 1) return nullptr;
+    const ExprPtr& g = rest[0];
+    const bool kind = (g->is_normal() && g->size() == 1 &&
+                       (g->has_head("Exp") || g->has_head("Sin") || g->has_head("Cos") ||
+                        g->has_head("Sinh") || g->has_head("Cosh"))) ||
+                      (g->has_head("Power") && g->size() == 2 && free_of(g->arg(0), x));
+    if (!kind) return nullptr;
+    const ExprPtr G = basic(g, x);
+    if (!G) return nullptr;
+    const ExprPtr P = times(std::move(poly));
+    const ExprPtr dP = simplify(differentiate(P, x));
+    if (zero_integer(dP)) return times(P, G);
+    const ExprPtr rest_integral = antiderivative(simplify(expand(times(dP, G))), x, depth + 1);
+    return rest_integral ? subtract(times(P, G), rest_integral) : nullptr;
+}
+
 ExprPtr antiderivative(const ExprPtr& f, const ExprPtr& x, int depth) {
-    if (depth > 8) return nullptr;
+    if (depth > 12) return nullptr;
     if (free_of(f, x)) return times(f, x);
     if (f->has_head("Plus")) {
         ExprList terms;
@@ -117,6 +155,7 @@ ExprPtr antiderivative(const ExprPtr& f, const ExprPtr& x, int depth) {
     }
     if (ExprPtr F = basic(f, x)) return F;
     if (ExprPtr F = squared_trig(f, x)) return F;
+    if (ExprPtr F = by_parts(f, x, depth)) return F;
     // Products and powers of sums: expand and try term by term.
     const ExprPtr expanded = expand(f);
     if (!equal(expanded, f)) return antiderivative(expanded, x, depth + 1);
@@ -406,12 +445,153 @@ std::optional<BackendResult> limit(const ExprPtr& expr) {
     if (!av || !lv || !numeric_limit_ok(f, x, *av, *lv)) return std::nullopt;
     return BackendResult{value, ResultStatus::Exact, "native"};
 }
+// ---------------------------------------------------------------- DSolve
+
+// y[x], y'[x], y''[x] -> slot symbols Y0, Y1, Y2; anything else involving y declines.
+ExprPtr ode_slots(const ExprPtr& e, const std::string& y, const ExprPtr& x, bool& ok) {
+    if (e->is_normal() && e->size() == 1 && equal(e->arg(0), x)) {
+        if (e->head()->is_symbol(y)) return make_symbol("ode`Y0");
+        const ExprPtr& h = e->head();
+        if (h->is_normal() && h->size() == 1 && h->arg(0)->is_symbol(y) && h->head()->has_head("Derivative") &&
+            h->head()->size() == 1 && h->head()->arg(0)->is_integer()) {
+            const auto k = h->head()->arg(0)->integer().to_int64();
+            if (k && *k >= 1 && *k <= 2) return make_symbol("ode`Y" + std::to_string(*k));
+        }
+    }
+    if (e->is_symbol(y)) ok = false;
+    if (!e->is_normal()) return e;
+    ExprList args;
+    for (const auto& a : e->args()) args.push_back(ode_slots(a, y, x, ok));
+    return make_normal(ode_slots(e->head(), y, x, ok), std::move(args));
+}
+
+ExprPtr fresh_constant(const ExprPtr& request, int& next) {
+    while (true) {
+        ExprPtr c = make_symbol("C" + std::to_string(next++));
+        if (free_of(request, c)) return c;
+    }
+}
+
+// General solution of a2 y'' + a1 y' + a0 y == g (numeric a's) with constants C.
+ExprPtr general_solution(const ExprList& a, const ExprPtr& g, const ExprPtr& x, const ExprList& c) {
+    const auto e = [&](const ExprPtr& r) { return fn("Exp", times(r, x)); };
+    if (a.size() == 2) {  // a1 y' + a0 y == g: integrating factor
+        const ExprPtr r = simplify(divide(a[0], a[1]));
+        const ExprPtr F = native_antiderivative(simplify(divide(times(e(r), g), a[1])), x);
+        if (!F) return nullptr;
+        return times(e(negate(r)), plus(c[0], F));
+    }
+    if (!free_of(g, x)) return nullptr;  // second order: constant forcing only
+    ExprPtr particular;
+    if (!is_zero_expr(a[0])) particular = divide(g, a[0]);
+    else if (!is_zero_expr(a[1])) particular = divide(times(g, x), a[1]);
+    else particular = divide(times(g, power(x, make_integer(2))), times(make_integer(2), a[2]));
+    const ExprPtr disc = simplify(subtract(power(a[1], make_integer(2)), times({make_integer(4), a[2], a[0]})));
+    const auto d = number(disc);
+    if (!d) return nullptr;
+    const ExprPtr two_a = times(make_integer(2), a[2]);
+    ExprPtr homogeneous;
+    if (*d > 0) {
+        const ExprPtr root = power(disc, make_rational(1, 2));
+        homogeneous = plus(times(c[0], e(divide(subtract(negate(a[1]), root), two_a))),
+                           times(c[1], e(divide(plus(negate(a[1]), root), two_a))));
+    } else if (*d == 0) {
+        homogeneous = times(plus(c[0], times(c[1], x)), e(divide(negate(a[1]), two_a)));
+    } else {
+        const ExprPtr alpha = divide(negate(a[1]), two_a);
+        const ExprPtr beta = simplify(divide(power(negate(disc), make_rational(1, 2)), two_a));
+        const ExprPtr bx = times(beta, x);
+        homogeneous = times(e(alpha), plus(times(c[0], fn("Cos", bx)), times(c[1], fn("Sin", bx))));
+    }
+    return plus(homogeneous, particular);
+}
+
+std::optional<BackendResult> dsolve(const ExprPtr& expr) {
+    ExprPtr target = expr->arg(1);
+    const ExprPtr& x = expr->arg(2);
+    if (!x->is_symbol()) return std::nullopt;
+    if (target->is_normal() && target->size() == 1 && equal(target->arg(0), x)) target = target->head();
+    if (!target->is_symbol()) return std::nullopt;
+    const std::string& y = target->name();
+    const ExprList eqs = expr->arg(0)->has_head("List") ? expr->arg(0)->args() : ExprList{expr->arg(0)};
+
+    std::optional<ExprPtr> ode;
+    ExprList conditions;
+    for (const auto& eq : eqs) {
+        if (!eq->has_head("Equal") || eq->size() != 2) return std::nullopt;
+        bool ok = true;
+        const ExprPtr p = ode_slots(subtract(eq->arg(0), eq->arg(1)), y, x, ok);
+        if (ok && !free_of(p, make_symbol("ode`Y0")) + !free_of(p, make_symbol("ode`Y1")) +
+                      !free_of(p, make_symbol("ode`Y2")) > 0) {
+            if (ode) return std::nullopt;  // one ODE only
+            ode = p;
+        } else {
+            conditions.push_back(eq);  // checked below by substitution
+        }
+    }
+    if (!ode) return std::nullopt;
+    // Coefficients: numbers; forcing g free of y.
+    ExprList a;
+    const ExprPtr Y[3] = {make_symbol("ode`Y0"), make_symbol("ode`Y1"), make_symbol("ode`Y2")};
+    int order = free_of(*ode, Y[2]) ? 1 : 2;
+    for (int k = 0; k <= order; ++k) {
+        const ExprPtr ak = simplify(differentiate(*ode, Y[k]));
+        if (!ak->is_number()) return std::nullopt;  // nonlinear or variable coefficients
+        a.push_back(ak);
+    }
+    if (is_zero_expr(a[order])) return std::nullopt;
+    const ExprPtr g = simplify(negate(substitute(*ode, {{"ode`Y0", make_integer(0)}, {"ode`Y1", make_integer(0)},
+                                                        {"ode`Y2", make_integer(0)}})));
+    int next = 1;
+    ExprList c;
+    for (int k = 0; k < order; ++k) c.push_back(fresh_constant(expr, next));
+    ExprPtr general = general_solution(a, g, x, c);
+    if (!general) return std::nullopt;
+    general = simplify(general);
+
+    if (!conditions.empty()) {  // y[x0] == v, y'[x0] == v: a linear system for the constants
+        if (conditions.size() > static_cast<std::size_t>(order)) return std::nullopt;
+        ExprList polys, vars(c.begin(), c.end());
+        const ExprPtr dgeneral = simplify(differentiate(general, x));
+        for (const auto& eq : conditions) {
+            const ExprPtr& lhs = eq->arg(0);
+            ExprPtr at, body;
+            if (lhs->is_normal() && lhs->size() == 1 && lhs->head()->is_symbol(y)) {
+                at = lhs->arg(0);
+                body = general;
+            } else if (lhs->is_normal() && lhs->size() == 1 && lhs->head()->is_normal() &&
+                       lhs->head()->size() == 1 && lhs->head()->arg(0)->is_symbol(y) &&
+                       equal(lhs->head()->head(), make_normal("Derivative", {make_integer(1)}))) {
+                at = lhs->arg(0);
+                body = dgeneral;
+            } else {
+                return std::nullopt;
+            }
+            if (!free_of(at, x)) return std::nullopt;
+            polys.push_back(subtract(substitute(body, {{x->name(), at}}), eq->arg(1)));
+        }
+        // Constants not fixed by conditions stay free.
+        ExprList used(vars.begin(), vars.begin() + static_cast<std::ptrdiff_t>(polys.size()));
+        const auto sol = polys.size() == 1 ? solve_one(polys[0], used[0]) : solve_linear_system(polys, used);
+        if (!sol || (*sol)->size() != 1) return std::nullopt;
+        Bindings b;
+        for (const auto& r : (*sol)->arg(0)->args()) b[r->arg(0)->name()] = r->arg(1);
+        general = simplify(substitute(general, b));
+    }
+    const ExprPtr result = make_normal("List", {make_normal("List", {make_normal("Rule", {
+        make_normal(target, {x}), general})})});
+    const ResultStatus checked = verification_status(expr, result);
+    if (checked == ResultStatus::Unverified) return std::nullopt;
+    return BackendResult{result, checked == ResultStatus::Verified ? ResultStatus::Exact : checked, "native"};
+}
+
 }  // namespace
 
 std::optional<BackendResult> NativeBackend::evaluate(const ExprPtr& expr) {
     if (expr && expr->has_head("Limit") && expr->size() == 2) return limit(expr);
     if (expr && expr->has_head("Series") && expr->size() == 2) return taylor(expr);
     if (expr && expr->has_head("Solve") && expr->size() == 2) return solve(expr);
+    if (expr && expr->has_head("DSolve") && expr->size() == 3) return dsolve(expr);
     if (!expr || !expr->has_head("Integrate") || expr->size() != 2) return std::nullopt;
     const ExprPtr& f = expr->arg(0);
     const ExprPtr& range = expr->arg(1);

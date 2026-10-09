@@ -19,6 +19,11 @@
 //
 // Limit[f, x -> a] for a finite numeric a: substitution where f is continuous, else
 // L'Hopital on 0/0 quotients; kept only if f is numerically close to it on both sides.
+//
+// DSolve[eqns, y[x], x] for linear ODEs with constant numeric coefficients: first order
+// with any integrable forcing (integrating factor), second order with constant forcing
+// (characteristic roots: real, double or complex), constants C1, C2 (fresh names), and
+// initial conditions y[x0] == v, y'[x0] == v. Checked by substituting into every equation.
 #pragma once
 
 #include <optional>
@@ -33,7 +38,8 @@ class NativeBackend final : public MathBackend {
 public:
     std::string name() const override { return "native"; }
     bool supports(std::string_view head) const override {
-        return head == "Integrate" || head == "Series" || head == "Solve" || head == "Limit";
+        return head == "Integrate" || head == "Series" || head == "Solve" || head == "Limit" ||
+               head == "DSolve";
     }
     std::optional<BackendResult> evaluate(const ExprPtr& expr) override;
 };

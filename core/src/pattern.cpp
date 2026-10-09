@@ -206,8 +206,8 @@ bool match_flat_orderless(const ExprList& ps, std::size_t i, const ExprList& es,
         }
         if (!matched) continue;
 
-        used = std::move(candidate_used);
-        if (match_flat_orderless(ps, i + 1, es, used, head, trial)) {
+        if (match_flat_orderless(ps, i + 1, es, candidate_used, head, trial)) {
+            used = std::move(candidate_used);
             b = std::move(trial);
             return true;
         }

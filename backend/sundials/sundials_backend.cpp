@@ -11,6 +11,7 @@
 #include <nvector/nvector_serial.h>
 #include <sunlinsol/sunlinsol_dense.h>
 #include <sunmatrix/sunmatrix_dense.h>
+#include <sundials/sundials_config.h>
 #include <sundials/sundials_context.h>
 #include <sundials/sundials_types.h>
 
@@ -43,6 +44,8 @@ double numeric(const ExprPtr& e, const Problem& p) {
     if (e->size() == 1 && e->arg(0)->is_normal() &&
         e->arg(0)->head()->is_symbol() &&
         e->arg(0)->head()->name() == p.dependent->name()) return p.state;
+    if (head == p.dependent->name() && e->size() == 1 &&
+        equal(e->arg(0), p.independent)) return p.state;
     if (head == "Plus") {
         double result = 0.0;
         for (const auto& arg : e->args()) result += numeric(arg, p);
@@ -124,6 +127,16 @@ std::optional<BackendResult> solve(const ExprPtr& expr) {
             if (!call->is_normal() || !call->head()->is_symbol() ||
                 call->head()->name() != problem.dependent->name() || call->size() != 1 ||
                 !equal(call->arg(0), problem.independent)) return std::nullopt;
+        // y'[x] parses as Derivative[1][y][x]: lhs = (Derivative[1][y])[x].
+        if (lhs->is_normal() && lhs->size() == 1 && lhs->head()->is_normal() &&
+            lhs->head()->size() == 1 && lhs->head()->head()->has_head("Derivative") &&
+            lhs->head()->head()->size() == 1) {
+            const auto& order = lhs->head()->head()->arg(0);
+            if (!order->is_integer() ||
+                order->integer().to_int64() != std::optional<long long>(1)) return std::nullopt;
+            const auto& function = lhs->head()->arg(0);
+            if (!function->is_symbol() || function->name() != problem.dependent->name() ||
+                !equal(lhs->arg(0), problem.independent)) return std::nullopt;
             problem.rhs = equation->arg(1);
         } else if (lhs->is_normal() && lhs->head()->is_symbol() &&
                    lhs->head()->name() == problem.dependent->name() && lhs->size() == 1 &&
@@ -142,6 +155,12 @@ std::optional<BackendResult> solve(const ExprPtr& expr) {
     communicator = SUN_COMM_NULL;
 #endif
     if (SUNContext_Create(communicator, &resources.context) != 0) return std::nullopt;
+    // SUNDIALS 7 takes a SUNComm; 6.x (Ubuntu's package) takes a void* communicator.
+#if SUNDIALS_VERSION_MAJOR >= 7
+    if (SUNContext_Create(SUN_COMM_NULL, &resources.context) != 0) return std::nullopt;
+#else
+    if (SUNContext_Create(nullptr, &resources.context) != 0) return std::nullopt;
+#endif
     resources.state = N_VNew_Serial(1, resources.context);
     resources.cvode = CVodeCreate(CV_BDF, resources.context);
     if (!resources.state || !resources.cvode) return std::nullopt;
@@ -159,6 +178,9 @@ std::optional<BackendResult> solve(const ExprPtr& expr) {
     ExprList points;
     points.reserve(samples);
     for (std::size_t i = 0; i < samples; ++i) {
+    // CVODE rejects tout == t0, so the first sample is the initial condition itself.
+    points.push_back(make_normal("List", {decimal(start), decimal(problem.state)}));
+    for (std::size_t i = 1; i < samples; ++i) {
         const double target = start + (finish - start) * static_cast<double>(i) / (samples - 1);
         sunrealtype reached = target;
         if (CVode(resources.cvode, target, resources.state, &reached, CV_NORMAL) < 0)

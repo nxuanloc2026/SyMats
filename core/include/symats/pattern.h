@@ -14,8 +14,8 @@
 // A sequence match is bound as Sequence[a1, a2, ...]; Sequence is spliced into the
 // argument list of the enclosing expression on substitution.
 //
-// v1 matching is structural on canonical trees. Flat/Orderless-aware matching
-// (e.g. a_ + b_ against a three-term sum) is a follow-up task.
+// Matching respects the Flat/Orderless semantics of Plus and Times, including
+// grouping multiple target terms for a single pattern argument.
 #pragma once
 
 #include <map>

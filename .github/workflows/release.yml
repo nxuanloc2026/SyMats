@@ -1,0 +1,51 @@
+name: Release Windows Software
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  package-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Web App Front-End
+        run: |
+          cd app
+          npm install
+          npm run build
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DSYMATS_BUILD_CLI=ON -DSYMATS_BUILD_KERNEL=ON -DSYMATS_BUILD_TESTS=OFF
+
+      - name: Build C++ Software Executables
+        run: cmake --build build --config Release --parallel
+
+      - name: Create Windows Software Distribution Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist-windows/symats
+          Copy-Item "build/cli/Release/symats-cli.exe" "dist-windows/symats/" -ErrorAction SilentlyContinue
+          Copy-Item "build/cli/symats-cli.exe" "dist-windows/symats/" -ErrorAction SilentlyContinue
+          Copy-Item "build/kernel/Release/symats_kernel.exe" "dist-windows/symats/" -ErrorAction SilentlyContinue
+          Copy-Item "build/kernel/symats_kernel.exe" "dist-windows/symats/" -ErrorAction SilentlyContinue
+          Copy-Item "run-symats.bat" "dist-windows/symats/"
+          Copy-Item "README.md" "dist-windows/symats/"
+          Copy-Item -Recurse "app/dist" "dist-windows/symats/app/dist"
+          Compress-Archive -Path "dist-windows/symats/*" -DestinationPath "symats-windows-x64.zip"
+
+      - name: Upload Windows Software Package Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: symats-windows-x64
+          path: symats-windows-x64.zip

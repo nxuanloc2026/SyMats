@@ -22,3 +22,18 @@ T-013 native backend result verification. The implementation is in
 
 ## Open questions
 _(Copilot: keep this file updated at every checkpoint.)_
+
+## T-018 takeover
+- Claimed T-018 because Claude is out of usage and the task is in the core lane.
+- Branch: `nxuanloc2026-t018-flat-orderless-pattern-matching`.
+- Implemented Flat/Orderless matching for `Plus` and `Times` in `core/src/pattern.cpp`.
+- Added focused `Plus` tests covering multi-term bindings, literal-plus-pattern matching, and arity failure.
+- Merged in PR #29.
+
+## T-006 REPL
+- Implemented interactive REPL and script runner in `cli/main.cpp`.
+- Merged in PR #28.
+
+## T-015 SUNDIALS/NDSolve
+- Implemented `SundialsBackend` for `NDSolve` numerical ODE solving in `backend/sundials/` using CVODE/IDA.
+- Merged in PR #30.

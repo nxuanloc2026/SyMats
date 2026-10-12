@@ -36,3 +36,13 @@ The CMake target is `third_party::giac`. Its public headers and GMP/MPFR link
 dependencies are propagated to consumers. The `giac-smoke` test links the
 static library and checks a basic exact expression; Symats' existing tests run
 alongside it. The Giac build is opt-in until the Expr bridge in T-012 uses it.
+
+## SUNDIALS
+
+The optional CVODE backend uses SUNDIALS 6.x from the system or package manager.
+Configure with `-DSYMATS_USE_SUNDIALS=ON`; CMake locates the CVODE, serial
+N_Vector, dense matrix, dense linear solver, and core libraries. On Debian/Ubuntu
+install `libsundials-dev`; on Windows install the `sundials` vcpkg port.
+The current adapter supports scalar first-order `NDSolve` requests and returns
+an `InterpolatingFunction` sample table. Samples are represented as decimal
+rationals until the core gains a floating-point `Expr` kind.

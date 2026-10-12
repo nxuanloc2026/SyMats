@@ -7,6 +7,7 @@
 #include "symats/pattern.h"
 
 #include <stdexcept>
+#include <vector>
 
 namespace symats {
 
@@ -56,6 +57,8 @@ bool head_ok(const Expr& blank_node, const Expr& e) {
 }
 
 bool match_args(const ExprList& ps, std::size_t i, const ExprList& es, std::size_t j, Bindings& b);
+bool match_flat_orderless(const ExprList& ps, std::size_t i, const ExprList& es,
+                          std::vector<bool>& used, const ExprPtr& head, Bindings& b);
 
 bool bind(const std::string& name, const ExprPtr& value, Bindings& b) {
     auto it = b.find(name);
@@ -130,12 +133,97 @@ bool match(const ExprPtr& p, const ExprPtr& e, Bindings& bindings) {
 
     Bindings trial = bindings;
     if (!match(p->head(), e->head(), trial)) return false;
-    if (!match_args(p->args(), 0, e->args(), 0, trial)) return false;
+    const bool flat_orderless = p->head()->is_symbol() &&
+                               (p->head()->is_symbol("Plus") || p->head()->is_symbol("Times"));
+    if (flat_orderless) {
+        std::vector<bool> used(e->size(), false);
+        if (!match_flat_orderless(p->args(), 0, e->args(), used, p->head(), trial)) return false;
+    } else if (!match_args(p->args(), 0, e->args(), 0, trial)) {
+        return false;
+    }
     bindings = std::move(trial);
     return true;
 }
 
 namespace {
+
+ExprPtr grouped(const ExprPtr& head, const ExprList& terms) {
+    if (terms.size() == 1) return terms.front();
+    return make_normal(head, terms);
+}
+
+bool all_head_ok(const Expr& blank_node, const ExprList& terms) {
+    for (const auto& term : terms)
+        if (!head_ok(blank_node, *term)) return false;
+    return true;
+}
+
+struct FlatChoice {
+    ExprList terms;
+    std::vector<bool> used;
+};
+
+void collect_flat_terms(const ExprList& es, std::size_t start, std::size_t count,
+                        const std::vector<bool>& used, ExprList& selected,
+                        std::vector<FlatChoice>& choices) {
+    if (selected.size() == count) {
+        choices.push_back({selected, used});
+        return;
+    }
+    for (std::size_t i = start; i < es.size(); ++i) {
+        if (used[i]) continue;
+        std::vector<bool> next_used = used;
+        next_used[i] = true;
+        selected.push_back(es[i]);
+        collect_flat_terms(es, i + 1, count, next_used, selected, choices);
+        selected.pop_back();
+    }
+}
+
+bool match_flat_orderless(const ExprList& ps, std::size_t i, const ExprList& es,
+                          std::vector<bool>& used, const ExprPtr& head, Bindings& b) {
+    if (i == ps.size()) {
+        for (bool selected : used)
+            if (!selected) return false;
+        return true;
+    }
+
+    const SeqInfo info = sequence_info(ps[i]);
+    std::size_t remaining = 0;
+    for (bool selected : used)
+        if (!selected) ++remaining;
+    const std::size_t min_len = info.is_sequence ? info.min_len : 1;
+    const std::size_t max_len = remaining;
+
+    for (std::size_t len = min_len; len <= max_len; ++len) {
+        std::vector<FlatChoice> choices;
+        ExprList selected;
+        collect_flat_terms(es, 0, len, used, selected, choices);
+        for (auto& choice : choices) {
+            if (info.is_sequence && !all_head_ok(*info.blank, choice.terms)) continue;
+
+            ExprPtr value = grouped(head, choice.terms);
+            Bindings trial = b;
+            bool matched = false;
+            if (info.is_sequence) {
+                if (!info.name.empty())
+                    matched = bind(info.name, make_normal(sym_sequence(), choice.terms), trial);
+                else
+                    matched = true;
+            } else {
+                matched = match(ps[i], value, trial);
+            }
+            if (!matched) continue;
+
+            if (match_flat_orderless(ps, i + 1, es, choice.used, head, trial)) {
+                used = std::move(choice.used);
+                b = std::move(trial);
+                return true;
+            }
+        }
+    }
+    return false;
+}
 
 bool match_args(const ExprList& ps, std::size_t i, const ExprList& es, std::size_t j, Bindings& b) {
     if (i == ps.size()) return j == es.size();

@@ -24,6 +24,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgmp-dev libmpfr-dev flex bison
+          sudo apt-get install -y libsundials-dev
 
       - name: Prepare Windows dependency manager
         if: runner.os == 'Windows'
@@ -59,7 +60,7 @@ jobs:
               throw "$port download checksum mismatch"
             }
           }
-          ./vcpkg/vcpkg.exe install gmp:x64-windows mpfr:x64-windows
+          ./vcpkg/vcpkg.exe install gmp:x64-windows mpfr:x64-windows sundials:x64-windows
 
       - name: Install Windows parser generators
         if: runner.os == 'Windows'
@@ -75,7 +76,7 @@ jobs:
 
       - name: Configure on Linux
         if: runner.os == 'Linux'
-        run: cmake -S . -B build-giac -DCMAKE_BUILD_TYPE=Release -DSYMATS_USE_GIAC=ON
+        run: cmake -S . -B build-giac -DCMAKE_BUILD_TYPE=Release -DSYMATS_USE_GIAC=ON -DSYMATS_USE_SUNDIALS=ON
 
       - name: Configure, build, and test on Windows
         if: runner.os == 'Windows'
@@ -88,6 +89,7 @@ jobs:
           $ninja = "$vsPath/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe"
           cmake -S . -B build-giac -G Ninja `
             -DSYMATS_USE_GIAC=ON `
+            -DSYMATS_USE_SUNDIALS=ON `
             -DCMAKE_BUILD_TYPE=Debug `
             "-DCMAKE_MAKE_PROGRAM=$ninja" `
             "-DCMAKE_TOOLCHAIN_FILE=$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `

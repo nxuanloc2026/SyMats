@@ -12,6 +12,7 @@ add_library(symats_core
   src/calculus.cpp
   src/verification.cpp
   src/session.cpp
+  src/vegas.cpp
 )
 add_library(symats::core ALIAS symats_core)
 

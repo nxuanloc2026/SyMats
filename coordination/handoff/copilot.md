@@ -54,6 +54,15 @@ _(Copilot: keep this file updated at every checkpoint.)_
 - Branch: `nxuanloc2026-t018-flat-orderless-pattern-matching`.
 - Implemented Flat/Orderless matching for `Plus` and `Times` in `core/src/pattern.cpp`.
 - Added focused `Plus` tests covering multi-term bindings, literal-plus-pattern matching, and arity failure.
+- Merged in PR #29.
+
+## T-006 REPL
+- Implemented interactive REPL and script runner in `cli/main.cpp`.
+- Merged in PR #28.
+
+## T-015 SUNDIALS/NDSolve
+- Implemented `SundialsBackend` for `NDSolve` numerical ODE solving in `backend/sundials/` using CVODE/IDA.
+- Merged in PR #30.
 - Local CMake/compiler tools are unavailable, so `git diff --check` is the local validation performed.
 - Committed as `f3b5fff`, pushed branch `nxuanloc2026-t018-flat-orderless-pattern-matching`, and opened PR #29.
 - CI is the remaining build/test validation.

@@ -1,0 +1,73 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (c) 2026 Loc Ngo and Symats contributors */
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; color: #242528; background: #fff; }
+button, input { font: inherit; }
+button { border: 0; color: inherit; background: transparent; cursor: pointer; }
+button:focus-visible, input:focus-visible, .cm-focused { outline: 2px solid #597baf; outline-offset: 2px; }
+.topbar { height: 48px; border-bottom: 1px solid #e7e7e7; display: flex; align-items: center;
+  justify-content: space-between; gap: 1rem; padding: 0 24px; position: sticky; top: 0;
+  z-index: 2; background: inherit; }
+.notebook-name { width: min(35vw, 280px); border: 0; padding: 5px 0; background: transparent;
+  font-weight: 600; text-overflow: ellipsis; }
+.topbar nav { display: flex; align-items: center; gap: 4px; }
+.topbar button { min-width: 34px; min-height: 34px; border-radius: 4px; }
+.topbar button:hover, .cell-controls button:hover, #menu button:hover { background: #f0f0f0; }
+.layout { max-width: 1160px; margin: 0 auto; display: flex; align-items: flex-start; }
+#cells { width: min(100%, 870px); min-height: calc(100vh - 48px); padding: 36px 28px 120px; }
+.cell { position: relative; display: grid; grid-template-columns: 78px minmax(0,1fr);
+  padding: 8px 4px 13px 0; border-left: 2px solid transparent; }
+.cell:hover, .cell:focus-within { border-left-color: #b7bdc6; }
+.gutter { color: #9398a0; font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+  text-align: right; padding: 7px 12px 0 0; white-space: nowrap; }
+.cell-content { min-width: 0; }
+.editor, .math-editor { min-height: 26px; }
+.cm-editor { background: transparent; font: 14px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.cm-editor .cm-content { padding: 3px 0; }
+.cm-editor.cm-focused { outline: none; }
+.cm-gutters { display: none; }
+.math-editor { display: none; }
+.math-mode .editor { display: none; }
+.math-mode .math-editor { display: block; }
+math-field { width: 100%; border: 0; padding: 1px 0; background: transparent;
+  font-size: 19px; --caret-color: #2c5ea5; }
+.outputs { padding-top: 4px; }
+.output { display: grid; grid-template-columns: 78px minmax(0,1fr); margin-left: -78px;
+  min-height: 27px; }
+.output-body { min-width: 0; padding: 3px 0 4px; overflow-x: auto;
+  font-family: 'STIX Two Math', 'KaTeX_Main', serif; }
+.output .katex { font-size: 1.12em; }
+.error { color: #af3e3e; font: 13px/1.5 ui-monospace, Consolas, monospace;
+  padding: 4px 0 4px 78px; white-space: pre-wrap; }
+.status { color: #92969b; font: 11px system-ui, sans-serif; margin-left: 8px; }
+.cell-controls { position: absolute; right: 5px; top: -19px; display: flex; gap: 1px;
+  opacity: 0; pointer-events: none; background: inherit; }
+.cell:hover .cell-controls, .cell:focus-within .cell-controls { opacity: 1; pointer-events: auto; }
+.cell-controls button { padding: 3px 7px; color: #69717c; font-size: 11px; border-radius: 3px; }
+.cell.busy::after { content: ''; width: 5px; height: 5px; border-radius: 50%;
+  background: #697b9c; position: absolute; left: -3px; top: 15px; animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+#workspace { border-left: 1px solid #e7e7e7; min-width: 240px; padding: 20px;
+  color: #555; font-size: 13px; }
+#workspace h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+#workspace ul { list-style: none; padding: 0; font-family: ui-monospace, Consolas, monospace; }
+#workspace li { padding: 4px 0; }
+#menu { position: fixed; z-index: 3; right: 20px; top: 45px; padding: 5px;
+  border: 1px solid #ddd; box-shadow: 0 4px 16px #0001; background: #fff; }
+#menu button { display: block; width: 100%; text-align: left; padding: 8px 12px; }
+.text .input-gutter { visibility: hidden; }
+@media (max-width: 650px) {
+  .topbar { padding: 0 9px; } #cells { padding: 20px 8px 90px; }
+  .cell { grid-template-columns: 52px minmax(0,1fr); }
+  .gutter { font-size: 10px; padding-right: 7px; }
+  .output { grid-template-columns: 52px minmax(0,1fr); margin-left: -52px; }
+  #workspace { position: fixed; right: 0; top: 48px; bottom: 0; background: #fff; z-index: 2; }
+}
+@media (prefers-color-scheme: dark) {
+  body { color: #e6e7e9; background: #1d1e20; }
+  .topbar, #workspace { border-color: #393b40; }
+  .topbar button:hover, .cell-controls button:hover, #menu button:hover { background: #303237; }
+  #menu, #workspace { background: #1d1e20; border-color: #393b40; }
+  .gutter, .status { color: #8a9099; } .error { color: #ef9999; }
+}

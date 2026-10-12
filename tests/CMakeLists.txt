@@ -15,6 +15,10 @@ add_executable(symats_tests
   test_session.cpp
   test_operators.cpp
   test_mathics_semantics.cpp
+  test_bridge.cpp
+  test_nintegrate.cpp
+  ../backend/odeint/test_odeint_backend.cpp
 )
-target_link_libraries(symats_tests PRIVATE symats::core symats::convert)
+target_include_directories(symats_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(symats_tests PRIVATE symats::core symats::convert symats::bridge symats::backend_odeint)
 add_test(NAME symats_tests COMMAND symats_tests)

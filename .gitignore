@@ -37,6 +37,8 @@ ipch/
 
 # vcpkg
 vcpkg_installed/
+app/node_modules/
+app/dist/
 
 # Editors / OS
 .vscode/

@@ -26,6 +26,14 @@ Sqrt[2] * Sqrt[2]  => 2
 
 Next: complete Tier 1 text operators and the notebook UI, then calculus.
 
+## Download and Run on Windows
+
+1. Download **`symats-windows-x64.zip`** located directly in the root of the repository (or from [GitHub Releases / Actions](https://github.com/nxuanloc2026/Symats/actions)).
+2. Extract the `.zip` archive to any folder on your PC.
+3. Double-click **`run-symats.bat`**:
+   - Opens the **Symats Bare Notebook UI** in your default web browser (`app/dist/index.html`).
+   - Launches the interactive **Symats REPL & Engine** (`symats-cli.exe`).
+
 ## Build
 
 Requirements: a C++20 compiler and CMake 3.20+. No other dependencies yet.

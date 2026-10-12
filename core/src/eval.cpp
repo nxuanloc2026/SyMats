@@ -8,6 +8,7 @@
 // Algebraic Computation", Academic Press, 1988, ch. 1-2.
 #include "symats/eval.h"
 #include "symats/calculus.h"
+#include "symats/vegas.h"
 
 #include <algorithm>
 #include <utility>
@@ -277,6 +278,11 @@ void install_builtins(Context& ctx) {
         return e->size() == 1 ? expand(e->arg(0)) : nullptr;
     });
     ctx.set_attributes("Expand", Protected);
+
+    ctx.set_builtin("NIntegrate", [](const ExprPtr& e, Context& c) -> ExprPtr {
+        return evaluate_nintegrate(e, c);
+    });
+    ctx.set_attributes("NIntegrate", HoldAll | Protected);
 
     // Assignment.
     ctx.set_builtin("Set", [](const ExprPtr& e, Context& c) -> ExprPtr {

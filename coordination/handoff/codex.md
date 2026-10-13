@@ -21,8 +21,9 @@ and outstanding notebook host requirement.
 Local validation: MSVC Release build and the full symats_tests CTest target passed;
 repeat archive creation and extracted script execution from a path with spaces
 passed; missing and invalid executable inputs were rejected. dumpbin reports only
-KERNEL32.dll for the packaged CLI, confirming the static runtime. Next: open PR
-and verify the hosted Windows release job before human merge.
+KERNEL32.dll for the packaged CLI, confirming the static runtime. PR #33:
+https://github.com/nxuanloc2026/SyMats/pull/33. Hosted checks are pending;
+verify the Windows release job before human merge.
 
 ## Reconcile Jules completion report (2026-10-06 18:35 UTC)
 

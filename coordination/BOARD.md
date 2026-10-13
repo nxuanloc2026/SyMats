@@ -14,6 +14,7 @@ scope of every task on this board.
 
 | ID | Task | Lane | Owner | Backup | Status | Blocks | Flags | Updated (UTC) |
 |----|------|------|-------|--------|--------|--------|-------|---------------|
+| T-034 | Repair Windows release packaging, validate extracted CLI and document notebook host limitation | build/CI | Codex | Copilot | in-progress | Windows release | | 2026-10-13 03:55 |
 | T-008 | Install Git + C++ workload; build in VS 2022; push repo to GitHub — built in VS 2026, pushed, CI green | setup | Loc | — | done | T-004, T-005, all cloud work | | 2026-10-02 |
 | T-003 | Decide: `=` means assignment (Set) or equation (Equal)? **Decided: `=` → `Set`, `==` → `Equal`, `:=` → `SetDelayed`** (spec updated) | spec | Loc | — | done | | | 2026-10-02 |
 | T-031 | Canonical Tier 1 text syntax: square bracket calls, capitalized built-ins, curly brace lists/matrices; align printer, tests, docs and future tasks — merged (PR #15) | convert/spec | Codex | Claude | done | T-019, T-020, T-024 | | 2026-10-05 17:12 |

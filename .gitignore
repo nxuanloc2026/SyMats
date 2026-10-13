@@ -39,6 +39,8 @@ ipch/
 vcpkg_installed/
 app/node_modules/
 app/dist/
+dist-windows/
+/symats-windows-*.zip
 
 # Editors / OS
 .vscode/

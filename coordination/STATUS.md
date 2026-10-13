@@ -17,4 +17,4 @@ States: `active`, `idle`, `out — resets <time>`.
 | Copilot   | idle | T-006 CLI REPL follow-up submitted for review in PR #28 | 2026-10-09 03:05 | |
 | Jules   | active | Completed remaining tasks: T-006, T-020, T-023, T-024, T-027, T-028, T-030 | 2026-10-08 | |
 | princearwan-code | idle | Assigned combined task T-032 (Jupyter kernel, tests/oracles, and Mathics3 semantics audit) | 2026-10-05 | |
-| Codex | active | T-034 Windows release packaging repair | 2026-10-13 03:55 | |
+| Codex | idle | T-034 PR #33 open; local tests passed, hosted CI pending | 2026-10-13 04:02 | |

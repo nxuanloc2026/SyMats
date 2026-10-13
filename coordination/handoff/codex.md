@@ -1,5 +1,30 @@
 # Handoff — Codex
 
+## T-034 Windows release repair (2026-10-13 03:55 UTC)
+
+Claimed `codex/fix-windows-release` from main b88afca. The release job failed
+because the ZIP is checked into the repository and Compress-Archive refuses
+to overwrite it. The checked-in ZIP also lacks executables. Plan: generate a
+validated archive in ignored build output, test its extracted CLI, run packaging
+on PRs, and remove the obsolete binary from source control. Anchor the launcher
+to its own directory and launch the working CLI. The notebook UI still requires
+a desktop/server host providing window.symatsHost; packaging alone cannot make
+the raw HTML connect to the engine. Document this explicitly. No engine API change.
+
+Implementation complete: the release workflow builds/tests the static-runtime x64
+CLI, packages it via scripts/package-windows.ps1, repeats packaging to guard against
+the original overwrite failure, and runs scripts/test-windows-package.ps1 against
+the extracted launcher. Missing/invalid executables fail packaging. The old ZIP
+is removed and future archives are ignored. The README describes the CLI package
+and outstanding notebook host requirement.
+
+Local validation: MSVC Release build and the full symats_tests CTest target passed;
+repeat archive creation and extracted script execution from a path with spaces
+passed; missing and invalid executable inputs were rejected. dumpbin reports only
+KERNEL32.dll for the packaged CLI, confirming the static runtime. PR #33:
+https://github.com/nxuanloc2026/SyMats/pull/33. Hosted checks are pending;
+verify the Windows release job before human merge.
+
 ## Reconcile Jules completion report (2026-10-06 18:35 UTC)
 
 Loc reports that Jules finished the work. Fetched all remote branches and
